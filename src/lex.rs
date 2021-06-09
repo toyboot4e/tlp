@@ -2,7 +2,9 @@
 `&str` -> `Vec<Token>`
 */
 
-use thiserror::Error;
+mod tk;
+
+pub use tk::{Token, TokenKind};
 
 use crate::span::ByteSpan;
 
@@ -15,53 +17,33 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
     Lexer::lex(src)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TokenKind {
-    Ws,
-    // ----------------------------------------
-    // Symbols
-    /// `(`
-    ParenOpen,
-    /// `)`
-    ParenClose,
-    // ----------------------------------------
-    // ?
-    Ident,
-    // ----------------------------------------
-    // literals
-    /// `true`
-    True,
-    /// `false`
-    False,
-    /// `nil`
-    Nil,
-    /// `"`
-    StrEnclosure,
-    StrContent,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Token {
-    pub sp: ByteSpan,
-    pub kind: TokenKind,
-}
-
-impl Token {
-    pub fn slice<'a>(&self, src: &'a str) -> &'a str {
-        self.sp.slice(src)
-    }
-}
-
+/// Stateful lexer
 struct Lexer<'a> {
+    /// Source string slice referenced as bytes
+    ///
+    /// Because we're only interested in ASCII characters while lexing, we're stroing the source
+    /// string as bytes.
     src: &'a [u8],
     /// Span of the source code currently handled
     sp: ByteSpan,
+    /// Output tokens
+    ///
+    /// Token as return value makes the lexing difficult when we want to lex multiple tokens at
+    /// once. Instead, we're storing tokens in this field and some lexing methods will mutate it.
     tks: Vec<Token>,
 }
 
 #[inline]
 fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t')
+}
+
+fn is_digit(c: u8) -> bool {
+    !(c < b'0' || b'9' < c)
+}
+
+fn is_num_body(c: u8) -> bool {
+    is_digit(c) || matches!(c, b'.' | b'E' | b'_')
 }
 
 #[inline]
@@ -110,19 +92,19 @@ impl<'a> Lexer<'a> {
                 break;
             }
 
-            self.advance()?;
+            self.lex_forward()?;
         }
 
         Ok(self.tks)
     }
 
-    fn advance(&mut self) -> Result<(), LexError> {
-        if let Some(tk) = self.tk_one_byte() {
+    fn lex_forward(&mut self) -> Result<(), LexError> {
+        if let Some(tk) = self.lex_one_byte() {
             self.tks.push(tk);
             return Ok(());
         }
 
-        if let Some(tk) = self.tk_ws() {
+        if let Some(tk) = self.lex_ws() {
             self.tks.push(tk);
             return Ok(());
         }
@@ -131,14 +113,40 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline]
-    fn tk_one_byte(&mut self) -> Option<Token> {
+    fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.lo];
 
         self::tk_byte(c).map(|kind| self.consume_span_as(kind))
     }
 
     #[inline]
-    fn tk_ws(&mut self) -> Option<Token> {
+    fn lex_ws(&mut self) -> Option<Token> {
+        let c = self.src[self.sp.lo];
+        if !is_ws(c) {
+            return None;
+        }
+
+        while self.sp.hi < self.src.len() {
+            self.sp.hi += 1;
+
+            let c = &self.src[self.sp.hi];
+
+            if !self::is_ws(*c) {
+                break;
+            }
+        }
+
+        Some(self.consume_span_as(TokenKind::Ws))
+    }
+
+    fn lex_num(&mut self) -> Option<Token> {
+        let c = self.src[self.sp.lo];
+        todo!()
+    }
+
+    /// [^0-9][^ \t\n]*
+    #[inline]
+    fn lex_ident(&mut self) -> Option<Token> {
         let c = self.src[self.sp.lo];
         if !is_ws(c) {
             return None;
