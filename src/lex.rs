@@ -91,6 +91,7 @@ impl<'a> Lexer<'a> {
 
             // return if it's finished
             if self.sp.hi > self.src.len() {
+            if self.sp.lo >= self.src.len() {
                 break;
             }
 
