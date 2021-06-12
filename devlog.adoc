@@ -1,0 +1,32 @@
+= Toy Lisp devlog
+:glsp: https://gamelisp.rs/[GameLisp]
+:snowrl: https://github.com/toyboot4e/snowrl[SnowrL]
+:cr: https://craftinginterpreters.com/contents.html[Crafting Interpreters]
+:toy-scheme: https://github.com/toyboot4e/toy-scheme[toy-scheme]
+
+== Background
+
+I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: Toy Lisp (`tp`).
+
+I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs package in ELisp ({toy-scheme}), but I know little about Lisp, so I'll have to struggle a lot.
+
+== Devlog
+
+=== Bytecode virtual machine
+
+* Jun 9, 2021
++
+I added a WIP lexer (tokenizer) which converts given string (`&str`) into a vector of tokens.
++
+** The lexer handles non-streaming input/output or simplicity.
+** The lexer handles UTF-8 string as byte a byte slice because we're only interested in ASCII characters while lexing.
+
+* Jun 12, 2021
++
+Nice resource from `rustc` dev guide: https://rustc-dev-guide.rust-lang.org/the-parser.html[Lexing and Parsing]
+
+=== TODOs
+
+* Integration in my game?
+* `serde`?
+
