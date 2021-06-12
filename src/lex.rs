@@ -165,7 +165,22 @@ impl<'a> Lexer<'a> {
             return Ok(());
         }
 
-        if let Some(tk) = self.lex_ident() {
+        if let Some(mut tk) = self.lex_ident() {
+            // override the token kind with reserved keyword tokens
+            let s: &str = unsafe { std::str::from_utf8_unchecked(self.src) };
+            match tk.sp.slice(s) {
+                "true" => {
+                    tk.kind = TokenKind::True;
+                }
+                "false" => {
+                    tk.kind = TokenKind::False;
+                }
+                "nil" => {
+                    tk.kind = TokenKind::Nil;
+                }
+                _ => {}
+            }
+
             self.tks.push(tk);
             return Ok(());
         }
@@ -318,6 +333,22 @@ mod test {
                     sp: ByteSpan { lo: 6, hi: 7 },
                 },
             ]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn nil() -> Result<(), LexError> {
+        let src = "nil";
+        let tks = crate::lex::lex(src)?;
+
+        assert_eq!(
+            tks,
+            vec![Token {
+                kind: TokenKind::Nil,
+                sp: ByteSpan { lo: 0, hi: 3 },
+            }],
         );
 
         Ok(())

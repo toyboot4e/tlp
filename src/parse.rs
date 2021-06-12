@@ -27,12 +27,48 @@ pub enum ParseError {
 
 pub fn lex_and_parse(src: &str) -> Result<Ast, ParseError> {
     let tks = crate::lex::lex(src)?;
-    let ast = self::parse(&tks)?;
-    Ok(ast)
+    self::parse(src, &tks)
 }
 
-pub fn parse(_tks: &[Token]) -> Result<Ast, ParseError> {
-    todo!()
+pub fn parse(src: &str, tks: &[Token]) -> Result<Ast, ParseError> {
+    Parser::new(src, tks).parse()
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct PosSpan {
+    lo: usize,
+    hi: usize,
+}
+
+#[derive(Debug, Clone)]
+struct Parser<'a> {
+    src: &'a str,
+    tks: &'a [Token],
+    sp: PosSpan,
+    ast: Ast,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(src: &'a str, tks: &'a [Token]) -> Self {
+        Self {
+            src,
+            tks,
+            sp: PosSpan::default(),
+            ast: Ast::default(),
+        }
+    }
+
+    pub fn parse(mut self) -> Result<Ast, ParseError> {
+        while self.sp.lo < self.tks.len() {
+            self.ps_sexp()?;
+        }
+
+        Ok(self.ast)
+    }
+
+    pub fn ps_sexp(&mut self) -> Result<(), ParseError> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
