@@ -172,7 +172,10 @@ impl<'a> Lexer<'a> {
 
         Err(LexError::Unreachable { sp: self.sp })
     }
+}
 
+/// Lexing utilities
+impl<'a> Lexer<'a> {
     #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.hi];
@@ -185,27 +188,39 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn lex_syntax(
+        &mut self,
+        start: &impl Fn(u8) -> bool,
+        body: &impl Fn(u8) -> bool,
+        kind: TokenKind,
+    ) -> Option<Token> {
+        self.advance_if(start)?;
+        self.advance_while(body);
+        Some(self.consume_span_as(kind))
+    }
+}
+
+/// Lexing syntax
+impl<'a> Lexer<'a> {
     #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
-        self.advance_if(&self::is_ws)?;
-        self.advance_while(&self::is_ws);
-        Some(self.consume_span_as(TokenKind::Ws))
+        self.lex_syntax(&self::is_ws, &self::is_ws, TokenKind::Ws)
     }
 
     /// [0-9]<num>*
     #[inline(always)]
     fn lex_num(&mut self) -> Option<Token> {
-        self.advance_if(&self::is_num_start)?;
-        self.advance_while(&self::is_num_body);
-        Some(self.consume_span_as(TokenKind::Num))
+        self.lex_syntax(&self::is_num_start, &self::is_num_body, TokenKind::Num)
     }
 
     /// [^<ws>]*
     #[inline(always)]
     fn lex_ident(&mut self) -> Option<Token> {
-        self.advance_if(&self::is_ident_start)?;
-        self.advance_while(&self::is_ident_body);
-        Some(self.consume_span_as(TokenKind::Ident))
+        self.lex_syntax(
+            &self::is_ident_start,
+            &self::is_ident_body,
+            TokenKind::Ident,
+        )
     }
 }
 
