@@ -2,8 +2,6 @@
 
 use crate::span::ByteSpan;
 
-use thiserror::Error;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
     Ws,

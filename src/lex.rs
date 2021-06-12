@@ -33,20 +33,22 @@ struct Lexer<'a> {
     tks: Vec<Token>,
 }
 
-#[inline]
+#[inline(always)]
 fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t')
 }
 
+#[inline(always)]
 fn is_digit(c: u8) -> bool {
     !(c < b'0' || b'9' < c)
 }
 
+#[inline(always)]
 fn is_num_body(c: u8) -> bool {
     is_digit(c) || matches!(c, b'.' | b'E' | b'_')
 }
 
-#[inline]
+#[inline(always)]
 fn tk_byte(c: u8) -> Option<TokenKind> {
     let kind = match c {
         b'(' => TokenKind::ParenOpen,
@@ -98,6 +100,7 @@ impl<'a> Lexer<'a> {
         Ok(self.tks)
     }
 
+    #[inline(always)]
     fn lex_forward(&mut self) -> Result<(), LexError> {
         if let Some(tk) = self.lex_one_byte() {
             self.tks.push(tk);
@@ -112,14 +115,14 @@ impl<'a> Lexer<'a> {
         todo!()
     }
 
-    #[inline]
+    #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.lo];
 
         self::tk_byte(c).map(|kind| self.consume_span_as(kind))
     }
 
-    #[inline]
+    #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
         let c = self.src[self.sp.lo];
         if !is_ws(c) {
@@ -139,13 +142,18 @@ impl<'a> Lexer<'a> {
         Some(self.consume_span_as(TokenKind::Ws))
     }
 
+    /// [0-9]<num>*
+    #[inline(always)]
     fn lex_num(&mut self) -> Option<Token> {
         let c = self.src[self.sp.lo];
+        if !self::is_digit(c) {
+            return None;
+        }
         todo!()
     }
 
-    /// [^0-9][^ \t\n]*
-    #[inline]
+    /// [^0-9]<ws>*
+    #[inline(always)]
     fn lex_ident(&mut self) -> Option<Token> {
         let c = self.src[self.sp.lo];
         if !is_ws(c) {
