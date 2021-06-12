@@ -7,16 +7,34 @@ use crate::{
     span::ByteSpan,
 };
 
+/// Toy Lisp representation of a source file
 #[derive(Debug, Clone, Default)]
-pub struct Ast {
-    pub(super) ss: Vec<S>,
+pub struct TlpFile {
+    /// Items just under the file
+    pub items: Vec<S>,
 }
 
 /// S-expression
 #[derive(Debug, Clone, PartialEq)]
 pub enum S {
-    Literal(Lit),
+    Lit(Lit),
+    Call(Call),
+    // Var(Var),
 }
+
+macro_rules! from_ty {
+    ($($ty:ident),* $(,)?) => {
+        $(
+            impl From<$ty> for S {
+                fn from(x: $ty) -> S {
+                    S::$ty(x)
+                }
+            }
+        )*
+    };
+}
+
+from_ty!(Lit, Call,);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lit {
@@ -26,7 +44,7 @@ pub struct Lit {
 
 impl Lit {
     /// Creates [`Lit`] WITHOUT ensuring it's valid literal
-    pub fn from_tk(tk: Token) -> Option<Self> {
+    pub fn from_tk(tk: &Token) -> Option<Self> {
         Some(Self {
             kind: LitKind::from_tk_kind(tk.kind)?,
             sp: tk.sp,
@@ -58,4 +76,11 @@ impl LitKind {
             TokenKind::Ident => None,
         }
     }
+}
+
+/// Function call
+#[derive(Debug, Clone, PartialEq)]
+pub struct Call {
+    pub ident: ByteSpan,
+    pub args: Vec<S>,
 }

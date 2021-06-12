@@ -124,7 +124,7 @@ impl<'a> Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
-        let mut me = Lexer {
+        let me = Lexer {
             src: src.as_bytes(),
             sp: Default::default(),
             tks: vec![],
