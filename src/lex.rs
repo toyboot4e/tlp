@@ -86,11 +86,9 @@ impl<'a> Lexer<'a> {
 
     fn lex_impl(mut self) -> Result<Vec<Token>, LexError> {
         loop {
-            // include the first byte to the span
-            self.sp.hi += 1;
+            self.sp.hi = self.sp.lo;
 
             // return if it's finished
-            if self.sp.hi > self.src.len() {
             if self.sp.lo >= self.src.len() {
                 break;
             }
@@ -118,14 +116,19 @@ impl<'a> Lexer<'a> {
 
     #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
-        let c = self.src[self.sp.lo];
+        let c = self.src[self.sp.hi];
 
-        self::tk_byte(c).map(|kind| self.consume_span_as(kind))
+        if let Some(kind) = self::tk_byte(c) {
+            self.sp.hi += 1;
+            Some(self.consume_span_as(kind))
+        } else {
+            None
+        }
     }
 
     #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
-        let c = self.src[self.sp.lo];
+        let c = self.src[self.sp.hi];
         if !is_ws(c) {
             return None;
         }
@@ -146,8 +149,8 @@ impl<'a> Lexer<'a> {
     /// [0-9]<num>*
     #[inline(always)]
     fn lex_num(&mut self) -> Option<Token> {
-        let c = self.src[self.sp.lo];
-        if !self::is_digit(c) {
+        let current = self.src[self.sp.hi];
+        if !self::is_digit(current) {
             return None;
         }
         todo!()
