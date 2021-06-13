@@ -211,4 +211,39 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn recursion() -> Result<(), ParseError> {
+        let src = "(+ 1 (* 2 3))";
+        //         0 2 4 6 8 0 2
+        let file = crate::parse::parse(src)?;
+
+        assert_eq!(
+            file.items,
+            vec![S::from(Call {
+                ident: ByteSpan { lo: 1, hi: 2 },
+                args: vec![
+                    S::from(Lit {
+                        kind: LitKind::Num,
+                        sp: ByteSpan { lo: 3, hi: 4 },
+                    }),
+                    S::from(Call {
+                        ident: ByteSpan { lo: 6, hi: 7 },
+                        args: vec![
+                            S::from(Lit {
+                                kind: LitKind::Num,
+                                sp: ByteSpan { lo: 8, hi: 9 },
+                            }),
+                            S::from(Lit {
+                                kind: LitKind::Num,
+                                sp: ByteSpan { lo: 10, hi: 11 },
+                            }),
+                        ]
+                    })
+                ]
+            })]
+        );
+
+        Ok(())
+    }
 }
