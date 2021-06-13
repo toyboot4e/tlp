@@ -246,7 +246,7 @@ mod test {
     #[test]
     fn one_byte_tokens() -> Result<(), LexError> {
         let src = "(\")";
-        let tks = crate::lex::lex(src)?;
+        let tks = crate::parse::lex::lex(src)?;
 
         assert_eq!(
             tks,
@@ -272,7 +272,7 @@ mod test {
     #[test]
     fn ws() -> Result<(), LexError> {
         let src = "( \n)";
-        let tks = crate::lex::lex(src)?;
+        let tks = crate::parse::lex::lex(src)?;
 
         assert_eq!(
             tks,
@@ -299,7 +299,7 @@ mod test {
     fn num() -> Result<(), LexError> {
         let src = "(* 1 3)";
         //         0 2 4 6
-        let tks = crate::lex::lex(src)?;
+        let tks = crate::parse::lex::lex(src)?;
 
         assert_eq!(
             tks,
@@ -341,7 +341,7 @@ mod test {
     #[test]
     fn nil() -> Result<(), LexError> {
         let src = "nil";
-        let tks = crate::lex::lex(src)?;
+        let tks = crate::parse::lex::lex(src)?;
 
         assert_eq!(
             tks,

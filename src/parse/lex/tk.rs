@@ -2,6 +2,7 @@
 
 use crate::span::ByteSpan;
 
+/// Syntactic kind of Toy Lisp code
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenKind {
     Ws,
@@ -30,6 +31,7 @@ pub enum TokenKind {
     StrContent,
 }
 
+/// Span of source text with syntactic kind
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub sp: ByteSpan,

@@ -6,7 +6,7 @@
 
 == Background
 
-I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: Toy Lisp (`tp`).
+I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: Toy Lisp (`tlp`).
 
 I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs package in ELisp ({toy-scheme}), but I know little about Lisp, so I'll have to struggle a lot.
 

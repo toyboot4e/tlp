@@ -1,15 +1,17 @@
 /*!
-`Vec<Token>` -> `Vec<S>`
+`&str` → `Vec<Token>` → `Vec<ast::S>`
 */
 
-mod ast;
-
-pub use ast::*;
+pub mod ast;
+pub mod lex;
 
 use thiserror::Error;
 
 use crate::{
-    lex::{LexError, Token, TokenKind},
+    parse::{
+        ast::*,
+        lex::{LexError, Token, TokenKind},
+    },
     span::ByteSpan,
 };
 
@@ -29,12 +31,14 @@ pub enum ParseError {
     Unexpected { expected: String, found: String },
 }
 
-pub fn lex_and_parse(src: &str) -> Result<TlpFile, ParseError> {
-    let tks = crate::lex::lex(src)?;
-    self::parse(src, &tks)
+/// `&str` → [`TlpFile`]
+pub fn parse(src: &str) -> Result<TlpFile, ParseError> {
+    let tks = self::lex::lex(src)?;
+    self::parse_tks(src, &tks)
 }
 
-pub fn parse(src: &str, tks: &[Token]) -> Result<TlpFile, ParseError> {
+/// `&str` → `Vec<Token>`
+pub fn parse_tks(src: &str, tks: &[Token]) -> Result<TlpFile, ParseError> {
     FileParse::parse(src, tks)
 }
 
@@ -186,7 +190,7 @@ mod test {
     fn add() -> Result<(), ParseError> {
         let src = "(+ 1 2)";
         //         0 2 4 6
-        let file = crate::parse::lex_and_parse(src)?;
+        let file = crate::parse::parse(src)?;
 
         assert_eq!(
             file.items,
