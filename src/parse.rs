@@ -1,19 +1,27 @@
 /*!
-`&str` → `Vec<Token>` → `Vec<ast::S>`
+`Vec<Token>` → `Vec<ast::S>`
 */
 
 pub mod ast;
-pub mod lex;
 
 use thiserror::Error;
 
 use crate::{
-    parse::{
-        ast::*,
-        lex::{LexError, Token, TokenKind},
-    },
+    lex::{self, LexError, Token, TokenKind},
+    parse::ast::*,
     span::ByteSpan,
 };
+
+/// `&str` → [`TlpFile`]
+pub fn parse(src: &str) -> Result<TlpFile, ParseError> {
+    let tks = lex::lex(src)?;
+    self::parse_tks(src, &tks)
+}
+
+/// `Vec<Token>` → [`TlpFile`]
+pub fn parse_tks(src: &str, tks: &[Token]) -> Result<TlpFile, ParseError> {
+    FileParse::parse(src, tks)
+}
 
 #[derive(Debug, Clone, Error)]
 pub enum ParseError {
@@ -29,17 +37,6 @@ pub enum ParseError {
     Eof,
     #[error("Expected {expected}, found {found}")]
     Unexpected { expected: String, found: String },
-}
-
-/// `&str` → [`TlpFile`]
-pub fn parse(src: &str) -> Result<TlpFile, ParseError> {
-    let tks = self::lex::lex(src)?;
-    self::parse_tks(src, &tks)
-}
-
-/// `&str` → `Vec<Token>`
-pub fn parse_tks(src: &str, tks: &[Token]) -> Result<TlpFile, ParseError> {
-    FileParse::parse(src, tks)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

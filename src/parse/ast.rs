@@ -3,7 +3,7 @@ Abstract syntax tree, spans in a hierarchy
 */
 
 use crate::{
-    parse::lex::{Token, TokenKind},
+    lex::{Token, TokenKind},
     span::ByteSpan,
 };
 

@@ -10,15 +10,16 @@ use thiserror::Error;
 
 use crate::span::ByteSpan;
 
+/// `&str` -> `Vec<Token>`
+pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
+    Lexer::lex(src)
+}
+
 #[derive(Debug, Clone, Error)]
 pub enum LexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
-}
-
-pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
-    Lexer::lex(src)
 }
 
 /// Stateful lexer
@@ -246,7 +247,7 @@ mod test {
     #[test]
     fn one_byte_tokens() -> Result<(), LexError> {
         let src = "(\")";
-        let tks = crate::parse::lex::lex(src)?;
+        let tks = lex(src)?;
 
         assert_eq!(
             tks,
@@ -272,7 +273,7 @@ mod test {
     #[test]
     fn ws() -> Result<(), LexError> {
         let src = "( \n)";
-        let tks = crate::parse::lex::lex(src)?;
+        let tks = lex(src)?;
 
         assert_eq!(
             tks,
@@ -299,7 +300,7 @@ mod test {
     fn num() -> Result<(), LexError> {
         let src = "(* 1 3)";
         //         0 2 4 6
-        let tks = crate::parse::lex::lex(src)?;
+        let tks = lex(src)?;
 
         assert_eq!(
             tks,
@@ -341,7 +342,7 @@ mod test {
     #[test]
     fn nil() -> Result<(), LexError> {
         let src = "nil";
-        let tks = crate::parse::lex::lex(src)?;
+        let tks = lex(src)?;
 
         assert_eq!(
             tks,
