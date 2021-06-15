@@ -12,16 +12,7 @@ use crate::{
     span::ByteSpan,
 };
 
-/// `&str` → [`TlpFile`]
-pub fn parse(src: &str) -> Result<TlpFile, ParseError> {
-    let tks = lex::lex(src)?;
-    self::parse_tks(src, &tks)
-}
-
-/// `Vec<Token>` → [`TlpFile`]
-pub fn parse_tks(src: &str, tks: &[Token]) -> Result<TlpFile, ParseError> {
-    FileParse::parse(src, tks)
-}
+pub type Result<T, E = ParseError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
 pub enum ParseError {
@@ -39,6 +30,17 @@ pub enum ParseError {
     Unexpected { expected: String, found: String },
 }
 
+/// `&str` → [`TlpFile`]
+pub fn parse(src: &str) -> Result<TlpFile> {
+    let tks = lex::lex(src)?;
+    self::parse_tks(src, &tks)
+}
+
+/// `Vec<Token>` → [`TlpFile`]
+pub fn parse_tks(src: &str, tks: &[Token]) -> Result<TlpFile> {
+    FileParse::parse(src, tks)
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct PosSpan {
     lo: usize,
@@ -53,7 +55,7 @@ struct FileParse<'a> {
 }
 
 impl<'a> FileParse<'a> {
-    pub fn parse(src: &'a str, tks: &'a [Token]) -> Result<TlpFile, ParseError> {
+    pub fn parse(src: &'a str, tks: &'a [Token]) -> Result<TlpFile> {
         let me = Self {
             src,
             tks,
@@ -63,7 +65,7 @@ impl<'a> FileParse<'a> {
         me.parse_impl()
     }
 
-    fn parse_impl(mut self) -> Result<TlpFile, ParseError> {
+    fn parse_impl(mut self) -> Result<TlpFile> {
         let mut items = vec![];
 
         while self.sp.lo < self.tks.len() {
@@ -103,7 +105,7 @@ impl<'a> FileParse<'a> {
         }
     }
 
-    fn try_peek(&mut self) -> Result<&Token, ParseError> {
+    fn try_peek(&mut self) -> Result<&Token> {
         self.peek().ok_or(ParseError::Eof)
     }
 }
@@ -111,7 +113,7 @@ impl<'a> FileParse<'a> {
 /// Higher-level syntactic items
 impl<'a> FileParse<'a> {
     /// sexp → call | term
-    pub fn ps_sexp(&mut self) -> Result<S, ParseError> {
+    pub fn ps_sexp(&mut self) -> Result<S> {
         if self.try_peek()?.kind == TokenKind::ParenOpen {
             self.ps_call()
         } else {
@@ -119,7 +121,7 @@ impl<'a> FileParse<'a> {
         }
     }
 
-    fn ps_call(&mut self) -> Result<S, ParseError> {
+    fn ps_call(&mut self) -> Result<S> {
         self.skip_tk_kind(TokenKind::ParenOpen);
 
         // proc name
@@ -145,14 +147,14 @@ impl<'a> FileParse<'a> {
     }
 
     /// term → ident | lit
-    fn ps_term(&mut self) -> Result<S, ParseError> {
+    fn ps_term(&mut self) -> Result<S> {
         self.ps_lit()
     }
 }
 
 /// Lower-level syntactic items
 impl<'a> FileParse<'a> {
-    fn ps_lit(&mut self) -> Result<S, ParseError> {
+    fn ps_lit(&mut self) -> Result<S> {
         let lit = {
             let tk = self.try_peek()?;
             Lit::from_tk(tk).ok_or_else(|| ParseError::Unexpected {
@@ -165,7 +167,7 @@ impl<'a> FileParse<'a> {
         Ok(S::from(lit))
     }
 
-    // fn ps_ident(&mut self) -> Result<S, ParseError> {
+    // fn ps_ident(&mut self) -> Result<S> {
     //     let ident = {
     //         let tk = self.try_peek()?;
     //         Lit::from_tk(tk).ok_or_else(|| ParseError::Unexpected {
@@ -184,7 +186,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn add() -> Result<(), ParseError> {
+    fn add() -> Result<()> {
         let src = "(+ 1 2)";
         //         0 2 4 6
         let file = crate::parse::parse(src)?;
@@ -210,7 +212,7 @@ mod test {
     }
 
     #[test]
-    fn recursion() -> Result<(), ParseError> {
+    fn recursion() -> Result<()> {
         let src = "(+ 1 (* 2 3))";
         //         0 2 4 6 8 0 2
         let file = crate::parse::parse(src)?;

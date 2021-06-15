@@ -2,7 +2,7 @@
 Toy Lisp
 */
 
-pub mod chunk;
+pub mod compile;
 pub mod lex;
 pub mod parse;
 pub mod span;

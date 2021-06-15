@@ -10,16 +10,18 @@ use thiserror::Error;
 
 use crate::span::ByteSpan;
 
-/// `&str` -> `Vec<Token>`
-pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
-    Lexer::lex(src)
-}
+pub type Result<T, E = LexError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
 pub enum LexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
+}
+
+/// `&str` -> `Vec<Token>`
+pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
+    Lexer::lex(src)
 }
 
 /// Stateful lexer
@@ -124,7 +126,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
+    pub fn lex(src: &str) -> Result<Vec<Token>> {
         let me = Lexer {
             src: src.as_bytes(),
             sp: Default::default(),
@@ -134,7 +136,7 @@ impl<'a> Lexer<'a> {
         me.lex_impl()
     }
 
-    fn lex_impl(mut self) -> Result<Vec<Token>, LexError> {
+    fn lex_impl(mut self) -> Result<Vec<Token>> {
         loop {
             self.sp.hi = self.sp.lo;
 
@@ -150,7 +152,7 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline(always)]
-    fn lex_forward(&mut self) -> Result<(), LexError> {
+    fn lex_forward(&mut self) -> Result<()> {
         if let Some(tk) = self.lex_one_byte() {
             self.tks.push(tk);
             return Ok(());
@@ -245,7 +247,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn one_byte_tokens() -> Result<(), LexError> {
+    fn one_byte_tokens() -> Result<()> {
         let src = "(\")";
         let tks = lex(src)?;
 
@@ -271,7 +273,7 @@ mod test {
     }
 
     #[test]
-    fn ws() -> Result<(), LexError> {
+    fn ws() -> Result<()> {
         let src = "( \n)";
         let tks = lex(src)?;
 
@@ -297,7 +299,7 @@ mod test {
     }
 
     #[test]
-    fn num() -> Result<(), LexError> {
+    fn num() -> Result<()> {
         let src = "(* 1 3)";
         //         0 2 4 6
         let tks = lex(src)?;
@@ -340,7 +342,7 @@ mod test {
     }
 
     #[test]
-    fn nil() -> Result<(), LexError> {
+    fn nil() -> Result<()> {
         let src = "nil";
         let tks = lex(src)?;
 

@@ -7,6 +7,8 @@ use thiserror::Error;
 
 use crate::compile::chunk::*;
 
+pub type Result<T, E = VmError> = std::result::Result<T, E>;
+
 #[derive(Debug, Error)]
 pub enum VmError {
     #[error("compile error")]
@@ -20,8 +22,6 @@ pub enum VmError {
     #[error("end of bytecode while applying operator {op:?}")]
     EofWhileOp { op: OpCode },
 }
-
-pub type Result<T> = std::result::Result<T, VmError>;
 
 /// Toy Lisp bytecode virtual machine
 #[derive(Debug)]
@@ -148,7 +148,7 @@ impl Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chunk::OpCode::*;
+    use crate::compile::chunk::OpCode::*;
 
     /// Tests `-((64.0 - 32.0) / 16.0)` results in `2.0`
     #[test]
