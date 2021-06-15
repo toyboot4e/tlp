@@ -5,7 +5,7 @@ Runs bytecode
 use std::ops;
 use thiserror::Error;
 
-use crate::chunk::*;
+use crate::compile::chunk::*;
 
 #[derive(Debug, Error)]
 pub enum VmError {

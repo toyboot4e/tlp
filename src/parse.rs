@@ -1,5 +1,5 @@
 /*!
-`Vec<Token>` → `Vec<ast::S>`
+`Vec<Token>` → [`TlpFile`]
 */
 
 pub mod ast;

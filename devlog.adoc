@@ -19,7 +19,7 @@ I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs packag
 I added a WIP lexer (tokenizer) which converts given string (`&str`) into a vector of tokens.
 +
 ** The lexer handles non-streaming input/output or simplicity.
-** The lexer handles UTF-8 string as byte a byte slice because we're only interested in ASCII characters while lexing.
+** The lexer handles UTF-8 string as bytes (as `&[u8]`, not as `&[char]`) because we're only interested in ASCII characters while lexing.
 
 * Jun 12, 2021
 +
