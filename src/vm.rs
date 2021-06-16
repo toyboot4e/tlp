@@ -1,5 +1,5 @@
 /*!
-Runs bytecode
+Runtime of ToyLisp bytecode
 */
 
 use std::ops;
