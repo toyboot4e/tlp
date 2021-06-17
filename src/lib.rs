@@ -18,7 +18,7 @@ mod test {
         //         0          1
 
         let mut vm = {
-            let ast = lex::sx::from_str(src)?;
+            let ast = lex::hie::from_str(src)?;
             let chunk = compile::from_file(&ast)?;
             crate::vm::Vm::new(chunk)
         };

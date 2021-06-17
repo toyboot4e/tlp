@@ -6,7 +6,7 @@ pub mod chunk;
 
 use thiserror::Error;
 
-use crate::lex::{sx::*, tk::Token};
+use crate::lex::{flat::Token, hie::*};
 
 use self::chunk::*;
 
@@ -14,10 +14,21 @@ pub type Result<T, E = CompileError> = std::result::Result<T, E>;
 
 #[derive(Debug, Error)]
 pub enum CompileError {
+    #[error("lex error: {err}")]
+    HieLexError {
+        #[from]
+        err: HieLexError,
+    },
     #[error("expected callable, found {tks:?}")]
     NotCallable { tks: Vec<Token> },
     #[error("not a root item: {found:?}")]
     NotRootItem { found: Sx },
+}
+
+/// Compiles the lexed file as valid one
+pub fn from_str(s: &str) -> Result<ChunkData> {
+    let file = crate::lex::hie::from_str(s).map_err(|e| e.err)?;
+    self::from_file(&file)
 }
 
 /// Compiles the lexed file as valid one
@@ -31,10 +42,10 @@ pub fn from_file(file: &FileLex) -> Result<ChunkData> {
     Ok(chunk)
 }
 
-struct CompileContext<'c, 's, 'f> {
-    chunk: &'c mut ChunkData,
-    file: &'f FileLex<'s>,
-}
+// struct CompileContext<'c, 's, 'f> {
+//     chunk: &'c mut ChunkData,
+//     file: &'f FileLex<'s>,
+// }
 
 /// Similar to [`compile_sx`], but forbids some kind of items
 fn compile_root_item(chunk: &mut ChunkData, file: &FileLex, sx: &Sx) -> Result<()> {
