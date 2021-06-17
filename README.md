@@ -1,4 +1,4 @@
-# Toy Lisp
+# ToyLisp
 
 `tlp` is a to-be Lisp variant for my game dev.
 

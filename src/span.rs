@@ -2,7 +2,7 @@
 Byte-based span of source text
 */
 
-/// Span of source code in range `(lo, hi])` referred to as `sp`
+/// Span of source text in range `(lo, hi]` referred to as `sp`
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct ByteSpan {
     pub lo: usize,

@@ -29,6 +29,8 @@ impl Into<u8> for OpCode {
 /// Constant value FIXME: use `enum`?
 pub type Value = f64;
 
+// TODO: disassemble
+
 /// Bytecode instructions with constant table
 #[derive(Debug, Clone, Default)]
 pub struct ChunkData {
@@ -81,7 +83,6 @@ impl ChunkData {
         self.consts.push(value)
     }
 
-    #[inline(always)]
     #[inline(always)]
     pub fn push_code(&mut self, code: OpCode) {
         self.bytes.push(code as u8);

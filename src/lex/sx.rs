@@ -17,9 +17,11 @@ use crate::{
 /// File string tokenized as S-expressions
 #[derive(Debug, Clone, Default)]
 pub struct FileLex<'a> {
-    /// The source file string
+    /// Source as text
     pub src: &'a str,
-    /// Items just under the file
+    /// Source as tokens
+    pub tks: Vec<Token>,
+    /// Souce as S-expressions just under the file
     pub sxs: Vec<Sx>,
 }
 
@@ -28,6 +30,12 @@ pub struct FileLex<'a> {
 pub struct TokenSpan {
     pub lo: usize,
     pub hi: usize,
+}
+
+impl TokenSpan {
+    pub fn slice<'t>(&self, tks: &'t [Token]) -> &'t [Token] {
+        &tks[self.lo..self.hi]
+    }
 }
 
 /// Generic data that represents span of tokens
@@ -65,6 +73,7 @@ pub enum Sx {
 enum_from!(Sx, List, Atom);
 
 impl Sx {
+    /// Token span
     pub fn tsp(&self) -> TokenSpan {
         match self {
             Sx::Atom(a) => a.tsp(),
@@ -83,6 +92,7 @@ pub enum Atom {
 enum_from!(Atom, Lit, Symbol);
 
 impl Atom {
+    /// Token span
     pub fn tsp(&self) -> TokenSpan {
         match self {
             Atom::Lit(l) => l.tsp,
@@ -174,15 +184,13 @@ pub fn from_str<'a>(src: &'a str) -> Result<FileLex<'a>> {
         tsp: TokenSpan::default(),
         err: err.into(),
     })?;
-    self::from_tks(src, &tks)
+    self::from_tks(src, tks)
 }
 
 /// Creates [`FileLex`] from `&str` and `&[Token]`
-pub fn from_tks<'s, 't>(src: &'s str, tks: &'t [Token]) -> Result<FileLex<'s>>
-where
-    's: 't,
-{
-    LexContext::lex(src, tks)
+pub fn from_tks<'s>(src: &'s str, tks: Vec<Token>) -> Result<FileLex<'s>> {
+    let sxs = LexContext::lex(src, &tks)?;
+    Ok(FileLex { src, tks, sxs })
 }
 
 /// Referred to as `lcx`
@@ -205,12 +213,12 @@ impl<'s, 't> LexContext<'s, 't>
 where
     's: 't,
 {
-    pub fn lex(src: &'s str, tks: &'t [Token]) -> Result<FileLex<'s>> {
+    pub fn lex(src: &'s str, tks: &'t [Token]) -> Result<Vec<Sx>> {
         let lcx = Self { src, tks };
-        lcx.lex_impl()
+        lcx.lex_impl(tks)
     }
 
-    fn lex_impl(self) -> Result<FileLex<'s>> {
+    fn lex_impl(self, tks: &'t [Token]) -> Result<Vec<Sx>> {
         let mut sxs = vec![];
 
         let mut state = LexState::default();
@@ -220,7 +228,7 @@ where
             sxs.push(sx);
         }
 
-        Ok(FileLex { src: self.src, sxs })
+        Ok(sxs)
     }
 }
 
