@@ -1,5 +1,5 @@
 /*!
-S-expression tree, spans of tokens in hierarchy
+Hierarchial lexing from vec of tokens into S-expressions
 */
 
 use std::fmt;
@@ -9,7 +9,7 @@ use thiserror::Error;
 use crate::{
     lex::{
         self,
-        tk::{LexError, Token, TokenKind},
+        tk::{FlatLexError, Token, TokenKind},
     },
     span::ByteSpan,
 };
@@ -23,7 +23,7 @@ pub struct FileLex<'a> {
     pub sxs: Vec<Sx>,
 }
 
-/// Span of [`Token`] s in range `(lo, hi])` referred to as `tsp`
+/// Span of [`Token`] s in range `(lo, hi]` referred to as `tsp`
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct TokenSpan {
     pub lo: usize,
@@ -53,8 +53,8 @@ macro_rules! enum_from {
 ///
 /// # Syntax
 ///
-/// * [`Atom`] = `Symbol` | [`Lit`]
-/// * Symbol = ValSymbol | FnSymbol | Keyword
+/// * [`Atom`] = [`Symbol`] | [`Lit`]
+///     * Symbol = ValSymbol | FnSymbol | Keyword
 #[derive(Debug, Clone, PartialEq)]
 pub enum Sx {
     Atom(Atom),
@@ -135,17 +135,17 @@ pub enum SymbolBody {
 // --------------------------------------------------------------------------------
 // lexing procedure
 
-pub type Result<T, E = SpannedParseError> = std::result::Result<T, E>;
+pub type Result<T, E = SpannedHieLexError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
-pub enum ParseError {
+pub enum HieLexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
     #[error("{src}")]
     LexError {
         #[from]
-        src: LexError,
+        src: FlatLexError,
     },
     #[error("Unexpected EoF while parsing")]
     Eof,
@@ -154,12 +154,14 @@ pub enum ParseError {
 }
 
 #[derive(Debug, Clone, Error)]
-pub struct SpannedParseError {
+pub struct SpannedHieLexError {
+    /// Token span required for recovery (maybe someday)
     pub tsp: TokenSpan,
-    pub err: ParseError,
+    /// The actual error representation
+    pub err: HieLexError,
 }
 
-impl std::fmt::Display for SpannedParseError {
+impl std::fmt::Display for SpannedHieLexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.err.fmt(f)
     }
@@ -168,7 +170,7 @@ impl std::fmt::Display for SpannedParseError {
 /// Creates [`FileLex`] from `&str`
 pub fn from_str<'a>(src: &'a str) -> Result<FileLex<'a>> {
     // TODO: fix span
-    let tks = lex::tk::from_str(src).map_err(|err| SpannedParseError {
+    let tks = lex::tk::from_str(src).map_err(|err| SpannedHieLexError {
         tsp: TokenSpan::default(),
         err: err.into(),
     })?;
@@ -180,14 +182,12 @@ pub fn from_tks<'s, 't>(src: &'s str, tks: &'t [Token]) -> Result<FileLex<'s>>
 where
     's: 't,
 {
-    ParseContext::parse(src, tks)
+    LexContext::lex(src, tks)
 }
 
-/// Immutable shared data for parse functions
-///
-/// Referred to as `pcx`.
+/// Referred to as `lcx`
 #[derive(Debug, Clone)]
-struct ParseContext<'s, 't>
+struct LexContext<'s, 't>
 where
     's: 't,
 {
@@ -195,30 +195,28 @@ where
     tks: &'t [Token],
 }
 
-/// Variable parse state for a sub structure of source code
-///
-/// Referred to as `pcx`.
+/// Referred to as `lcx`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-struct ParseState {
+struct LexState {
     tsp: TokenSpan,
 }
 
-impl<'s, 't> ParseContext<'s, 't>
+impl<'s, 't> LexContext<'s, 't>
 where
     's: 't,
 {
-    pub fn parse(src: &'s str, tks: &'t [Token]) -> Result<FileLex<'s>> {
-        let pcx = Self { src, tks };
-        pcx.parse_impl()
+    pub fn lex(src: &'s str, tks: &'t [Token]) -> Result<FileLex<'s>> {
+        let lcx = Self { src, tks };
+        lcx.lex_impl()
     }
 
-    fn parse_impl(self) -> Result<FileLex<'s>> {
+    fn lex_impl(self) -> Result<FileLex<'s>> {
         let mut sxs = vec![];
 
-        let mut state = ParseState::default();
+        let mut state = LexState::default();
         while state.tsp.lo < self.tks.len() {
             let sx = state.maybe_sx(&self)?;
-            state = ParseState::from_hi(sx.tsp().hi);
+            state = LexState::at(sx.tsp().hi);
             sxs.push(sx);
         }
 
@@ -226,8 +224,9 @@ where
     }
 }
 
-impl ParseState {
-    fn from_hi(hi: usize) -> Self {
+impl LexState {
+    /// State parsing from the point
+    fn at(hi: usize) -> Self {
         Self {
             tsp: TokenSpan { lo: hi, hi },
         }
@@ -235,19 +234,19 @@ impl ParseState {
 }
 
 /// Mutations
-impl ParseState {
+impl LexState {
     /// Advances the high end of the span
     #[inline(always)]
-    fn skip_ws(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.skip_tk_kind(pcx, TokenKind::Ws)
+    fn skip_ws(&mut self, lcx: &LexContext) -> Option<()> {
+        self.skip_tk_kind(lcx, TokenKind::Ws)
     }
 
     /// Advances the high end of the span when a peeked token matches to given kind
     ///
     /// FIXME: EoF safety
     #[inline(always)]
-    fn skip_tk_kind(&mut self, pcx: &ParseContext, kind: TokenKind) -> Option<()> {
-        if pcx.tks[self.tsp.hi].kind == kind {
+    fn skip_tk_kind(&mut self, lcx: &LexContext, kind: TokenKind) -> Option<()> {
+        if lcx.tks[self.tsp.hi].kind == kind {
             self.tsp.hi += 1;
             Some(())
         } else {
@@ -257,8 +256,8 @@ impl ParseState {
 
     /// Advances both the high end and the low end of the span
     #[inline(always)]
-    fn ignore_ws(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.ignore_tk_kind(pcx, TokenKind::Ws)
+    fn ignore_ws(&mut self, lcx: &LexContext) -> Option<()> {
+        self.ignore_tk_kind(lcx, TokenKind::Ws)
     }
 
     /// Advances both the high end and the low end of the span when a peeked token matches to given
@@ -266,8 +265,8 @@ impl ParseState {
     ///
     /// FIXME: EoF safety
     #[inline(always)]
-    fn ignore_tk_kind(&mut self, pcx: &ParseContext, kind: TokenKind) -> Option<()> {
-        if pcx.tks[self.tsp.hi].kind == kind {
+    fn ignore_tk_kind(&mut self, lcx: &LexContext, kind: TokenKind) -> Option<()> {
+        if lcx.tks[self.tsp.hi].kind == kind {
             self.tsp.hi += 1;
             self.tsp.lo = self.tsp.hi;
             Some(())
@@ -277,26 +276,26 @@ impl ParseState {
     }
 
     #[inline(always)]
-    fn peek<'t>(&mut self, pcx: &'t ParseContext) -> Option<&'t Token> {
-        if self.tsp.hi < pcx.tks.len() {
-            Some(&pcx.tks[self.tsp.hi])
+    fn peek<'t>(&mut self, lcx: &'t LexContext) -> Option<&'t Token> {
+        if self.tsp.hi < lcx.tks.len() {
+            Some(&lcx.tks[self.tsp.hi])
         } else {
             None
         }
     }
 
     #[inline(always)]
-    fn try_peek<'t>(&mut self, pcx: &'t ParseContext) -> Result<&'t Token> {
-        self.peek(pcx).ok_or_else(|| SpannedParseError {
+    fn try_peek<'t>(&mut self, lcx: &'t LexContext) -> Result<&'t Token> {
+        self.peek(lcx).ok_or_else(|| SpannedHieLexError {
             tsp: self.tsp,
-            err: ParseError::Eof,
+            err: HieLexError::Eof,
         })
     }
 
     #[inline(always)]
-    fn advance<'t>(&mut self, pcx: &'t ParseContext) -> Option<&'t Token> {
-        if self.tsp.hi < pcx.tks.len() {
-            let tk = &pcx.tks[self.tsp.hi];
+    fn advance<'t>(&mut self, lcx: &'t LexContext) -> Option<&'t Token> {
+        if self.tsp.hi < lcx.tks.len() {
+            let tk = &lcx.tks[self.tsp.hi];
             self.tsp.hi += 1;
             Some(tk)
         } else {
@@ -305,24 +304,24 @@ impl ParseState {
     }
 
     #[inline(always)]
-    fn try_advance<'t>(&mut self, pcx: &'t ParseContext) -> Result<&'t Token> {
-        self.advance(pcx).ok_or_else(|| SpannedParseError {
+    fn try_advance<'t>(&mut self, lcx: &'t LexContext) -> Result<&'t Token> {
+        self.advance(lcx).ok_or_else(|| SpannedHieLexError {
             tsp: self.tsp,
-            err: ParseError::Eof,
+            err: HieLexError::Eof,
         })
     }
 }
 
-/// Immutable parse methods
-impl ParseState {
+/// Immutable lexing methods
+impl LexState {
     /// sexp → call | term
     #[inline(always)]
-    pub fn maybe_sx(mut self, pcx: &ParseContext) -> Result<Sx> {
-        self.ignore_ws(pcx);
-        let sx = if self.try_peek(pcx)?.kind == TokenKind::ParenOpen {
-            self.try_list(pcx).map(Sx::from)?
+    pub fn maybe_sx(mut self, lcx: &LexContext) -> Result<Sx> {
+        self.ignore_ws(lcx);
+        let sx = if self.try_peek(lcx)?.kind == TokenKind::ParenOpen {
+            self.try_list(lcx).map(Sx::from)?
         } else {
-            self.try_symbol(pcx).map(Sx::from)?
+            self.try_symbol(lcx).map(Sx::from)?
         };
 
         Ok(sx)
@@ -330,11 +329,11 @@ impl ParseState {
 
     // list → "(" sexp* ")"
     #[inline(always)]
-    fn try_list(mut self, pcx: &ParseContext) -> Result<List> {
-        if self.skip_tk_kind(pcx, TokenKind::ParenOpen).is_none() {
-            return Err(SpannedParseError {
+    fn try_list(mut self, lcx: &LexContext) -> Result<List> {
+        if self.skip_tk_kind(lcx, TokenKind::ParenOpen).is_none() {
+            return Err(SpannedHieLexError {
                 tsp: self.tsp,
-                err: ParseError::Unexpected {
+                err: HieLexError::Unexpected {
                     expected: "list".into(),
                     found: format!("todo err"),
                 },
@@ -349,18 +348,18 @@ impl ParseState {
         sub.tsp.lo = sub.tsp.hi;
 
         loop {
-            sub.ignore_ws(pcx);
+            sub.ignore_ws(lcx);
 
-            if sub.skip_tk_kind(pcx, TokenKind::ParenClose).is_some() {
+            if sub.skip_tk_kind(lcx, TokenKind::ParenClose).is_some() {
                 break;
             }
 
-            let sx = match sub.maybe_sx(pcx) {
+            let sx = match sub.maybe_sx(lcx) {
                 Ok(sx) => sx,
                 Err(err) => todo!("{}", err),
             };
 
-            sub = ParseState::from_hi(sx.tsp().hi);
+            sub = LexState::at(sx.tsp().hi);
             list.operands.push(sx);
         }
 
@@ -379,22 +378,21 @@ impl ParseState {
 
     /// symbol → ident | lit
     #[inline(always)]
-    fn try_symbol(mut self, pcx: &ParseContext) -> Result<Atom> {
-        println!("sym: {:?}", self);
-        if let Some(ident) = self.maybe_ident(pcx)? {
+    fn try_symbol(mut self, lcx: &LexContext) -> Result<Atom> {
+        if let Some(ident) = self.maybe_ident(lcx)? {
             return Ok(Atom::from(ident));
         }
 
-        if let Some(lit) = self.maybe_lit(pcx)? {
+        if let Some(lit) = self.maybe_lit(lcx)? {
             return Ok(Atom::from(lit));
         }
 
         // consume the span
-        let tk = self.try_advance(pcx)?;
+        let tk = self.try_advance(lcx)?;
 
-        Err(SpannedParseError {
+        Err(SpannedHieLexError {
             tsp: self.tsp,
-            err: ParseError::Unexpected {
+            err: HieLexError::Unexpected {
                 expected: "symbol".into(),
                 found: format!("{:?}", tk),
             },
@@ -403,10 +401,10 @@ impl ParseState {
 }
 
 /// Lower-level syntactic items
-impl ParseState {
+impl LexState {
     #[inline(always)]
-    fn maybe_ident(mut self, pcx: &ParseContext) -> Result<Option<Symbol>> {
-        let tk = self.try_advance(pcx)?;
+    fn maybe_ident(mut self, lcx: &LexContext) -> Result<Option<Symbol>> {
+        let tk = self.try_advance(lcx)?;
 
         if tk.kind != TokenKind::Ident {
             return Ok(None);
@@ -422,9 +420,9 @@ impl ParseState {
 
     // TODO: support multi-token literals (such as string)
     #[inline(always)]
-    fn maybe_lit(mut self, pcx: &ParseContext) -> Result<Option<Lit>> {
+    fn maybe_lit(mut self, lcx: &LexContext) -> Result<Option<Lit>> {
         let kind = {
-            let tk = self.try_advance(pcx)?;
+            let tk = self.try_advance(lcx)?;
             match LitBody::one_tk(tk.kind) {
                 Some(kind) => kind,
                 None => return Ok(None),

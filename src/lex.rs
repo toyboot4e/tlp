@@ -1,5 +1,5 @@
 /*!
-Spans of source text in vector or hierarchy
+Spans of source text
 */
 
 pub mod sx;

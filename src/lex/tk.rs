@@ -1,5 +1,5 @@
 /*!
-Tokens and tokenizer
+Flat lexing from string into vec of tokens
 */
 
 use thiserror::Error;
@@ -47,22 +47,22 @@ impl Token {
     }
 }
 
-pub type Result<T, E = LexError> = std::result::Result<T, E>;
+pub type Result<T, E = FlatLexError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
-pub enum LexError {
+pub enum FlatLexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
 }
 
 /// Creates `Vec<Token>` from `&str`
-pub fn from_str(src: &str) -> Result<Vec<Token>, LexError> {
-    Lexer::lex(src)
+pub fn from_str(src: &str) -> Result<Vec<Token>, FlatLexError> {
+    FlatLexer::lex(src)
 }
 
-/// Stateful lexer
-struct Lexer<'a> {
+/// Stateful lexer that converts given string into simple [`Token`] s
+struct FlatLexer<'a> {
     /// Source string slice referenced as bytes
     ///
     /// Because we're only interested in ASCII characters while lexing, we're stroing the source
@@ -114,7 +114,7 @@ fn tk_byte(c: u8) -> Option<TokenKind> {
     Some(kind)
 }
 
-impl<'a> Lexer<'a> {
+impl<'a> FlatLexer<'a> {
     fn consume_span(&mut self) -> ByteSpan {
         let sp = self.sp.clone();
         self.sp.lo = self.sp.hi;
@@ -162,9 +162,9 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Lexer<'a> {
+impl<'a> FlatLexer<'a> {
     pub fn lex(src: &str) -> Result<Vec<Token>> {
-        let me = Lexer {
+        let me = FlatLexer {
             src: src.as_bytes(),
             sp: Default::default(),
             tks: vec![],
@@ -225,12 +225,12 @@ impl<'a> Lexer<'a> {
             return Ok(());
         }
 
-        Err(LexError::Unreachable { sp: self.sp })
+        Err(FlatLexError::Unreachable { sp: self.sp })
     }
 }
 
 /// Lexing utilities
-impl<'a> Lexer<'a> {
+impl<'a> FlatLexer<'a> {
     #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.hi];
@@ -256,7 +256,7 @@ impl<'a> Lexer<'a> {
 }
 
 /// Lexing syntax
-impl<'a> Lexer<'a> {
+impl<'a> FlatLexer<'a> {
     #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
         self.lex_syntax(&self::is_ws, &self::is_ws, TokenKind::Ws)
