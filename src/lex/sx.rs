@@ -1,5 +1,5 @@
 /*!
-Hierarchial lexing from vec of tokens into S-expressions
+Hierarchial lexing from slice of tokens into S-expressions
 */
 
 use std::fmt;
@@ -475,50 +475,50 @@ mod test {
         Ok(())
     }
 
-    // #[test]
-    // fn nest() -> Result<()> {
-    //     let src = "(+ 1 (* 2 3))";
-    //     //         0 2 4 6 8 0 2
-    //     let file = lex::sx::from_str(src)?;
+    #[test]
+    fn nest() -> Result<()> {
+        let src = "(+ 1 (* 2 3))";
+        //         0 2 4 6 8 0 2
+        let file = lex::sx::from_str(src)?;
 
-    //     assert_eq!(
-    //         file.sxs,
-    //         vec![Sx::from(List {
-    //             sp: TokenSpan { lo: 0, hi: 13 },
-    //             body: ListBody {
-    //                 operands: vec![
-    //                     Sx::from(Atom::from(Symbol {
-    //                         sp: TokenSpan { lo: 1, hi: 2 },
-    //                         body: SymbolBody::Ident,
-    //                     })),
-    //                     Sx::from(Atom::from(Lit {
-    //                         sp: TokenSpan { lo: 3, hi: 4 },
-    //                         body: LitBody::Num
-    //                     })),
-    //                     Sx::from(List {
-    //                         sp: TokenSpan { lo: 5, hi: 12 },
-    //                         body: ListBody {
-    //                             operands: vec![
-    //                                 Sx::from(Atom::from(Symbol {
-    //                                     sp: TokenSpan { lo: 6, hi: 7 },
-    //                                     body: SymbolBody::Ident,
-    //                                 })),
-    //                                 Sx::from(Atom::from(Lit {
-    //                                     sp: TokenSpan { lo: 8, hi: 9 },
-    //                                     body: LitBody::Num
-    //                                 })),
-    //                                 Sx::from(Atom::from(Lit {
-    //                                     sp: TokenSpan { lo: 10, hi: 11 },
-    //                                     body: LitBody::Num,
-    //                                 })),
-    //                             ]
-    //                         }
-    //                     })
-    //                 ]
-    //             }
-    //         })],
-    //     );
+        assert_eq!(
+            file.sxs,
+            vec![Sx::from(List {
+                tsp: TokenSpan { lo: 0, hi: 13 },
+                body: ListBody {
+                    operands: vec![
+                        Sx::from(Atom::from(Symbol {
+                            tsp: TokenSpan { lo: 1, hi: 2 },
+                            body: SymbolBody::Ident,
+                        })),
+                        Sx::from(Atom::from(Lit {
+                            tsp: TokenSpan { lo: 3, hi: 4 },
+                            body: LitBody::Num
+                        })),
+                        Sx::from(List {
+                            tsp: TokenSpan { lo: 5, hi: 12 },
+                            body: ListBody {
+                                operands: vec![
+                                    Sx::from(Atom::from(Symbol {
+                                        tsp: TokenSpan { lo: 6, hi: 7 },
+                                        body: SymbolBody::Ident,
+                                    })),
+                                    Sx::from(Atom::from(Lit {
+                                        tsp: TokenSpan { lo: 8, hi: 9 },
+                                        body: LitBody::Num
+                                    })),
+                                    Sx::from(Atom::from(Lit {
+                                        tsp: TokenSpan { lo: 10, hi: 11 },
+                                        body: LitBody::Num,
+                                    })),
+                                ]
+                            }
+                        })
+                    ]
+                }
+            })],
+        );
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 }
