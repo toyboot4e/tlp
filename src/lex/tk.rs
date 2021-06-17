@@ -1,5 +1,5 @@
 /*!
-Token
+Tokens and tokenizer
 */
 
 use thiserror::Error;
@@ -56,7 +56,7 @@ pub enum LexError {
     Unreachable { sp: ByteSpan },
 }
 
-/// `&str` -> `Vec<Token>`
+/// Creates `Vec<Token>` from `&str`
 pub fn from_str(src: &str) -> Result<Vec<Token>, LexError> {
     Lexer::lex(src)
 }

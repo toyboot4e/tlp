@@ -1,5 +1,5 @@
 /*!
-Spans out source string into S-expressions
+Spans of source text in vector or hierarchy
 */
 
 pub mod sx;
