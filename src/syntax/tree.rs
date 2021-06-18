@@ -1,5 +1,5 @@
 /*!
-Hierarchial lexing from slice of tokens into S-expressions
+Syntax tree: untyped, homogeneous token tree
 */
 
 use std::fmt;
@@ -155,7 +155,7 @@ pub enum HieLexError {
     #[error("{src}")]
     LexError {
         #[from]
-        src: FlatLexError,
+        src: LexError,
     },
     #[error("Unexpected EoF while parsing")]
     Eof,
@@ -180,10 +180,16 @@ impl std::fmt::Display for SpannedHieLexError {
 /// Creates [`FileLex`] from `&str`
 pub fn from_str<'a>(src: &'a str) -> Result<FileLex<'a>> {
     // TODO: fix span
-    let tks = syntax::lex::from_str(src).map_err(|err| SpannedHieLexError {
-        tsp: TokenSpan::default(),
-        err: err.into(),
-    })?;
+    let (tks, errs) = syntax::stream::from_str(src);
+
+    // TODO: create lossless tree anyways
+    if !errs.is_empty() {
+        return Err(SpannedHieLexError {
+            tsp: TokenSpan::default(),
+            err: errs[0].clone().into(),
+        });
+    }
+
     self::from_tks(src, tks)
 }
 

@@ -1,5 +1,5 @@
 /*!
-Flat lexing from string into vec of tokens
+Stream of tokens
 */
 
 use thiserror::Error;
@@ -47,34 +47,24 @@ impl Token {
     }
 }
 
-pub type Result<T, E = FlatLexError> = std::result::Result<T, E>;
-
 #[derive(Debug, Clone, Error)]
-pub enum FlatLexError {
+pub enum LexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
 }
 
 /// Creates `Vec<Token>` from `&str`
-pub fn from_str(src: &str) -> Result<Vec<Token>, FlatLexError> {
-    FlatLexer::lex(src)
+pub fn from_str(src: &str) -> (Vec<Token>, Vec<LexError>) {
+    Lexer::lex(src)
 }
 
 /// Stateful lexer that converts given string into simple [`Token`] s
-struct FlatLexer<'a> {
-    /// Source string slice referenced as bytes
-    ///
-    /// Because we're only interested in ASCII characters while lexing, we're stroing the source
-    /// string as bytes.
+struct Lexer<'a> {
     src: &'a [u8],
-    /// Span of the source code currently handled
     sp: ByteSpan,
-    /// Output tokens
-    ///
-    /// Token as return value makes the lexing difficult when we want to lex multiple tokens at
-    /// once. Instead, we're storing tokens in this field and some lexing methods will mutate it.
     tks: Vec<Token>,
+    errs: Vec<LexError>,
 }
 
 #[inline(always)]
@@ -114,7 +104,7 @@ fn tk_byte(c: u8) -> Option<TokenKind> {
     Some(kind)
 }
 
-impl<'a> FlatLexer<'a> {
+impl<'a> Lexer<'a> {
     fn consume_span(&mut self) -> ByteSpan {
         let sp = self.sp.clone();
         self.sp.lo = self.sp.hi;
@@ -162,18 +152,19 @@ impl<'a> FlatLexer<'a> {
     }
 }
 
-impl<'a> FlatLexer<'a> {
-    pub fn lex(src: &str) -> Result<Vec<Token>> {
-        let me = FlatLexer {
+impl<'a> Lexer<'a> {
+    pub fn lex(src: &str) -> (Vec<Token>, Vec<LexError>) {
+        let me = Lexer {
             src: src.as_bytes(),
             sp: Default::default(),
             tks: vec![],
+            errs: vec![],
         };
 
         me.lex_impl()
     }
 
-    fn lex_impl(mut self) -> Result<Vec<Token>> {
+    fn lex_impl(mut self) -> (Vec<Token>, Vec<LexError>) {
         loop {
             self.sp.hi = self.sp.lo;
 
@@ -182,27 +173,27 @@ impl<'a> FlatLexer<'a> {
                 break;
             }
 
-            self.lex_forward()?;
+            self.lex_forward();
         }
 
-        Ok(self.tks)
+        (self.tks, self.errs)
     }
 
     #[inline(always)]
-    fn lex_forward(&mut self) -> Result<()> {
+    fn lex_forward(&mut self) {
         if let Some(tk) = self.lex_one_byte() {
             self.tks.push(tk);
-            return Ok(());
+            return;
         }
 
         if let Some(tk) = self.lex_ws() {
             self.tks.push(tk);
-            return Ok(());
+            return;
         }
 
         if let Some(tk) = self.lex_num() {
             self.tks.push(tk);
-            return Ok(());
+            return;
         }
 
         if let Some(mut tk) = self.lex_ident() {
@@ -222,15 +213,15 @@ impl<'a> FlatLexer<'a> {
             }
 
             self.tks.push(tk);
-            return Ok(());
+            return;
         }
 
-        Err(FlatLexError::Unreachable { sp: self.sp })
+        unreachable!("lex error at span {:?}", self.sp);
     }
 }
 
 /// Lexing utilities
-impl<'a> FlatLexer<'a> {
+impl<'a> Lexer<'a> {
     #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.hi];
@@ -256,7 +247,7 @@ impl<'a> FlatLexer<'a> {
 }
 
 /// Lexing syntax
-impl<'a> FlatLexer<'a> {
+impl<'a> Lexer<'a> {
     #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
         self.lex_syntax(&self::is_ws, &self::is_ws, TokenKind::Ws)
@@ -283,13 +274,22 @@ impl<'a> FlatLexer<'a> {
 mod test {
     use super::*;
 
+    fn force_lex(src: &str) -> Vec<Token> {
+        let (tks, errs) = from_str(src);
+
+        if !errs.is_empty() {
+            panic!("{:#?}", errs);
+        }
+
+        tks
+    }
+
     #[test]
-    fn one_byte_tokens() -> Result<()> {
+    fn one_byte_tokens() {
         let src = "(\")";
-        let tks = from_str(src)?;
 
         assert_eq!(
-            tks,
+            self::force_lex(src),
             vec![
                 Token {
                     kind: TokenKind::ParenOpen,
@@ -305,17 +305,14 @@ mod test {
                 },
             ]
         );
-
-        Ok(())
     }
 
     #[test]
-    fn ws() -> Result<()> {
+    fn ws() {
         let src = "( \n)";
-        let tks = from_str(src)?;
 
         assert_eq!(
-            tks,
+            self::force_lex(src),
             vec![
                 Token {
                     kind: TokenKind::ParenOpen,
@@ -331,18 +328,15 @@ mod test {
                 },
             ]
         );
-
-        Ok(())
     }
 
     #[test]
-    fn num() -> Result<()> {
+    fn num() {
         let src = "(* 1 3)";
         //         0 2 4 6
-        let tks = from_str(src)?;
 
         assert_eq!(
-            tks,
+            self::force_lex(src),
             vec![
                 Token {
                     kind: TokenKind::ParenOpen,
@@ -374,23 +368,18 @@ mod test {
                 },
             ]
         );
-
-        Ok(())
     }
 
     #[test]
-    fn nil() -> Result<()> {
+    fn nil() {
         let src = "nil";
-        let tks = from_str(src)?;
 
         assert_eq!(
-            tks,
+            self::force_lex(src),
             vec![Token {
                 kind: TokenKind::Nil,
                 sp: ByteSpan { lo: 0, hi: 3 },
             }],
         );
-
-        Ok(())
     }
 }
