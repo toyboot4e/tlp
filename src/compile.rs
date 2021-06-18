@@ -6,7 +6,7 @@ pub mod chunk;
 
 use thiserror::Error;
 
-use crate::syntax::{flat::Token, tree::*};
+use crate::syntax::{lex::Token, tree::*};
 
 use self::chunk::*;
 

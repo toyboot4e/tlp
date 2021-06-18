@@ -10,7 +10,7 @@ use crate::{
     span::ByteSpan,
     syntax::{
         self,
-        flat::{FlatLexError, Token, TokenKind},
+        lex::{FlatLexError, Token, TokenKind},
     },
 };
 
@@ -180,7 +180,7 @@ impl std::fmt::Display for SpannedHieLexError {
 /// Creates [`FileLex`] from `&str`
 pub fn from_str<'a>(src: &'a str) -> Result<FileLex<'a>> {
     // TODO: fix span
-    let tks = syntax::flat::from_str(src).map_err(|err| SpannedHieLexError {
+    let tks = syntax::lex::from_str(src).map_err(|err| SpannedHieLexError {
         tsp: TokenSpan::default(),
         err: err.into(),
     })?;
