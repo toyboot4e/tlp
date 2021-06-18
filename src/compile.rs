@@ -6,7 +6,7 @@ pub mod chunk;
 
 use thiserror::Error;
 
-use crate::lex::{flat::Token, tree::*};
+use crate::syntax::{flat::Token, tree::*};
 
 use self::chunk::*;
 
@@ -27,7 +27,7 @@ pub enum CompileError {
 
 /// Compiles the lexed file as valid one
 pub fn from_str(s: &str) -> Result<ChunkData> {
-    let file = crate::lex::tree::from_str(s).map_err(|e| e.err)?;
+    let file = crate::syntax::tree::from_str(s).map_err(|e| e.err)?;
     self::from_file(&file)
 }
 

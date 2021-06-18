@@ -7,11 +7,11 @@ use std::fmt;
 use thiserror::Error;
 
 use crate::{
-    lex::{
+    span::ByteSpan,
+    syntax::{
         self,
         flat::{FlatLexError, Token, TokenKind},
     },
-    span::ByteSpan,
 };
 
 /// File string tokenized as S-expressions
@@ -180,7 +180,7 @@ impl std::fmt::Display for SpannedHieLexError {
 /// Creates [`FileLex`] from `&str`
 pub fn from_str<'a>(src: &'a str) -> Result<FileLex<'a>> {
     // TODO: fix span
-    let tks = lex::flat::from_str(src).map_err(|err| SpannedHieLexError {
+    let tks = syntax::flat::from_str(src).map_err(|err| SpannedHieLexError {
         tsp: TokenSpan::default(),
         err: err.into(),
     })?;
@@ -449,13 +449,13 @@ impl LexState {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::lex;
+    use crate::syntax;
 
     #[test]
     fn add() -> Result<()> {
         let src = "(+ 1 2)";
         //         0123456
-        let file = lex::tree::from_str(src)?;
+        let file = syntax::tree::from_str(src)?;
 
         assert_eq!(
             file.sxs,
@@ -487,7 +487,7 @@ mod test {
     fn nest() -> Result<()> {
         let src = "(+ 1 (* 2 3))";
         //         0 2 4 6 8 0 2
-        let file = lex::tree::from_str(src)?;
+        let file = syntax::tree::from_str(src)?;
 
         assert_eq!(
             file.sxs,
