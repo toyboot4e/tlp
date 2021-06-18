@@ -10,7 +10,7 @@ use crate::{
     span::ByteSpan,
     syntax::{
         self,
-        lex::{FlatLexError, Token, TokenKind},
+        stream::{LexError, Token, TokenKind},
     },
 };
 
@@ -179,8 +179,8 @@ impl std::fmt::Display for SpannedHieLexError {
 
 /// Creates [`FileLex`] from `&str`
 pub fn from_str<'a>(src: &'a str) -> Result<FileLex<'a>> {
-    // TODO: fix span
-    let (tks, errs) = syntax::stream::from_str(src);
+    let mut errs = vec![];
+    let tks = syntax::stream::from_str(src, &mut errs).run();
 
     // TODO: create lossless tree anyways
     if !errs.is_empty() {

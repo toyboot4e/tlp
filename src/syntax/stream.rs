@@ -55,16 +55,21 @@ pub enum LexError {
 }
 
 /// Creates `Vec<Token>` from `&str`
-pub fn from_str(src: &str) -> (Vec<Token>, Vec<LexError>) {
-    Lexer::lex(src)
+pub fn from_str<'a, 'e>(src: &'a str, errs: &'e mut Vec<LexError>) -> Lexer<'a, 'e> {
+    Lexer {
+        src: src.as_bytes(),
+        sp: Default::default(),
+        tks: vec![],
+        errs,
+    }
 }
 
 /// Stateful lexer that converts given string into simple [`Token`] s
-struct Lexer<'a> {
+pub struct Lexer<'a, 'e> {
     src: &'a [u8],
     sp: ByteSpan,
     tks: Vec<Token>,
-    errs: Vec<LexError>,
+    errs: &'e mut Vec<LexError>,
 }
 
 #[inline(always)]
@@ -104,7 +109,7 @@ fn tk_byte(c: u8) -> Option<TokenKind> {
     Some(kind)
 }
 
-impl<'a> Lexer<'a> {
+impl<'a, 'e> Lexer<'a, 'e> {
     fn consume_span(&mut self) -> ByteSpan {
         let sp = self.sp.clone();
         self.sp.lo = self.sp.hi;
@@ -152,31 +157,27 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Lexer<'a> {
-    pub fn lex(src: &str) -> (Vec<Token>, Vec<LexError>) {
-        let me = Lexer {
-            src: src.as_bytes(),
-            sp: Default::default(),
-            tks: vec![],
-            errs: vec![],
-        };
+impl<'a, 'e> Iterator for Lexer<'a, 'e> {
+    type Item = Token;
 
-        me.lex_impl()
-    }
-
-    fn lex_impl(mut self) -> (Vec<Token>, Vec<LexError>) {
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
-            self.sp.hi = self.sp.lo;
-
-            // return if it's finished
-            if self.sp.lo >= self.src.len() {
-                break;
+            if !self.tks.is_empty() {
+                return self.tks.pop();
             }
 
-            self.lex_forward();
+            if self.sp.lo >= self.src.len() {
+                break None;
+            } else {
+                self.lex_forward();
+            }
         }
+    }
+}
 
-        (self.tks, self.errs)
+impl<'a, 'e> Lexer<'a, 'e> {
+    pub fn run(mut self) -> Vec<Token> {
+        self.collect::<Vec<_>>()
     }
 
     #[inline(always)]
@@ -221,7 +222,7 @@ impl<'a> Lexer<'a> {
 }
 
 /// Lexing utilities
-impl<'a> Lexer<'a> {
+impl<'a, 'e> Lexer<'a, 'e> {
     #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.hi];
@@ -247,7 +248,7 @@ impl<'a> Lexer<'a> {
 }
 
 /// Lexing syntax
-impl<'a> Lexer<'a> {
+impl<'a, 'e> Lexer<'a, 'e> {
     #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
         self.lex_syntax(&self::is_ws, &self::is_ws, TokenKind::Ws)
@@ -275,7 +276,8 @@ mod test {
     use super::*;
 
     fn force_lex(src: &str) -> Vec<Token> {
-        let (tks, errs) = from_str(src);
+        let mut errs = vec![];
+        let tks = from_str(src, &mut errs).run();
 
         if !errs.is_empty() {
             panic!("{:#?}", errs);
