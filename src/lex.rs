@@ -3,4 +3,4 @@ Spans of source text
 */
 
 pub mod flat;
-pub mod hie;
+pub mod tree;

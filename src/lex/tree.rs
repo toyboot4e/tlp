@@ -455,7 +455,7 @@ mod test {
     fn add() -> Result<()> {
         let src = "(+ 1 2)";
         //         0123456
-        let file = lex::hie::from_str(src)?;
+        let file = lex::tree::from_str(src)?;
 
         assert_eq!(
             file.sxs,
@@ -487,7 +487,7 @@ mod test {
     fn nest() -> Result<()> {
         let src = "(+ 1 (* 2 3))";
         //         0 2 4 6 8 0 2
-        let file = lex::hie::from_str(src)?;
+        let file = lex::tree::from_str(src)?;
 
         assert_eq!(
             file.sxs,
