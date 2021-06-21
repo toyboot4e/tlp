@@ -16,7 +16,9 @@ I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs packag
 
 == Devlog
 
-=== Lexer (tokenizer)
+=== Before knowing CST
+
+==== Lexer (tokenizer)
 
 * Jun 9, 2021
 +
@@ -52,98 +54,3 @@ Accoording to the doc, {ra} converts source file string into a lossless _(concre
 I didn't know the notion of CST. It's basically a tree representation of text, where each element (element = sub tree (node) or leaf (token)) is tagged with homogeneous syntax _kind_ s. The good thing about CST is the each element is _untyped_, so we can easily create CST for invalid source string in ToyLisp grammer.
 +
 Today I parsed simple arithmetics with `rowan`. To run ToyLisp again, I'd make CST → AST step.
-
-== TODOs
-
-ToyLisp is typed dynamically.
-
-=== Control flow
-
-Conditionals
-Short-circuit boolean operators
-
-=== TokenTreeStream
-
-`lex::to_tokens`
-`lex::to_trees`
-
-=== Namespace
-
-=== Enumeration
-
-=== Defer
-
-[source,rust]
-----
-(defer:let f  (io:File:open "text.txt") `(io:File:close)
-    ;; 
-    )
-----
-
-=== Structures
-
-[source,rust]
-----
-(struct Entity
-    :doc "Entity is anything in the game"
-    :fields pos
-    )
-----
-
-== Notes
-
-=== `rustc`
-
-[source]
-----
-TokenStream = TokenTree*
-TokenTree = Token | "(" TokenStream ")" | "{" TokenStream "}" | "[" TokenStream "]"
-----
-
-[source,rust]
-----
-pub fn fib(n: u32) -> u32 { /* ~~ */ }
-----
-
-=== Common Lisp
-
-* `pass:[`]`: data mode
-* `,`: code mode
-
-=== Scheme
-
-== Temp
-
-=== TODOs
-
-* Integration in my game?
-* `serde`?
-
-=== My questions
-
-* coroutine implementation
-
-* parse
-** how to parse paired symbols?
-** AST should contain meta information like parenthesis?
-
-* analysys
-** detect recursion
-** comptime calculation
-
-* toy lisp
-** better word than progn?
-** proc
-** recursion? detect infity?
-
-* no GC
-** defer free?
-
-* static language
-** static environment
-
-* static lisp
-** type contructor and generics?
-** type inference?
-** enum?
-
