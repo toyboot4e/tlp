@@ -1,5 +1,5 @@
 /*!
-Byte-based span of source text
+Span of UTF-8 source text
 */
 
 pub type TextLen = usize;

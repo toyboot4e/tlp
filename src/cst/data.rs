@@ -1,8 +1,8 @@
 /*!
-Syntaxtic data types
+CST data types on [`rowan`]
 */
 
-/// Bridge for `rowan`
+/// Bridge to [`rowan`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Lang {}
 
@@ -19,17 +19,18 @@ impl rowan::Language for Lang {
     }
 }
 
-/// View to `GreenNode`
+/// Subtree. View to green tree (red tree) in words of "red-green tree"
 pub type SyntaxNode = rowan::SyntaxNode<Lang>;
 
+/// Leaf. View to green token (red token) in words of "red-green tree"
 pub type SyntaxToken = rowan::SyntaxToken<Lang>;
 
-/// [`SyntaxNode`] | [`SyntaxToken`]
+/// Subtree or leaf: [`SyntaxNode`] | [`SyntaxToken`]
 pub type SyntaxElement = rowan::SyntaxElement<Lang>;
 
-/// Syntactic kind for `rowan`
+/// Syntactic kind of a tree element
 ///
-/// It's used for both lexing and parsing.
+/// It's used for both lexing and parsing, but the lexer doesn't use compositing items.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u16)]
 pub enum SyntaxKind {

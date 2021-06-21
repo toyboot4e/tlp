@@ -1,16 +1,12 @@
 /*!
 Stream of tokens
-
-[`Token`] doesn't have position. This if for easy structual editing in later pass.
 */
 
 use thiserror::Error;
 
 use crate::{cst::data::SyntaxKind, span::ByteSpan};
 
-/// Syntactic kind with length
-///
-/// [`Token`] doesn't have position. This if for easy structual editing in later pass.
+/// Span of text with syntactic kind
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: SyntaxKind,
@@ -23,6 +19,7 @@ impl Token {
     }
 }
 
+/// Error type accumulated while lexing
 #[derive(Debug, Clone, Error)]
 pub enum LexError {
     // TODO: use line:column representation
@@ -30,6 +27,7 @@ pub enum LexError {
     Unreachable { sp: ByteSpan },
 }
 
+/// Convers text into a CST. It doesn't fail even if the given text has wrong syntax.
 pub fn lex<'s>(src: &'s str) -> (Vec<Token>, Vec<LexError>) {
     let errs = vec![];
     // FIXME: handle error

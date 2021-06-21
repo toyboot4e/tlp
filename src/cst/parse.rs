@@ -1,5 +1,5 @@
 /*!
-Syntax tree: untyped, homogeneous token tree
+Tree of tokens
 */
 
 use thiserror::Error;
@@ -14,6 +14,7 @@ use crate::{
 
 use rowan::{GreenNode, GreenNodeBuilder};
 
+/// Error type accumulated while lexing
 #[derive(Debug, Clone, Error)]
 pub enum ParseError {
     // TODO: use line:column representation
@@ -30,6 +31,8 @@ pub enum ParseError {
     Unexpected { expected: String, found: String },
 }
 
+/// Creates a CST and optionally errors. It won't fail even if the given input is invalid in ToyLisp
+/// grammer.
 pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
     let (tks, lex_errs) = lex::lex(src);
 
@@ -39,6 +42,7 @@ pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
     (SyntaxNode::new_root(tree), errs)
 }
 
+/// Creates a CST and optionally errors from output of lexer
 pub fn from_tks<'s, 't>(src: &'s str, tks: &'t [Token]) -> (GreenNode, Vec<ParseError>) {
     let pcx = ParseContext { src, tks };
     let state = ParseState::new();
