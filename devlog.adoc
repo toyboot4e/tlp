@@ -49,6 +49,8 @@ I also added a compiler. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
 
 I want my ideal lang to be statically typed, and the parser should be IDE-oriented. It would be a great idea to learn from {ra}.
 
+==== CST
+
 * Jun 21, 2021
 +
 Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization even with thin pointers. I found I can't do better than that, so I decided to not rewrite {rowan} and became a user of it.].
