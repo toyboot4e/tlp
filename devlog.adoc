@@ -18,6 +18,8 @@ I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs packag
 
 === Before knowing CST
 
+I believed TopLisp would do this conversion: source string → AST → bytecode.
+
 ==== Lexer (tokenizer)
 
 * Jun 9, 2021
@@ -49,8 +51,8 @@ I want my ideal lang to be statically typed, and the parser should be IDE-orient
 
 * Jun 21, 2021
 +
-Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan}.
+Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization even with thin pointers. I found I can't do better than that, so I decided to not rewrite {rowan} and became a user of it.].
 +
-I didn't know the notion of CST. It's basically a tree representation of text, where each element (element = sub tree (node) or leaf (token)) is tagged with homogeneous syntax _kind_ s. The good thing about CST is the each element is _untyped_, so we can easily create CST for invalid source string in ToyLisp grammer.
+I didn't know the notion of CST. It's basically a tree representation of text, where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with syntax _kind_ s. The good thing about CST is the each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in ToyLisp grammer.
 +
 Today I parsed simple arithmetics with `rowan`. To run ToyLisp again, I'd make CST → AST step.
