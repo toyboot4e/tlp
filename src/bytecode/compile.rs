@@ -1,3 +1,3 @@
 /*!
-Compile AST to the bytecode
+Compiler (AST → bytecode)
 */

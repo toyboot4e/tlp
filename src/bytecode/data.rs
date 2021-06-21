@@ -1,8 +1,8 @@
 /*!
-Chunk of bytecode
+Bytecode
 */
 
-/// Instruction to the virtual machine
+/// Instruction to the stack-based virtual machine
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
 pub enum OpCode {
     OpReturn,
@@ -31,12 +31,12 @@ pub type Value = f64;
 
 // TODO: disassemble
 
-/// Bytecode instructions with constant table
+/// Bytecode instructions with static context
 #[derive(Debug, Clone, Default)]
 pub struct ChunkData {
-    /// Bytecode
+    /// Bytecode ([`OpCode`] and operands of them)
     bytes: Vec<u8>,
-    /// Constant table
+    /// Constant table created statically
     consts: Vec<Value>,
 }
 

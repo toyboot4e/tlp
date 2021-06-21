@@ -53,7 +53,7 @@ I want my ideal lang to be statically typed, and the parser should be IDE-orient
 
 * Jun 21, 2021
 +
-Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization even with thin pointers. I found I can't do better than that, so I decided to not rewrite {rowan} and became a user of it.].
+Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization; it made use of deduplication of subtree. {rowan} even it used thin pointers to reduce the memory usage. I can't do better than that, so I decided to just use {rowan} without re-writing it.].
 +
 I didn't know the notion of CST. It's basically a tree representation of text, where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with syntax _kind_ s. The good thing about CST is the each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in ToyLisp grammer.
 +

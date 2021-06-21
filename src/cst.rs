@@ -1,7 +1,8 @@
 /*!
-Concrete syntax tree powered by [`rowan`]
+Concrete syntax tree, oufput of first pass
 
-[`rowan`] manages lossless structure of text, represented as a tree of untyped, homogeneous tokens.
+The CST is powered by [`rowan`]. It manages lossless structure of text, represented as a tree of
+untyped, homogeneous tokens.
 */
 
 pub mod data;

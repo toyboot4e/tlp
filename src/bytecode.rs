@@ -1,5 +1,5 @@
 /*!
-Bytecode and compiler for it
+Bytecode, runtime representation of ToyLisp program
 */
 
 pub mod compile;

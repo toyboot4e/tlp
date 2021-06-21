@@ -1,5 +1,5 @@
 /*!
-Runtime of ToyLisp bytecode
+Stack-based bytecode virtual machine
 */
 
 use std::ops;

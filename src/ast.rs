@@ -1,3 +1,3 @@
 /*!
-Abstract syntax tree suitable for compilation
+Abstract syntax tree, suitable for compilation
 */
