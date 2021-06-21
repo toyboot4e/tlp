@@ -4,6 +4,10 @@
 :cr: https://craftinginterpreters.com/contents.html[Crafting Interpreters]
 :toy-scheme: https://github.com/toyboot4e/toy-scheme[toy-scheme]
 
+:ra: https://github.com/rust-analyzer/rust-analyzer[rust-analyzer]
+:rowan: https://github.com/rust-analyzer/rowan/[rowan]
+:rowan-s: https://github.com/rust-analyzer/rowan/blob/master/examples/s_expressions.rs[s_expressions.rs]
+
 == Background
 
 I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: ToyLisp (`tlp`).
@@ -29,15 +33,117 @@ Nice resource from `rustc` dev guide: https://rustc-dev-guide.rust-lang.org/the-
 +
 I parsed `Vec<Token>` into a hierarchy of tokens (S-expressions represented as spans of tokens in the vector). I'm not sure if it's a good idea to stick with tokens, but it doesn't lose any span of source code, so I'm going with it (for now).
 
-=== Compiler and bytecode virtual machine
+==== Compiler and bytecode virtual machine
 
 * Jun 17, 2021
 +
 I added a simple VM which can calculate arithmetics. It's stack-based as one in the book ({cr}).
 +
 I also added a compiler. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
+
+=== Follow `rust-analyzer`
+
+I want my ideal lang to be statically typed, and the parser should be IDE-oriented. It would be a great idea to learn from {ra}.
+
+* Jun 21, 2021
++
+Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan}.
++
+I didn't know the notion of CST. It's basically a tree representation of text, where each element (element = sub tree (node) or leaf (token)) is tagged with homogeneous syntax _kind_ s. The good thing about CST is the each element is _untyped_, so we can easily create CST for invalid source string in ToyLisp grammer.
++
+Today I parsed simple arithmetics with `rowan`. To run ToyLisp again, I'd make CST → AST step.
+
+== TODOs
+
+ToyLisp is typed dynamically.
+
+=== Control flow
+
+Conditionals
+Short-circuit boolean operators
+
+=== TokenTreeStream
+
+`lex::to_tokens`
+`lex::to_trees`
+
+=== Namespace
+
+=== Enumeration
+
+=== Defer
+
+[source,rust]
+----
+(defer:let f  (io:File:open "text.txt") `(io:File:close)
+    ;; 
+    )
+----
+
+=== Structures
+
+[source,rust]
+----
+(struct Entity
+    :doc "Entity is anything in the game"
+    :fields pos
+    )
+----
+
+== Notes
+
+=== `rustc`
+
+[source]
+----
+TokenStream = TokenTree*
+TokenTree = Token | "(" TokenStream ")" | "{" TokenStream "}" | "[" TokenStream "]"
+----
+
+[source,rust]
+----
+pub fn fib(n: u32) -> u32 { /* ~~ */ }
+----
+
+=== Common Lisp
+
+* `pass:[`]`: data mode
+* `,`: code mode
+
+=== Scheme
+
+== Temp
+
 === TODOs
 
 * Integration in my game?
 * `serde`?
+
+=== My questions
+
+* coroutine implementation
+
+* parse
+** how to parse paired symbols?
+** AST should contain meta information like parenthesis?
+
+* analysys
+** detect recursion
+** comptime calculation
+
+* toy lisp
+** better word than progn?
+** proc
+** recursion? detect infity?
+
+* no GC
+** defer free?
+
+* static language
+** static environment
+
+* static lisp
+** type contructor and generics?
+** type inference?
+** enum?
 
