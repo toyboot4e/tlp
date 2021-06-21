@@ -1,48 +1,24 @@
 /*!
 Stream of tokens
+
+[`Token`] doesn't have position. This if for easy structual editing in later pass.
 */
 
 use thiserror::Error;
 
-use crate::span::ByteSpan;
+use crate::{cst::data::SyntaxKind, span::ByteSpan};
 
-/// Syntactic kind for a unit word of ToyLisp source code
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TokenKind {
-    Ws,
-    // ----------------------------------------
-    // symbols
-    /// `(`
-    ParenOpen,
-    /// `)`
-    ParenClose,
-    // ----------------------------------------
-    // literals
-    Num,
-    /// `"`
-    StrEnclosure,
-    StrContent,
-    // ----------------------------------------
-    // keywords
-    /// `true`
-    True,
-    /// `false`
-    False,
-    /// `nil`
-    Nil,
-    // ?
-    Ident,
-}
-
-/// Span of source text with syntactic kind
+/// Syntactic kind with length
+///
+/// [`Token`] doesn't have position. This if for easy structual editing in later pass.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
+    pub kind: SyntaxKind,
     pub sp: ByteSpan,
-    pub kind: TokenKind,
 }
 
 impl Token {
-    pub fn slice<'a>(&self, src: &'a str) -> &'a str {
+    pub fn slice<'s>(&self, src: &'s str) -> &'s str {
         self.sp.slice(src)
     }
 }
@@ -54,22 +30,27 @@ pub enum LexError {
     Unreachable { sp: ByteSpan },
 }
 
-/// Creates `Vec<Token>` from `&str`
-pub fn from_str<'a, 'e>(src: &'a str, errs: &'e mut Vec<LexError>) -> Lexer<'a, 'e> {
+pub fn lex<'s>(src: &'s str) -> (Vec<Token>, Vec<LexError>) {
+    let errs = vec![];
+    // FIXME: handle error
+    let tks = self::from_str(src).run();
+    (tks, errs)
+}
+
+/// Creates [`Lexer`] binding an error vec
+pub fn from_str<'s>(src: &'s str) -> Lexer<'s> {
     Lexer {
         src: src.as_bytes(),
         sp: Default::default(),
         tks: vec![],
-        errs,
     }
 }
 
 /// Stateful lexer that converts given string into simple [`Token`] s
-pub struct Lexer<'a, 'e> {
-    src: &'a [u8],
+pub struct Lexer<'s> {
+    src: &'s [u8],
     sp: ByteSpan,
     tks: Vec<Token>,
-    errs: &'e mut Vec<LexError>,
 }
 
 #[inline(always)]
@@ -98,27 +79,27 @@ fn is_ident_start(c: u8) -> bool {
 }
 
 #[inline(always)]
-fn tk_byte(c: u8) -> Option<TokenKind> {
+fn tk_byte(c: u8) -> Option<SyntaxKind> {
     let kind = match c {
-        b'(' => TokenKind::ParenOpen,
-        b')' => TokenKind::ParenClose,
-        b'"' => TokenKind::StrEnclosure,
+        b'(' => SyntaxKind::LParen,
+        b')' => SyntaxKind::RParen,
+        b'"' => SyntaxKind::StrEnclosure,
         _ => return None,
     };
 
     Some(kind)
 }
 
-impl<'a, 'e> Lexer<'a, 'e> {
+impl<'s> Lexer<'s> {
     fn consume_span(&mut self) -> ByteSpan {
         let sp = self.sp.clone();
         self.sp.lo = self.sp.hi;
         sp
     }
 
-    fn consume_span_as(&mut self, kind: TokenKind) -> Token {
+    fn consume_span_as(&mut self, kind: SyntaxKind) -> Token {
         let sp = self.consume_span();
-        Token { sp, kind }
+        Token { kind, sp }
     }
 
     /// The predicate returns if we should continue scanning reading a byte
@@ -157,7 +138,7 @@ impl<'a, 'e> Lexer<'a, 'e> {
     }
 }
 
-impl<'a, 'e> Iterator for Lexer<'a, 'e> {
+impl<'s> Iterator for Lexer<'s> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -175,7 +156,7 @@ impl<'a, 'e> Iterator for Lexer<'a, 'e> {
     }
 }
 
-impl<'a, 'e> Lexer<'a, 'e> {
+impl<'s> Lexer<'s> {
     pub fn run(mut self) -> Vec<Token> {
         self.collect::<Vec<_>>()
     }
@@ -202,13 +183,13 @@ impl<'a, 'e> Lexer<'a, 'e> {
             let s: &str = unsafe { std::str::from_utf8_unchecked(self.src) };
             match tk.sp.slice(s) {
                 "true" => {
-                    tk.kind = TokenKind::True;
+                    tk.kind = SyntaxKind::True;
                 }
                 "false" => {
-                    tk.kind = TokenKind::False;
+                    tk.kind = SyntaxKind::False;
                 }
                 "nil" => {
-                    tk.kind = TokenKind::Nil;
+                    tk.kind = SyntaxKind::Nil;
                 }
                 _ => {}
             }
@@ -222,7 +203,7 @@ impl<'a, 'e> Lexer<'a, 'e> {
 }
 
 /// Lexing utilities
-impl<'a, 'e> Lexer<'a, 'e> {
+impl<'s> Lexer<'s> {
     #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.hi];
@@ -239,7 +220,7 @@ impl<'a, 'e> Lexer<'a, 'e> {
         &mut self,
         start: &impl Fn(u8) -> bool,
         body: &impl Fn(u8) -> bool,
-        kind: TokenKind,
+        kind: SyntaxKind,
     ) -> Option<Token> {
         self.advance_if(start)?;
         self.advance_while(body);
@@ -248,16 +229,16 @@ impl<'a, 'e> Lexer<'a, 'e> {
 }
 
 /// Lexing syntax
-impl<'a, 'e> Lexer<'a, 'e> {
+impl<'s> Lexer<'s> {
     #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
-        self.lex_syntax(&self::is_ws, &self::is_ws, TokenKind::Ws)
+        self.lex_syntax(&self::is_ws, &self::is_ws, SyntaxKind::Ws)
     }
 
     /// [0-9]<num>*
     #[inline(always)]
     fn lex_num(&mut self) -> Option<Token> {
-        self.lex_syntax(&self::is_num_start, &self::is_num_body, TokenKind::Num)
+        self.lex_syntax(&self::is_num_start, &self::is_num_body, SyntaxKind::Num)
     }
 
     /// [^<ws>]*
@@ -266,7 +247,7 @@ impl<'a, 'e> Lexer<'a, 'e> {
         self.lex_syntax(
             &self::is_ident_start,
             &self::is_ident_body,
-            TokenKind::Ident,
+            SyntaxKind::Ident,
         )
     }
 }
@@ -274,10 +255,10 @@ impl<'a, 'e> Lexer<'a, 'e> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::cst::lex;
 
     fn force_lex(src: &str) -> Vec<Token> {
-        let mut errs = vec![];
-        let tks = from_str(src, &mut errs).run();
+        let (tks, errs) = lex::lex(src);
 
         if !errs.is_empty() {
             panic!("{:#?}", errs);
@@ -294,15 +275,15 @@ mod test {
             self::force_lex(src),
             vec![
                 Token {
-                    kind: TokenKind::ParenOpen,
+                    kind: SyntaxKind::LParen,
                     sp: ByteSpan { lo: 0, hi: 1 },
                 },
                 Token {
-                    kind: TokenKind::StrEnclosure,
+                    kind: SyntaxKind::StrEnclosure,
                     sp: ByteSpan { lo: 1, hi: 2 },
                 },
                 Token {
-                    kind: TokenKind::ParenClose,
+                    kind: SyntaxKind::RParen,
                     sp: ByteSpan { lo: 2, hi: 3 },
                 },
             ]
@@ -317,15 +298,15 @@ mod test {
             self::force_lex(src),
             vec![
                 Token {
-                    kind: TokenKind::ParenOpen,
+                    kind: SyntaxKind::LParen,
                     sp: ByteSpan { lo: 0, hi: 1 },
                 },
                 Token {
-                    kind: TokenKind::Ws,
+                    kind: SyntaxKind::Ws,
                     sp: ByteSpan { lo: 1, hi: 3 },
                 },
                 Token {
-                    kind: TokenKind::ParenClose,
+                    kind: SyntaxKind::RParen,
                     sp: ByteSpan { lo: 3, hi: 4 },
                 },
             ]
@@ -341,31 +322,31 @@ mod test {
             self::force_lex(src),
             vec![
                 Token {
-                    kind: TokenKind::ParenOpen,
+                    kind: SyntaxKind::LParen,
                     sp: ByteSpan { lo: 0, hi: 1 },
                 },
                 Token {
-                    kind: TokenKind::Ident,
+                    kind: SyntaxKind::Ident,
                     sp: ByteSpan { lo: 1, hi: 2 },
                 },
                 Token {
-                    kind: TokenKind::Ws,
+                    kind: SyntaxKind::Ws,
                     sp: ByteSpan { lo: 2, hi: 3 },
                 },
                 Token {
-                    kind: TokenKind::Num,
+                    kind: SyntaxKind::Num,
                     sp: ByteSpan { lo: 3, hi: 4 },
                 },
                 Token {
-                    kind: TokenKind::Ws,
+                    kind: SyntaxKind::Ws,
                     sp: ByteSpan { lo: 4, hi: 5 },
                 },
                 Token {
-                    kind: TokenKind::Num,
+                    kind: SyntaxKind::Num,
                     sp: ByteSpan { lo: 5, hi: 6 },
                 },
                 Token {
-                    kind: TokenKind::ParenClose,
+                    kind: SyntaxKind::RParen,
                     sp: ByteSpan { lo: 6, hi: 7 },
                 },
             ]
@@ -379,7 +360,7 @@ mod test {
         assert_eq!(
             self::force_lex(src),
             vec![Token {
-                kind: TokenKind::Nil,
+                kind: SyntaxKind::Nil,
                 sp: ByteSpan { lo: 0, hi: 3 },
             }],
         );

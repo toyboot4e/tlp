@@ -5,7 +5,7 @@ Runtime of ToyLisp bytecode
 use std::ops;
 use thiserror::Error;
 
-use crate::compile::chunk::*;
+use crate::bytecode::data::*;
 
 pub type Result<T, E = VmError> = std::result::Result<T, E>;
 
@@ -148,7 +148,7 @@ impl Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compile::chunk::OpCode::*;
+    use crate::bytecode::data::OpCode::*;
 
     /// Tests `-((64.0 - 32.0) / 16.0)` results in `2.0`
     #[test]

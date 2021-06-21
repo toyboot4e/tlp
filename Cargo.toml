@@ -8,4 +8,5 @@ edition = "2018"
 [dependencies]
 env_logger = "0.8.4"
 log = "0.4.14"
+rowan = "0.12.6"
 thiserror = "1.0.25"
