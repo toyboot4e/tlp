@@ -233,7 +233,7 @@ impl ParseState {
 
 #[cfg(test)]
 mod test {
-    use crate::cst::{self, data::SyntaxElement};
+    use crate::syntax::cst::{self, data::SyntaxElement};
 
     fn flat_match(src: &str, expected: Vec<&str>) {
         let (tree, errs) = cst::parse::from_str(src);

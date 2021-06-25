@@ -253,7 +253,7 @@ impl<'s> Lexer<'s> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::cst::lex;
+    use crate::syntax::cst::lex;
 
     fn force_lex(src: &str) -> Vec<Token> {
         let (tks, errs) = lex::lex(src);

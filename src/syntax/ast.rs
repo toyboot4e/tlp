@@ -1,24 +1,32 @@
 /*!
 Abstract syntax tree, CST with semanctic information
 
-All AST nodes share the internal data structure, so they're just a wrapper around CST nodes.
+All AST nodes share the internal data structure, and they're just a wrapper around CST nodes.
 */
 
 use rowan::api::SyntaxNodeChildren;
 
-use crate::syntax::cst::data::{SyntaxKind, SyntaxNode, SyntaxToken};
+use crate::syntax::cst::{
+    data::{SyntaxKind, SyntaxNode, SyntaxToken},
+    parse::ParseError,
+};
+
+pub fn parse(src: &str) -> (Ast, Vec<ParseError>) {
+    let (cst, errs) = crate::syntax::cst::parse::from_str(src);
+    (Ast::new(cst).unwrap(), errs)
+}
 
 /// Syntax node → AST node (semantic node)
 pub trait Node: Sized {
     fn cast(syn: SyntaxNode) -> Option<Self>;
 }
 
-/// [`Sexp`]*
-pub struct Root {
+/// Root node of syntax tree
+pub struct Ast {
     syn: SyntaxNode,
 }
 
-impl Root {
+impl Ast {
     fn new(syn: SyntaxNode) -> Option<Self> {
         if syn.kind() == SyntaxKind::ROOT {
             Some(Self { syn })
