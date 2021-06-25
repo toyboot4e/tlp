@@ -4,7 +4,7 @@ Tree of tokens
 
 use thiserror::Error;
 
-use crate::{
+use crate::syntax::{
     cst::{
         data::{SyntaxKind, SyntaxNode},
         lex::{self, LexError, Token},

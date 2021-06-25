@@ -27,7 +27,7 @@ pub enum VmError {
 #[derive(Debug)]
 pub struct VM {
     /// Chunk of bytecode instructions
-    chunk: ChunkData,
+    chunk: Bytecode,
     /// Instuction pointer, index of current bytecode
     ip: usize,
     /// The `Vm` is stack-based
@@ -35,7 +35,7 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(chunk: ChunkData) -> Self {
+    pub fn new(chunk: Bytecode) -> Self {
         Self {
             chunk,
             ip: 0,
@@ -43,7 +43,7 @@ impl VM {
         }
     }
 
-    pub fn chunk_mut(&mut self) -> &mut ChunkData {
+    pub fn chunk_mut(&mut self) -> &mut Bytecode {
         &mut self.chunk
     }
 
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn arithmetic() -> Result<()> {
         let chunk = {
-            let mut chunk = ChunkData::default();
+            let mut chunk = Bytecode::default();
 
             // NOTE: use 2^x considering the accuracy of floating values
             chunk.push_const(64.0);

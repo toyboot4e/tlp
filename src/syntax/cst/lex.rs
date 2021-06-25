@@ -4,7 +4,7 @@ Stream of tokens
 
 use thiserror::Error;
 
-use crate::{cst::data::SyntaxKind, span::ByteSpan};
+use crate::syntax::{cst::data::SyntaxKind, span::ByteSpan};
 
 /// Span of text with syntactic kind
 #[derive(Debug, Clone, PartialEq)]

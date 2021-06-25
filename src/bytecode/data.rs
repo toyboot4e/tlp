@@ -31,16 +31,16 @@ pub type Value = f64;
 
 // TODO: disassemble
 
-/// Bytecode instructions with static context
+/// Bytecode with static context
 #[derive(Debug, Clone, Default)]
-pub struct ChunkData {
+pub struct Bytecode {
     /// Bytecode ([`OpCode`] and operands of them)
     bytes: Vec<u8>,
     /// Constant table created statically
     consts: Vec<Value>,
 }
 
-impl ChunkData {
+impl Bytecode {
     pub fn new() -> Self {
         Self {
             bytes: Vec::new(),
@@ -49,8 +49,8 @@ impl ChunkData {
     }
 }
 
-/// Byte reader
-impl ChunkData {
+/// Reader
+impl Bytecode {
     #[inline(always)]
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
@@ -71,8 +71,8 @@ impl ChunkData {
     }
 }
 
-/// Code writer
-impl ChunkData {
+/// Writer
+impl Bytecode {
     #[inline(always)]
     pub fn consts(&mut self) -> &Vec<Value> {
         &self.consts
