@@ -134,17 +134,6 @@ impl ParseState {
     }
 
     #[inline(always)]
-    fn maybe_bump<'t>(&mut self, pcx: &'t ParseContext) -> Option<&'t Token> {
-        if self.tsp.hi < pcx.tks.len() {
-            let tk = &pcx.tks[self.tsp.hi];
-            self.tsp.hi += 1;
-            Some(tk)
-        } else {
-            None
-        }
-    }
-
-    #[inline(always)]
     fn maybe_bump_kind(&mut self, pcx: &ParseContext, kind: SyntaxKind) -> Option<()> {
         let top = self.peek(pcx)?;
         if top.kind == kind {
@@ -164,7 +153,6 @@ impl ParseState {
 /// High-level syntax items
 impl ParseState {
     /// sexp → list | symbol
-    #[inline(always)]
     pub fn maybe_sx(&mut self, pcx: &ParseContext) -> Option<()> {
         self.maybe_bump_ws(pcx);
 
@@ -224,10 +212,35 @@ impl ParseState {
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)
     }
 
-    /// lit → num
+    /// lit → num | str
     #[inline(always)]
     fn maybe_lit(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.maybe_bump_kind(pcx, SyntaxKind::Num)
+        if self.maybe_bump_kind(pcx, SyntaxKind::Num).is_some() {
+            return Some(());
+        }
+
+        if self.maybe_str(pcx).is_some() {
+            return Some(());
+        }
+
+        None
+    }
+
+    #[inline(always)]
+    fn maybe_str(&mut self, pcx: &ParseContext) -> Option<()> {
+        let top = self.peek(pcx)?;
+
+        if top.kind != SyntaxKind::StrEnclosure {
+            return None;
+        }
+
+        self.builder.start_node(SyntaxKind::String.into());
+        self.bump_kind(pcx, SyntaxKind::StrEnclosure);
+        self.bump_kind(pcx, SyntaxKind::StrContent);
+        let _ = self.maybe_bump_kind(pcx, SyntaxKind::StrEnclosure);
+        self.builder.finish_node();
+
+        Some(())
     }
 }
 
@@ -307,6 +320,25 @@ mod test {
                 "Num@10..11",
                 "RParen@11..12",
                 "RParen@12..13",
+            ],
+        );
+    }
+
+    #[test]
+    fn str() {
+        let src = r##"ident"str"ident"##;
+        //            0 2 4 6 8 0 2 4
+        //            0         1
+
+        self::flat_match(
+            src,
+            vec![
+                "Ident@0..5",
+                "String@5..10",
+                "StrEnclosure@5..6",
+                "StrContent@6..9",
+                "StrEnclosure@9..10",
+                "Ident@10..15",
             ],
         );
     }
