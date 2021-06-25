@@ -1,10 +1,10 @@
 /*!
 Abstract syntax tree, layered on top of CST
 
-All AST nodes share the internal data structure, and they're just a wrapper around CST nodes.
+All AST nodes have the same internal structure, i.e, CST. As a result, AST nodes are just wrappers
+around CST nodes. Each component is lazily and temporary retrieved via accessors traversing the
+internal CST.
 */
-
-use rowan::api::SyntaxNodeChildren;
 
 use crate::syntax::cst::{
     data::{SyntaxKind, SyntaxNode, SyntaxToken},

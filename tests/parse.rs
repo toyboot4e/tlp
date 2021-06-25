@@ -1,5 +1,5 @@
 /*!
-`$ cargo test --test it`
+Run all test cases in `parse/cases.txt` (on `cargo test`)
 */
 
 use std::fmt;
