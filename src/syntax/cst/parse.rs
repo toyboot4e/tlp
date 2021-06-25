@@ -147,6 +147,7 @@ impl ParseState {
     #[inline(always)]
     fn maybe_bump_ws(&mut self, pcx: &ParseContext) -> Option<()> {
         self.maybe_bump_kind(pcx, SyntaxKind::Ws)
+            .or_else(|| self.maybe_bump_kind(pcx, SyntaxKind::Comment))
     }
 }
 

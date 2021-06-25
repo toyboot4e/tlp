@@ -25,11 +25,11 @@ impl fmt::Display for TestError {
         write!(
             f,
             "{}
-code:
+--- code
 {}
-ast:
+--- ast
 {}
-expected:
+--- expected
 {}",
             self.test.title, self.test.code, self.ast, self.test.expected,
         )

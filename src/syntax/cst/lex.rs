@@ -104,7 +104,7 @@ impl<'s> Lexer<'s> {
 
     /// The predicate returns if we should continue scanning reading a byte
     #[inline(always)]
-    fn advance_if(&mut self, p: &impl Fn(u8) -> bool) -> Option<()> {
+    fn advance_if(&mut self, p: impl Fn(u8) -> bool) -> Option<()> {
         if self.sp.hi >= self.src.len() {
             return None;
         }
@@ -121,12 +121,8 @@ impl<'s> Lexer<'s> {
 
     /// The predicate returns if we should continue scanning reading a byte
     #[inline(always)]
-    fn advance_while(&mut self, p: &impl Fn(u8) -> bool) {
-        loop {
-            if self.sp.hi >= self.src.len() {
-                return;
-            }
-
+    fn advance_while(&mut self, p: impl Fn(u8) -> bool) {
+        while self.sp.hi < self.src.len() {
             let peek = self.src[self.sp.hi];
 
             if !p(peek) {
@@ -134,6 +130,18 @@ impl<'s> Lexer<'s> {
             }
 
             self.sp.hi += 1;
+        }
+    }
+
+    #[inline(always)]
+    fn advance_until(&mut self, p: impl Fn(u8) -> bool) {
+        while self.sp.hi < self.src.len() {
+            let peek = self.src[self.sp.hi];
+            self.sp.hi += 1;
+
+            if p(peek) {
+                return;
+            }
         }
     }
 }
@@ -150,6 +158,11 @@ impl<'s> Lexer<'s> {
     #[inline(always)]
     fn process_forward(&mut self) {
         if let Some(tk) = self.lex_one_byte() {
+            self.tks.push(tk);
+            return;
+        }
+
+        if let Some(tk) = self.lex_comment() {
             self.tks.push(tk);
             return;
         }
@@ -208,8 +221,8 @@ impl<'s> Lexer<'s> {
 
     fn lex_syntax(
         &mut self,
-        start: &impl Fn(u8) -> bool,
-        body: &impl Fn(u8) -> bool,
+        start: impl Fn(u8) -> bool,
+        body: impl Fn(u8) -> bool,
         kind: SyntaxKind,
     ) -> Option<Token> {
         self.advance_if(start)?;
@@ -225,24 +238,32 @@ impl<'s> Lexer<'s> {
         self.lex_syntax(&self::is_ws, &self::is_ws, SyntaxKind::Ws)
     }
 
+    /// Any kind of comment (oneline/multiline, normal/docstring)
+    #[inline(always)]
+    fn lex_comment(&mut self) -> Option<Token> {
+        self.advance_if(|b| b == b';')?;
+        self.advance_until(|b| b == b'\n');
+        Some(self.consume_span_as(SyntaxKind::Comment))
+    }
+
     /// [0-9]<num>*
     #[inline(always)]
     fn lex_num(&mut self) -> Option<Token> {
-        self.lex_syntax(&self::is_num_start, &self::is_num_body, SyntaxKind::Num)
+        self.lex_syntax(self::is_num_start, self::is_num_body, SyntaxKind::Num)
     }
 
     /// "[^"]*"
     #[inline(always)]
     fn process_str(&mut self) -> Option<()> {
-        self.advance_if(&|b| b == b'"')?;
+        self.advance_if(|b| b == b'"')?;
         self.push_span_as(SyntaxKind::StrEnclosure);
 
-        self.advance_while(&|b| b != b'"');
+        self.advance_while(|b| b != b'"');
         assert!(self.sp.lo != self.sp.hi);
         self.push_span_as(SyntaxKind::StrContent);
         assert_eq!(self.sp.lo, self.sp.hi);
 
-        if self.advance_if(&|b| b == b'"').is_some() {
+        if self.advance_if(|b| b == b'"').is_some() {
             self.push_span_as(SyntaxKind::StrEnclosure);
         } else {
             self.errs.push(LexError::Eof);
@@ -255,10 +276,6 @@ impl<'s> Lexer<'s> {
     /// [^<ws>]*
     #[inline(always)]
     fn lex_ident(&mut self) -> Option<Token> {
-        self.lex_syntax(
-            &self::is_ident_start,
-            &self::is_ident_body,
-            SyntaxKind::Ident,
-        )
+        self.lex_syntax(self::is_ident_start, self::is_ident_body, SyntaxKind::Ident)
     }
 }

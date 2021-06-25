@@ -143,3 +143,17 @@ fn string() {
         ],
     );
 }
+
+#[test]
+fn comment() {
+    let src = ";; comment";
+    //         0 2 4 6 89
+
+    assert_eq!(
+        self::force_lex(src),
+        vec![Token {
+            kind: SyntaxKind::Comment,
+            sp: ByteSpan { lo: 0, hi: 10 },
+        },],
+    );
+}

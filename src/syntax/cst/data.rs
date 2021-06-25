@@ -55,9 +55,11 @@ pub enum SyntaxKind {
     Nil,
     // ?
     Ident,
-    // TODO: comment
+    /// Any kind of comment (oneline or multiline, normal comment or docstring)
+    Comment,
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
+    // CommentChunk
     List,
     String,
     // ----------------------------------------
