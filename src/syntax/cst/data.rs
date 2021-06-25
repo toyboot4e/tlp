@@ -59,6 +59,7 @@ pub enum SyntaxKind {
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
     List,
+    String,
     // ----------------------------------------
     // composite node
     /// Beginning of text

@@ -25,30 +25,28 @@ pub enum LexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
+    #[error("Unexpected end of file")]
+    Eof,
 }
 
 /// Convers text into a CST. It doesn't fail even if the given text has wrong syntax.
-pub fn lex<'s>(src: &'s str) -> (Vec<Token>, Vec<LexError>) {
-    let errs = vec![];
-    // FIXME: handle error
-    let tks = self::from_str(src).run();
-    (tks, errs)
-}
-
-/// Creates [`Lexer`] binding an error vec
-pub fn from_str<'s>(src: &'s str) -> Lexer<'s> {
-    Lexer {
+pub fn from_str<'s>(src: &'s str) -> (Vec<Token>, Vec<LexError>) {
+    let l = Lexer {
         src: src.as_bytes(),
         sp: Default::default(),
         tks: vec![],
-    }
+        errs: vec![],
+    };
+    l.run()
 }
 
 /// Stateful lexer that converts given string into simple [`Token`] s
-pub struct Lexer<'s> {
+#[derive(Debug)]
+struct Lexer<'s> {
     src: &'s [u8],
     sp: ByteSpan,
     tks: Vec<Token>,
+    errs: Vec<LexError>,
 }
 
 #[inline(always)]
@@ -68,12 +66,12 @@ fn is_num_body(c: u8) -> bool {
 
 #[inline(always)]
 fn is_ident_body(c: u8) -> bool {
-    !is_ws(c)
+    !(is_ws(c) || matches!(c, b'"'))
 }
 
 #[inline(always)]
 fn is_ident_start(c: u8) -> bool {
-    !(is_ws(c) || is_num_start(c))
+    !(is_ws(c) || matches!(c, b'"') || is_num_start(c))
 }
 
 #[inline(always)]
@@ -81,7 +79,6 @@ fn tk_byte(c: u8) -> Option<SyntaxKind> {
     let kind = match c {
         b'(' => SyntaxKind::LParen,
         b')' => SyntaxKind::RParen,
-        b'"' => SyntaxKind::StrEnclosure,
         _ => return None,
     };
 
@@ -98,6 +95,11 @@ impl<'s> Lexer<'s> {
     fn consume_span_as(&mut self, kind: SyntaxKind) -> Token {
         let sp = self.consume_span();
         Token { kind, sp }
+    }
+
+    fn push_span_as(&mut self, kind: SyntaxKind) {
+        let tk = self.consume_span_as(kind);
+        self.tks.push(tk);
     }
 
     /// The predicate returns if we should continue scanning reading a byte
@@ -136,31 +138,17 @@ impl<'s> Lexer<'s> {
     }
 }
 
-impl<'s> Iterator for Lexer<'s> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if !self.tks.is_empty() {
-                return self.tks.pop();
-            }
-
-            if self.sp.lo >= self.src.len() {
-                break None;
-            } else {
-                self.lex_forward();
-            }
-        }
-    }
-}
-
 impl<'s> Lexer<'s> {
-    pub fn run(mut self) -> Vec<Token> {
-        self.collect::<Vec<_>>()
+    pub fn run(mut self) -> (Vec<Token>, Vec<LexError>) {
+        while self.sp.lo < self.src.len() {
+            self.process_forward();
+        }
+
+        (self.tks, self.errs)
     }
 
     #[inline(always)]
-    fn lex_forward(&mut self) {
+    fn process_forward(&mut self) {
         if let Some(tk) = self.lex_one_byte() {
             self.tks.push(tk);
             return;
@@ -173,6 +161,10 @@ impl<'s> Lexer<'s> {
 
         if let Some(tk) = self.lex_num() {
             self.tks.push(tk);
+            return;
+        }
+
+        if let Some(()) = self.process_str() {
             return;
         }
 
@@ -200,7 +192,7 @@ impl<'s> Lexer<'s> {
     }
 }
 
-/// Lexing utilities
+/// Utilities
 impl<'s> Lexer<'s> {
     #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
@@ -239,6 +231,27 @@ impl<'s> Lexer<'s> {
         self.lex_syntax(&self::is_num_start, &self::is_num_body, SyntaxKind::Num)
     }
 
+    /// "[^"]*"
+    #[inline(always)]
+    fn process_str(&mut self) -> Option<()> {
+        self.advance_if(&|b| b == b'"')?;
+        self.push_span_as(SyntaxKind::StrEnclosure);
+
+        self.advance_while(&|b| b != b'"');
+        assert!(self.sp.lo != self.sp.hi);
+        self.push_span_as(SyntaxKind::StrContent);
+        assert_eq!(self.sp.lo, self.sp.hi);
+
+        if self.advance_if(&|b| b == b'"').is_some() {
+            self.push_span_as(SyntaxKind::StrEnclosure);
+        } else {
+            self.errs.push(LexError::Eof);
+            self.consume_span();
+        }
+
+        Some(())
+    }
+
     /// [^<ws>]*
     #[inline(always)]
     fn lex_ident(&mut self) -> Option<Token> {
@@ -256,9 +269,10 @@ mod test {
     use crate::syntax::cst::lex;
 
     fn force_lex(src: &str) -> Vec<Token> {
-        let (tks, errs) = lex::lex(src);
+        let (tks, errs) = lex::from_str(src);
 
         if !errs.is_empty() {
+            let errs = errs.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
             panic!("{:#?}", errs);
         }
 
@@ -267,7 +281,7 @@ mod test {
 
     #[test]
     fn one_byte_tokens() {
-        let src = "(\")";
+        let src = "()";
 
         assert_eq!(
             self::force_lex(src),
@@ -277,12 +291,8 @@ mod test {
                     sp: ByteSpan { lo: 0, hi: 1 },
                 },
                 Token {
-                    kind: SyntaxKind::StrEnclosure,
-                    sp: ByteSpan { lo: 1, hi: 2 },
-                },
-                Token {
                     kind: SyntaxKind::RParen,
-                    sp: ByteSpan { lo: 2, hi: 3 },
+                    sp: ByteSpan { lo: 1, hi: 2 },
                 },
             ]
         );
@@ -361,6 +371,38 @@ mod test {
                 kind: SyntaxKind::Nil,
                 sp: ByteSpan { lo: 0, hi: 3 },
             }],
+        );
+    }
+
+    #[test]
+    fn string() {
+        let src = r##"("str!")"##;
+        //            0 2 4 67
+
+        assert_eq!(
+            self::force_lex(src),
+            vec![
+                Token {
+                    kind: SyntaxKind::LParen,
+                    sp: ByteSpan { lo: 0, hi: 1 },
+                },
+                Token {
+                    kind: SyntaxKind::StrEnclosure,
+                    sp: ByteSpan { lo: 1, hi: 2 },
+                },
+                Token {
+                    kind: SyntaxKind::StrContent,
+                    sp: ByteSpan { lo: 2, hi: 6 },
+                },
+                Token {
+                    kind: SyntaxKind::StrEnclosure,
+                    sp: ByteSpan { lo: 6, hi: 7 },
+                },
+                Token {
+                    kind: SyntaxKind::RParen,
+                    sp: ByteSpan { lo: 7, hi: 8 },
+                },
+            ],
         );
     }
 }

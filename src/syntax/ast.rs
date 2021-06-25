@@ -1,5 +1,5 @@
 /*!
-Abstract syntax tree, CST with semanctic information
+Abstract syntax tree, layered on top of CST
 
 All AST nodes share the internal data structure, and they're just a wrapper around CST nodes.
 */

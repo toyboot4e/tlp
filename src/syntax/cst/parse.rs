@@ -34,7 +34,7 @@ pub enum ParseError {
 /// Creates a CST and optionally errors. It won't fail even if the given input is invalid in ToyLisp
 /// grammer.
 pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
-    let (tks, lex_errs) = lex::lex(src);
+    let (tks, lex_errs) = lex::from_str(src);
 
     let (tree, mut errs) = self::from_tks(src, &tks);
     errs.extend(lex_errs.into_iter().map(ParseError::from));
