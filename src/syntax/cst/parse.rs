@@ -248,7 +248,7 @@ impl ParseState {
 mod test {
     use crate::syntax::cst::{self, data::SyntaxElement};
 
-    fn flat_match(src: &str, expected: Vec<&str>) {
+    fn flat_match(src: &str, expected: &str) {
         let (tree, errs) = cst::parse::from_str(src);
 
         if !errs.is_empty() {
@@ -258,22 +258,39 @@ mod test {
         // root
         assert_eq!(format!("{:?}", tree), format!("ROOT@0..{}", src.len()));
 
+        let mut nest = 0;
         let flat_repr = tree
             .children_with_tokens()
             .flat_map(|elem| match elem {
                 SyntaxElement::Node(node) => node
                     .preorder_with_tokens()
                     .filter_map(|ev| match ev {
-                        rowan::WalkEvent::Enter(node) => Some(node),
-                        rowan::WalkEvent::Leave(_) => None,
+                        rowan::WalkEvent::Enter(node) => {
+                            let last_nest = nest;
+                            nest += 1;
+                            Some((last_nest, node))
+                        }
+                        rowan::WalkEvent::Leave(_) => {
+                            nest -= 1;
+                            None
+                        }
                     })
                     .collect::<Vec<_>>(),
-                SyntaxElement::Token(_) => vec![elem],
+                SyntaxElement::Token(_) => vec![(nest, elem)],
             })
-            .map(|child| format!("{:?}@{:?}", child.kind(), child.text_range()))
+            .map(|(nest, child)| {
+                format!(
+                    "{}{:?}@{:?}",
+                    "    ".repeat(nest),
+                    child.kind(),
+                    child.text_range()
+                )
+            })
             .collect::<Vec<_>>();
 
-        assert_eq!(flat_repr, expected);
+        let flat = flat_repr.join("\n");
+        let expected = expected.trim();
+        assert_eq!(flat, expected);
     }
 
     #[test]
@@ -283,16 +300,16 @@ mod test {
 
         self::flat_match(
             src,
-            vec![
-                "List@0..7",
-                "LParen@0..1",
-                "Ident@1..2",
-                "Ws@2..3",
-                "Num@3..4",
-                "Ws@4..5",
-                "Num@5..6",
-                "RParen@6..7",
-            ],
+            r#"
+List@0..7
+    LParen@0..1
+    Ident@1..2
+    Ws@2..3
+    Num@3..4
+    Ws@4..5
+    Num@5..6
+    RParen@6..7
+"#,
         );
     }
 
@@ -304,23 +321,23 @@ mod test {
 
         self::flat_match(
             src,
-            vec![
-                "List@0..13",
-                "LParen@0..1",
-                "Ident@1..2",
-                "Ws@2..3",
-                "Num@3..4",
-                "Ws@4..5",
-                "List@5..12",
-                "LParen@5..6",
-                "Ident@6..7",
-                "Ws@7..8",
-                "Num@8..9",
-                "Ws@9..10",
-                "Num@10..11",
-                "RParen@11..12",
-                "RParen@12..13",
-            ],
+            r#"
+List@0..13
+    LParen@0..1
+    Ident@1..2
+    Ws@2..3
+    Num@3..4
+    Ws@4..5
+    List@5..12
+        LParen@5..6
+        Ident@6..7
+        Ws@7..8
+        Num@8..9
+        Ws@9..10
+        Num@10..11
+        RParen@11..12
+    RParen@12..13
+"#,
         );
     }
 
@@ -332,14 +349,14 @@ mod test {
 
         self::flat_match(
             src,
-            vec![
-                "Ident@0..5",
-                "String@5..10",
-                "StrEnclosure@5..6",
-                "StrContent@6..9",
-                "StrEnclosure@9..10",
-                "Ident@10..15",
-            ],
+            r#"
+Ident@0..5
+String@5..10
+    StrEnclosure@5..6
+    StrContent@6..9
+    StrEnclosure@9..10
+Ident@10..15
+"#,
         );
     }
 }
