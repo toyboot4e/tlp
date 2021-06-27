@@ -1,0 +1,29 @@
+-! Module document
+
+-!(
+Multi-line module document
+-!)
+
+-- one-line comment
+--[ range-based comment --]
+
+-- module-only variable
+(X 32)
+(Y (+ 30 4))
+
+@pub
+(GLOBAL "This is a global (= public and static) variable")
+
+--- Documentation for the module-only function
+--(
+Multiline documentation for this module-only function
+--)
+(fib (n)
+    (case n
+        (0 1)
+        (1 1)
+        (_ (+ (fib (- n 1) (- n 2))))))
+
+#[test]
+(unit-test ()
+    (assert:eq 0 0))
