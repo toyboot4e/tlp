@@ -22,7 +22,10 @@ export function activate(context: ExtensionContext) {
     };
 
     let clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: "file", language: lang }],
+        documentSelector: [{ scheme: "file", language: "toylisp" }],
+        synchronize: {
+            fileEvents: workspace.createFileSystemWatcher("*.tlp"),
+        },
     };
 
     client = new LanguageClient(
