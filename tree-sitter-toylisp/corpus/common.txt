@@ -1,0 +1,12 @@
+==================
+Comment and string
+==================
+
+-- This is a comment
+"string"
+
+---
+
+(source
+  (comment)
+  (string))
