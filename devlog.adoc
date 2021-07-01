@@ -8,6 +8,8 @@
 :rowan: https://github.com/rust-analyzer/rowan/[rowan]
 :rowan-s: https://github.com/rust-analyzer/rowan/blob/master/examples/s_expressions.rs[s_expressions.rs]
 
+:tower-lsp: https://github.com/ebkalderon/tower-lsp[tower-lsp]
+:lspower: https://github.com/silvanshade/lspower[lspower]
 :tree-sitter: https://github.com/tree-sitter/tree-sitter[tree-sitter]
 
 == Background
@@ -28,12 +30,12 @@ I believed TopLisp would do this conversion: source string → AST → bytecode.
 +
 I added a WIP lexer (tokenizer) which converts given string (`&str`) into a vector of tokens.
 +
-** The lexer handles non-streaming input/output or simplicity.
+** The lexer handles non-streaming input/output for simplicity.
 ** The lexer handles UTF-8 string as bytes (as `&[u8]`, not as `Iterator<char>`) because we're only interested in ASCII characters while lexing.
 
 * Jun 12, 2021
 +
-Nice resource from `rustc` dev guide: https://rustc-dev-guide.rust-lang.org/the-parser.html[Lexing and Parsing],
+Just a note: nice resource from `rustc` dev guide: https://rustc-dev-guide.rust-lang.org/the-parser.html[Lexing and Parsing].
 
 * Jun 17, 2021
 +
@@ -43,9 +45,9 @@ I parsed `Vec<Token>` into a hierarchy of tokens (S-expressions represented as s
 
 * Jun 17, 2021
 +
-I added a simple VM which can calculate arithmetics. It's stack-based as a VM in the book ({cr}).
+I added a simple VM which can calculate arithmetics. It's a stack-based VM as one in the book ({cr}).
 +
-I also added a compiler. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
+I also added a simple compiler. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
 
 === Follow `rust-analyzer`
 
@@ -57,7 +59,7 @@ I want my ideal lang to be statically typed, and the parser should be IDE-orient
 +
 Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization: deduplication of subtree and use of thin pointers. I couldn't do better than that, so I decided to just use {rowan} instead of re-writing it.].
 +
-I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with syntax _kind_ s. The good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in toylisp grammer.
+I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with _syntax kind_ s. One good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in toylisp grammer. I'll know other points of CST in later days.
 +
 Today I parsed simple arithmetics with {rowan}. To run toylisp again, I'd make CST → AST step.
 
@@ -67,14 +69,27 @@ I added a WIP AST, which can't be run yet. I'll make an LSP server while develop
 +
 In context of {rowan}, an AST node is just a wrapper around a CST node; it's just a subtree of tokens with accessor methods.
 
+==== Frontend
+
+I'll develop both the language and LSP as the same time.
+
 * Jul 1, 2021
 +
-OMG! Language server can't provide syntax highlighting as of today, and every text editor uses different regular expression for highlights. But don't too worry, {tree-sitter} would be the write-once-run-everywhere syntax highlighter! (If not, well I have some contribution chance. I already sent a https://github.com/tree-sitter/tree-sitter/pull/1220[PR] to {tree-sitter} (CLI part), praise me! 😎).
+I'm making a simple language server using {tower-lsp}. I connected a simple LS to VSCode:
++
+image:devlog/ls-connected.png[]
++
+Awesome!
++
+Next thing to do was syntax highlighting! But as of today, LS can't provide syntax highlighting.
++
+OMG!
++
+And every text editor uses different regular expression for highlights. But don't too worry, {tree-sitter} would be the write-once-run-everywhere syntax highlighter. (If not, well I have some contribution chance. I already sent a https://github.com/tree-sitter/tree-sitter/pull/1220[PR] to {tree-sitter} (CLI part), praise me! 😎).
 +
 Today I got WIP syntax highlighting for toylisp on Emacs with tree-sitter:
 +
-image::devlog/emacs-tree-sitter-hl.png[]
+image:devlog/emacs-tree-sitter-hl.png[]
 +
-Epico.
-
+E p i c o
 
