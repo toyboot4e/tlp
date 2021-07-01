@@ -1,0 +1,4 @@
+
+(comment) @comment
+(string) @string
+
