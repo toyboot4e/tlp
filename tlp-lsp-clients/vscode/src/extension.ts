@@ -21,6 +21,7 @@ export function activate(context: ExtensionContext) {
         debug: { command: cmd },
     };
 
+    // watch toylisp files
     let clientOptions: LanguageClientOptions = {
         documentSelector: [{ scheme: "file", language: "toylisp" }],
         synchronize: {
@@ -30,7 +31,7 @@ export function activate(context: ExtensionContext) {
 
     client = new LanguageClient(
         "tlp",
-        "ToyLisp language server",
+        "toylisp language server",
         serverOptions,
         clientOptions
     );

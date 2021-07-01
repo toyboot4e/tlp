@@ -31,7 +31,7 @@ pub enum ParseError {
     Unexpected { expected: String, found: String },
 }
 
-/// Creates a CST and optionally errors. It won't fail even if the given input is invalid in ToyLisp
+/// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
 /// grammer.
 pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
     let (tks, lex_errs) = lex::from_str(src);

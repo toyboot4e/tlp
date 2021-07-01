@@ -1,5 +1,5 @@
 /*!
-ToyLisp LSP implementation (server side)
+toylisp LSP implementation (server side)
 */
 
 use serde_json::Value;

@@ -55,6 +55,25 @@ I want my ideal lang to be statically typed, and the parser should be IDE-orient
 +
 Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization: deduplication of subtree and use of thin pointers. I couldn't do better than that, so I decided to just use {rowan} instead of re-writing it.].
 +
-I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with syntax _kind_ s. The good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in ToyLisp grammer.
+I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with syntax _kind_ s. The good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in toylisp grammer.
 +
-Today I parsed simple arithmetics with `rowan`. To run ToyLisp again, I'd make CST → AST step.
+Today I parsed simple arithmetics with {rowan}. To run toylisp again, I'd make CST → AST step.
+
+* Jun 25, 2021
++
+I added a WIP AST, which can't be run yet. I'll make an LSP server while developing `tlp`.
++
+In context of {rowan}, an AST node is just a wrapper around a CST node; it's just a subtree of tokens with accessor methods.
+
+== Syntax
+
+* string
+* quote
+* docstring
+
+== LSP
+
+* completion
+* go to definition
+* show type and documentation
+* rename item
