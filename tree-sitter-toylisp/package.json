@@ -1,0 +1,26 @@
+{
+    "name": "tree-sitter-toylisp",
+    "version": "0.1.0",
+    "description": "tree-sitter parser for toylisp",
+    "main": "bindings/node",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "toyboot4e",
+    "license": "MIT",
+    "dependencies": {
+        "nan": "^2.14.2"
+    },
+    "devDependencies": {
+        "tree-sitter-cli": "^0.19.5"
+    },
+    "tree-sitter": [
+        {
+            "scope": "source.toylisp",
+            "file-types": [
+                "toylisp",
+                "tlp"
+            ]
+        }
+    ]
+}

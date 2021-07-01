@@ -1,0 +1,66 @@
+{
+    "name": "tlp-ls-vscode",
+    "description": "toylisp language server client for Visual Studio Code",
+    "author": "toyboot4e",
+    "version": "0.0.1",
+    "publisher": "toyboot4e",
+    "engines": {
+        "vscode": "^1.52.0"
+    },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/toyboot4e/tlp.git"
+    },
+    "categories": [
+        "Programming Languages",
+        "Linters"
+    ],
+    "keywords": [
+        "toylisp"
+    ],
+    "activationEvents": [
+        "onLanguage:toylisp"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "languages": [
+            {
+                "id": "toylisp",
+                "aliases": ["toylisp", "toylisp"],
+                "extensions": [".tlp"],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "toylisp",
+                "scopeName": "source.toylisp",
+                "path": "./syntaxes/toylisp.tmLanguage.json"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile",
+        "test": "node ./out/test/runTest.js",
+        "update-vscode": "vscode-install",
+        "postinstall": "vscode-install"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^7.0.0"
+    },
+    "devDependencies": {
+        "@types/glob": "^7.1.1",
+        "@types/mocha": "^5.2.7",
+        "@types/node": "^12.11.7",
+        "@types/vscode": "^1.39.0",
+        "glob": "^7.1.5",
+        "mocha": "^6.2.2",
+        "tslint": "^5.20.0",
+        "typescript": "^3.9.10",
+        "vscode-test": "^1.2.2"
+    }
+}

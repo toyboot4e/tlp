@@ -1,0 +1,17 @@
+= tree-sitter-toylisp
+:tree: https://tree-sitter.github.io/tree-sitter[tree-sitter]
+
+Language server can't provide syntax highlighting as of today. I guess {tree} would be the write-once-run-everywhere syntax highlighter.
+
+== How to use
+
+TODO
+
+=== Emacs
+
+=== Vim
+
+=== VSCode
+
+=== Sublime Text4
+

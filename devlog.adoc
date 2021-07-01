@@ -1,4 +1,4 @@
-= ToyLisp devlog
+= toylisp devlog
 :glsp: https://gamelisp.rs/[GameLisp]
 :snowrl: https://github.com/toyboot4e/snowrl[SnowrL]
 :cr: https://craftinginterpreters.com/contents.html[Crafting Interpreters]
@@ -8,9 +8,11 @@
 :rowan: https://github.com/rust-analyzer/rowan/[rowan]
 :rowan-s: https://github.com/rust-analyzer/rowan/blob/master/examples/s_expressions.rs[s_expressions.rs]
 
+:tree-sitter: https://github.com/tree-sitter/tree-sitter[tree-sitter]
+
 == Background
 
-I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: ToyLisp (`tlp`).
+I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: toylisp (`tlp`).
 
 I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs package in ELisp ({toy-scheme}), still I know little about Lisp. I'd have to struggle a lot.
 
@@ -55,6 +57,24 @@ I want my ideal lang to be statically typed, and the parser should be IDE-orient
 +
 Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization: deduplication of subtree and use of thin pointers. I couldn't do better than that, so I decided to just use {rowan} instead of re-writing it.].
 +
-I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with syntax _kind_ s. The good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in ToyLisp grammer.
+I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with syntax _kind_ s. The good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST for invalid source string in toylisp grammer.
 +
-Today I parsed simple arithmetics with `rowan`. To run ToyLisp again, I'd make CST → AST step.
+Today I parsed simple arithmetics with {rowan}. To run toylisp again, I'd make CST → AST step.
+
+* Jun 25, 2021
++
+I added a WIP AST, which can't be run yet. I'll make an LSP server while developing `tlp`.
++
+In context of {rowan}, an AST node is just a wrapper around a CST node; it's just a subtree of tokens with accessor methods.
+
+* Jul 1, 2021
++
+OMG! Language server can't provide syntax highlighting as of today, and every text editor uses different regular expression for highlights. But don't too worry, {tree-sitter} would be the write-once-run-everywhere syntax highlighter! (If not, well I have some contribution chance. I already sent a https://github.com/tree-sitter/tree-sitter/pull/1220[PR] to {tree-sitter} (CLI part), praise me! 😎).
++
+Today I got WIP syntax highlighting for toylisp on Emacs with tree-sitter:
++
+image::devlog/emacs-tree-sitter-hl.png[]
++
+Epico.
+
+
