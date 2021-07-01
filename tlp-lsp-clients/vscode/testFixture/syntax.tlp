@@ -1,15 +1,19 @@
--! Module document
+-- comment
+
+-! Syntax example
 
 -!(
 Multi-line module document
 -!)
 
 -- one-line comment
---[ range-based comment --]
+--( range-based comment --)
 
 -- module-only variable
 (X 32)
 (Y (+ 30 4))
+
+"string"
 
 @pub
 (GLOBAL "This is a global (= public and static) variable")

@@ -1,4 +1,4 @@
-= ToyLisp devlog
+= toylisp devlog
 :glsp: https://gamelisp.rs/[GameLisp]
 :snowrl: https://github.com/toyboot4e/snowrl[SnowrL]
 :cr: https://craftinginterpreters.com/contents.html[Crafting Interpreters]
@@ -10,7 +10,7 @@
 
 == Background
 
-I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: ToyLisp (`tlp`).
+I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice, but it didn't have `:named arg` syntax. Then I suddenly wanted to make my own Lisp: toylisp (`tlp`).
 
 I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs package in ELisp ({toy-scheme}), still I know little about Lisp. I'd have to struggle a lot.
 
