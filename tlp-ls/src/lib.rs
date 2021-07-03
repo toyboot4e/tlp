@@ -2,125 +2,81 @@
 toylisp LSP implementation (server side)
 */
 
-use serde_json::Value;
+mod backend;
+
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use tower_lsp::{
     jsonrpc::Result,
     lsp_types::*,
     {Client, LanguageServer},
 };
 
+use self::backend::Inner;
+
 #[derive(Debug)]
 pub struct Backend {
-    client: Client,
+    inner: Arc<Mutex<Inner>>,
 }
 
 impl Backend {
     pub fn new(client: Client) -> Self {
-        Self { client }
+        Self {
+            inner: Arc::new(Mutex::new(Inner::new(client))),
+        }
     }
 }
 
+/// Delegate the implementation to `&mut Inner`
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult {
-            server_info: None,
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::Incremental,
-                )),
-                completion_provider: Some(CompletionOptions {
-                    resolve_provider: Some(false),
-                    trigger_characters: Some(vec![".".to_string()]),
-                    work_done_progress_options: Default::default(),
-                    all_commit_characters: None,
-                }),
-                execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["dummy.do_something".to_string()],
-                    work_done_progress_options: Default::default(),
-                }),
-                workspace: Some(WorkspaceServerCapabilities {
-                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
-                        supported: Some(true),
-                        change_notifications: Some(OneOf::Left(true)),
-                    }),
-                    file_operations: None,
-                }),
-                ..ServerCapabilities::default()
-            },
-        })
+    async fn initialize(&self, p: InitializeParams) -> Result<InitializeResult> {
+        self.inner.lock().await.initialize(p).await
     }
 
-    async fn initialized(&self, _: InitializedParams) {
-        self.client
-            .log_message(MessageType::Info, "initialized!")
-            .await;
+    async fn initialized(&self, p: InitializedParams) {
+        self.inner.lock().await.initialized(p).await;
     }
 
     async fn shutdown(&self) -> Result<()> {
-        Ok(())
+        self.inner.lock().await.shutdown().await
     }
 
-    async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
-        self.client
-            .log_message(MessageType::Info, "workspace folders changed!")
+    async fn did_change_workspace_folders(&self, p: DidChangeWorkspaceFoldersParams) {
+        self.inner
+            .lock()
+            .await
+            .did_change_workspace_folders(p)
             .await;
     }
 
-    async fn did_change_configuration(&self, _: DidChangeConfigurationParams) {
-        self.client
-            .log_message(MessageType::Info, "configuration changed!")
-            .await;
+    async fn did_change_configuration(&self, p: DidChangeConfigurationParams) {
+        self.inner.lock().await.did_change_configuration(p).await;
     }
 
-    async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
-        self.client
-            .log_message(MessageType::Info, "watched files have changed!")
-            .await;
+    async fn did_change_watched_files(&self, p: DidChangeWatchedFilesParams) {
+        self.inner.lock().await.did_change_watched_files(p).await;
     }
 
-    async fn execute_command(&self, _: ExecuteCommandParams) -> Result<Option<Value>> {
-        self.client
-            .log_message(MessageType::Info, "command executed!")
-            .await;
-
-        match self.client.apply_edit(WorkspaceEdit::default()).await {
-            Ok(res) if res.applied => self.client.log_message(MessageType::Info, "applied").await,
-            Ok(_) => self.client.log_message(MessageType::Info, "rejected").await,
-            Err(err) => self.client.log_message(MessageType::Error, err).await,
-        }
-
-        Ok(None)
+    async fn did_open(&self, p: DidOpenTextDocumentParams) {
+        self.inner.lock().await.did_open(p).await;
     }
 
-    async fn did_open(&self, _: DidOpenTextDocumentParams) {
-        self.client
-            .log_message(MessageType::Info, "file opened!")
-            .await;
+    async fn did_change(&self, p: DidChangeTextDocumentParams) {
+        self.inner.lock().await.did_change(p).await;
     }
 
-    async fn did_change(&self, _: DidChangeTextDocumentParams) {
-        self.client
-            .log_message(MessageType::Info, "file changed!")
-            .await;
+    async fn did_save(&self, p: DidSaveTextDocumentParams) {
+        self.inner.lock().await.did_save(p).await;
     }
 
-    async fn did_save(&self, _: DidSaveTextDocumentParams) {
-        self.client
-            .log_message(MessageType::Info, "file saved!")
-            .await;
+    async fn did_close(&self, p: DidCloseTextDocumentParams) {
+        self.inner.lock().await.did_close(p).await;
     }
 
-    async fn did_close(&self, _: DidCloseTextDocumentParams) {
-        self.client
-            .log_message(MessageType::Info, "file closed!")
-            .await;
-    }
-
-    async fn completion(&self, _: CompletionParams) -> Result<Option<CompletionResponse>> {
-        Ok(Some(CompletionResponse::Array(vec![
-            CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
-            CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
-        ])))
+    async fn completion(&self, p: CompletionParams) -> Result<Option<CompletionResponse>> {
+        self.inner.lock().await.completion(p).await
     }
 }
