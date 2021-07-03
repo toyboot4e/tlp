@@ -17,8 +17,7 @@ export function activate(context: ExtensionContext) {
 
     let serverOptions: ServerOptions = {
         run: { command: cmd },
-        // debug: { command: cmd, args: ["--debug"] },
-        debug: { command: cmd },
+        debug: { command: cmd, args: ["--debug"] },
     };
 
     // watch toylisp files

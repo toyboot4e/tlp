@@ -27,7 +27,7 @@
         "languages": [
             {
                 "id": "toylisp",
-                "aliases": ["toylisp", "toylisp"],
+                "aliases": ["toylisp", "tlp"],
                 "extensions": [".tlp"],
                 "configuration": "./language-configuration.json"
             }

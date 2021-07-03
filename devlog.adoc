@@ -1,6 +1,6 @@
 = toylisp devlog
 :glsp: https://gamelisp.rs/[GameLisp]
-:snowrl: https://github.com/toyboot4e/snowrl[SnowrL]
+:snowrl: https://github.com/toyboot4e/snowrl[SnowRL]
 :cr: https://craftinginterpreters.com/contents.html[Crafting Interpreters]
 :toy-scheme: https://github.com/toyboot4e/toy-scheme[toy-scheme]
 
