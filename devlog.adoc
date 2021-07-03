@@ -20,9 +20,9 @@ I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs packag
 
 == Devlog
 
-=== Before knowing CST
+=== Initial approach
 
-I believed TopLisp would do this conversion: source string → AST → bytecode.
+I believed toylisp would do this conversion: source string → AST → bytecode.
 
 ==== Lexer (tokenizer)
 
@@ -49,11 +49,11 @@ I added a simple VM which can calculate arithmetics. It's a stack-based VM as on
 +
 I also added a simple compiler. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
 
-=== Follow `rust-analyzer`
-
-I want my ideal lang to be statically typed, and the parser should be IDE-oriented. It would be a great if I can learn from {ra}.
+=== Setting up frontend
 
 ==== CST
+
+I want my ideal lang to be statically typed, and the parser should be IDE-oriented. It would be a great if I can learn from {ra}.
 
 * Jun 21, 2021
 +
@@ -69,7 +69,7 @@ I added a WIP AST, which can't be run yet. I'll make an LSP server while develop
 +
 In context of {rowan}, an AST node is just a wrapper around a CST node; it's just a subtree of tokens with accessor methods.
 
-==== Frontend
+==== Language server and syntax highlighting (tree-sitter)
 
 I'll develop both the language and LSP as the same time.
 
