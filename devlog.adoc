@@ -77,7 +77,7 @@ I'll develop both the language and LSP as the same time.
 +
 I'm making a simple language server using {tower-lsp}. I connected a simple LS to VSCode:
 +
-image:devlog/ls-connected.png[]
+image::devlog/ls-connected.png[]
 +
 Awesome!
 +
@@ -89,7 +89,15 @@ And every text editor uses different regular expression for highlights. But don'
 +
 Today I got WIP syntax highlighting for toylisp on Emacs with tree-sitter:
 +
-image:devlog/emacs-tree-sitter-hl.png[]
+image::devlog/emacs-tree-sitter-hl.png[]
 +
 E p i c o
+
+* Jul 4, 2021
++
+Summon EoF error!
++
+image::devlog/ls-eof.png[]
++
+There are lots more things to, such as syncing the buffers, but now the front-end development is ready, so many works can directly improve user experience. Let's become a toylisp user!
 
