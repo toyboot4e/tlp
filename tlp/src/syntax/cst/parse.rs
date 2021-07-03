@@ -2,6 +2,8 @@
 Tree of tokens
 */
 
+use std::fmt::{self, Pointer};
+
 use thiserror::Error;
 
 use crate::syntax::{
@@ -9,7 +11,7 @@ use crate::syntax::{
         data::{SyntaxKind, SyntaxNode},
         lex::{self, LexError, Token},
     },
-    span::ByteSpan,
+    span::{self, ByteSpan, TextPos},
 };
 
 use rowan::{GreenNode, GreenNodeBuilder};
@@ -20,15 +22,57 @@ pub enum ParseError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
-    #[error("{err}")]
+    #[error("LexError: {err}")]
     LexError {
         #[from]
         err: LexError,
     },
-    #[error("Unexpected EoF while parsing")]
-    Eof,
-    #[error("Expected {expected}, found {found}")]
-    Unexpected { expected: String, found: String },
+    #[error("Expected `{expected}`, found `{found}`")]
+    Unexpected {
+        at: TextPos,
+        expected: String,
+        found: String,
+    },
+    #[error("Unterminated string")]
+    UnterminatedString { sp: ByteSpan },
+}
+
+/// API for showing diagnostics via LSP
+impl ParseError {
+    pub fn span(&self) -> ByteSpan {
+        match self {
+            Self::Unreachable { sp } => sp.clone(),
+            Self::LexError { err } => err.span(),
+            Self::Unexpected { at: pos, .. } => ByteSpan::at(*pos),
+            Self::UnterminatedString { sp } => *sp,
+        }
+    }
+
+    pub fn with_loc(&self, src: &str) -> ParseErrorWithLocation {
+        let (ln, col) = span::ln_col(self.span().lo, src);
+        ParseErrorWithLocation {
+            err: self.clone(),
+            ln,
+            col,
+        }
+    }
+}
+
+/// Display of [`ParseError`] with prefix `ln:col`
+///
+/// NOTE: In text editors, diagnostics are automatically displayed with `line:column`information, so
+/// this type is only for termianl output.
+#[derive(Debug, Clone)]
+pub struct ParseErrorWithLocation {
+    err: ParseError,
+    ln: usize,
+    col: usize,
+}
+
+impl fmt::Display for ParseErrorWithLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{} {}", self.ln, self.col, self.err)
+    }
 }
 
 /// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
@@ -99,7 +143,7 @@ impl ParseState {
 /// Helpers
 impl ParseState {
     #[inline(always)]
-    fn peek<'t>(&mut self, pcx: &'t ParseContext) -> Option<&'t Token> {
+    fn peek<'pcx>(&mut self, pcx: &'pcx ParseContext) -> Option<&'pcx Token> {
         if self.tsp.hi < pcx.tks.len() {
             Some(&pcx.tks[self.tsp.hi])
         } else {
@@ -107,30 +151,20 @@ impl ParseState {
         }
     }
 
-    #[inline(always)]
-    fn try_peek<'t>(&mut self, pcx: &'t ParseContext) -> Option<&'t Token> {
-        match self.peek(pcx) {
-            Some(tk) => Some(tk),
-            None => {
-                self.errs.push(ParseError::Eof);
-                None
-            }
-        }
-    }
-
     /// Consume the next element as a token
     #[inline(always)]
-    fn bump(&mut self, pcx: &ParseContext) {
+    fn bump<'pcx>(&mut self, pcx: &'pcx ParseContext) -> &'pcx Token {
         let tk = &pcx.tks[self.tsp.hi];
         self.builder.token(tk.kind.into(), tk.slice(pcx.src));
 
         self.tsp.hi += 1;
         self.tsp.lo = self.tsp.hi;
+        tk
     }
 
-    fn bump_kind(&mut self, pcx: &ParseContext, kind: SyntaxKind) {
+    fn bump_kind<'pcx>(&mut self, pcx: &'pcx ParseContext, kind: SyntaxKind) -> &'pcx Token {
         assert_eq!(self.peek(pcx).map(|t| t.kind), Some(kind));
-        self.bump(pcx);
+        self.bump(pcx)
     }
 
     #[inline(always)]
@@ -180,7 +214,12 @@ impl ParseState {
             }
 
             if self.maybe_sx(pcx).is_none() {
-                self.errs.push(ParseError::Eof);
+                self.errs.push(ParseError::Unexpected {
+                    // TODO: figure out why it's at this point
+                    at: pcx.src.len(),
+                    expected: ")".to_string(),
+                    found: "EoF".to_string(),
+                });
                 break;
             }
         }
@@ -197,12 +236,22 @@ impl ParseState {
             return;
         }
 
-        let found = self.peek(pcx);
-        self.errs.push(ParseError::Unexpected {
-            expected: "symbol".to_string(),
-            found: format!("{:?}", found),
-        });
-        return;
+        match self.peek(pcx) {
+            Some(tk) => {
+                self.errs.push(ParseError::Unexpected {
+                    at: tk.sp.lo,
+                    expected: "symbol".to_string(),
+                    found: format!("{:?}", tk),
+                });
+            }
+            None => {
+                self.errs.push(ParseError::Unexpected {
+                    at: pcx.src.len(),
+                    expected: "symbol".to_string(),
+                    found: "EoF".to_string(),
+                });
+            }
+        };
     }
 }
 
@@ -236,9 +285,22 @@ impl ParseState {
         }
 
         self.builder.start_node(SyntaxKind::String.into());
+
         self.bump_kind(pcx, SyntaxKind::StrEnclosure);
-        self.bump_kind(pcx, SyntaxKind::StrContent);
-        let _ = self.maybe_bump_kind(pcx, SyntaxKind::StrEnclosure);
+
+        let content = self.bump_kind(pcx, SyntaxKind::StrContent);
+        if self
+            .maybe_bump_kind(pcx, SyntaxKind::StrEnclosure)
+            .is_none()
+        {
+            self.errs.push(ParseError::UnterminatedString {
+                sp: ByteSpan {
+                    lo: content.sp.lo,
+                    hi: pcx.src.len(),
+                },
+            });
+        };
+
         self.builder.finish_node();
 
         Some(())

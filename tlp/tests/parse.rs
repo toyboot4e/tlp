@@ -2,9 +2,9 @@
 Run all test cases in `parse/cases.txt` (on `cargo test`)
 */
 
-use std::fmt;
+use std::fmt::{self, Write};
 
-use tlp::syntax::cst::{self, data::SyntaxElement};
+use tlp::syntax::cst::{self, data::SyntaxElement, parse::ParseError};
 
 // TODO: use slice
 #[derive(Debug, Clone)]
@@ -40,7 +40,12 @@ fn run_test(test: Test) -> Result<(), TestError> {
     let (tree, errs) = cst::parse::from_str(&test.code);
 
     if !errs.is_empty() {
-        panic!("{:#?}", errs);
+        let s = errs
+            .iter()
+            .map(|e| format!("{}", e.with_loc(&test.code)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        panic!("{}", s);
     }
 
     // root

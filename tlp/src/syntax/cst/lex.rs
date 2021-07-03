@@ -4,7 +4,10 @@ Stream of tokens
 
 use thiserror::Error;
 
-use crate::syntax::{cst::data::SyntaxKind, span::ByteSpan};
+use crate::syntax::{
+    cst::data::SyntaxKind,
+    span::{ByteSpan, TextPos},
+};
 
 /// Span of text with syntactic kind
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +29,16 @@ pub enum LexError {
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
     #[error("Unexpected end of file")]
-    Eof,
+    Eof { at: TextPos },
+}
+
+impl LexError {
+    pub fn span(&self) -> ByteSpan {
+        match self {
+            Self::Unreachable { sp } => sp.clone(),
+            Self::Eof { at: pos } => ByteSpan::at(*pos),
+        }
+    }
 }
 
 /// Convers text into a CST. It doesn't fail even if the given text has wrong syntax.
@@ -259,14 +271,13 @@ impl<'s> Lexer<'s> {
         self.push_span_as(SyntaxKind::StrEnclosure);
 
         self.advance_while(|b| b != b'"');
-        assert!(self.sp.lo != self.sp.hi);
+        // always push the span as content even if it's empty
         self.push_span_as(SyntaxKind::StrContent);
-        assert_eq!(self.sp.lo, self.sp.hi);
 
         if self.advance_if(|b| b == b'"').is_some() {
             self.push_span_as(SyntaxKind::StrEnclosure);
         } else {
-            self.errs.push(LexError::Eof);
+            self.errs.push(LexError::Eof { at: self.src.len() });
             self.consume_span();
         }
 

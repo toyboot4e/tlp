@@ -13,6 +13,14 @@ pub struct ByteSpan {
 }
 
 impl ByteSpan {
+    /// One-byte span
+    pub fn at(pos: TextPos) -> Self {
+        Self {
+            lo: pos,
+            hi: pos + 1,
+        }
+    }
+
     pub fn slice<'a>(&self, src: &'a str) -> &'a str {
         &src[self.lo..self.hi]
     }
@@ -20,4 +28,35 @@ impl ByteSpan {
     pub fn len(&self) -> TextLen {
         self.hi - self.lo
     }
+}
+
+pub fn ln_col(pos: TextPos, src: &str) -> (usize, usize) {
+    let (nth_line, line_offset) = self::line(src, pos);
+
+    let col = if line_offset >= src.len() {
+        0
+    } else {
+        let hi = usize::min(pos, src.len());
+        let s = &src[line_offset..hi];
+        s.chars().count()
+    };
+
+    (nth_line, col)
+}
+
+/// Returns the line given `pos` is at with byte offset (line, line_offset)
+///
+/// NOTE: The `line_offset` can be `source_text.len() + 1`.
+fn line<'src>(source: &'src str, pos: usize) -> (usize, usize) {
+    let line_starts = self::line_starts(source).collect::<Vec<_>>();
+
+    let nth_line = match line_starts.binary_search(&pos) {
+        Ok(line) => line,
+        Err(next_line) => next_line - 1,
+    };
+    (nth_line, line_starts[nth_line])
+}
+
+fn line_starts<'src>(source: &'src str) -> impl 'src + Iterator<Item = usize> {
+    std::iter::once(0).chain(source.match_indices('\n').map(|(i, _pat)| i + 1))
 }
