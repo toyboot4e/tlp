@@ -4,6 +4,8 @@ Span of UTF-8 source text
 
 pub type TextLen = usize;
 pub type TextPos = usize;
+pub type LineNum = usize;
+pub type Col = usize;
 
 /// Span of source text in range `(lo, hi]` referred to as `sp`
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -30,7 +32,14 @@ impl ByteSpan {
     }
 }
 
-pub fn ln_col(pos: TextPos, src: &str) -> (usize, usize) {
+/// TODO: Support UTF-16
+pub fn loc_to_pos(ln: LineNum, col: Col, src: &str) -> Option<TextPos> {
+    let line = self::line_starts(src).nth(ln)?;
+    Some(line + col)
+}
+
+/// TODO: Support UTF-16
+pub fn locate(pos: TextPos, src: &str) -> (LineNum, Col) {
     let (nth_line, line_offset) = self::line(src, pos);
 
     let col = if line_offset >= src.len() {

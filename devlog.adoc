@@ -71,17 +71,17 @@ In context of {rowan}, an AST node is just a wrapper around a CST node; it's jus
 
 ==== Language server and syntax highlighting (tree-sitter)
 
-I'll develop both the language and LSP as the same time.
+I'll develop both the language and a language server as the same time.
 
 * Jul 1, 2021
 +
-I'm making a simple language server using {tower-lsp}. I connected a simple LS to VSCode:
+I'm making a simple language server using {tower-lsp}. The simple LS got connected to VSCode:
 +
 image::devlog/ls-connected.png[]
 +
 Awesome!
 +
-Next thing to do was syntax highlighting! But as of today, LS can't provide syntax highlighting.
+Next thing to do was syntax highlighting. But as of today, LS can't provide syntax highlighting.
 +
 OMG!
 +

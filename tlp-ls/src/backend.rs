@@ -1,5 +1,7 @@
 mod bufs;
 
+use tlp::syntax::span;
+
 use tower_lsp::{jsonrpc::Result, lsp_types::*, Client};
 
 use self::bufs::{Buffer, BufferSync};
@@ -99,23 +101,43 @@ impl Inner {
         self.analyze_uri(&uri).await;
     }
 
+    /// Process incremental text change
     pub async fn did_change(&mut self, p: DidChangeTextDocumentParams) {
+        let uri = &p.text_document.uri;
+
+        let buf = match self.bufs.get_mut(uri) {
+            Some(buf) => buf,
+            None => {
+                self.client
+                    .log_message(
+                        MessageType::Info,
+                        format!("unable to find document in cache: {}", uri),
+                    )
+                    .await;
+                return;
+            }
+        };
+
+        let text = buf.text_mut();
+
         self.client
             .log_message(MessageType::Info, "file changed!")
             .await;
 
-        let uri = &p.text_document.uri;
+        // TODO: maybe use codespan and codespan_lsp
+        for change in p.content_changes.into_iter() {
+            let rng = change
+                .range
+                .clone()
+                .expect("incremental document change expected");
 
-        let change = match p.content_changes.into_iter().last() {
-            Some(change) => change,
-            None => return,
-        };
+            let lo = span::loc_to_pos(rng.start.line as usize, rng.start.character as usize, text)
+                .unwrap();
+            let hi =
+                span::loc_to_pos(rng.end.line as usize, rng.end.character as usize, text).unwrap();
 
-        self.client
-            .log_message(MessageType::Info, "sync buffer!")
-            .await;
-
-        self.bufs.set_buf(&uri, change.text);
+            text.replace_range(lo..hi, &change.text);
+        }
     }
 
     pub async fn did_save(&mut self, p: DidSaveTextDocumentParams) {
@@ -155,6 +177,12 @@ async fn analyze_buf(client: &mut Client, buf: &Buffer) {
         client
             .log_message(MessageType::Info, "no diagnostics")
             .await;
+
+        // clear diagnostics
+        client
+            .publish_diagnostics(buf.uri().clone(), vec![], None)
+            .await;
+
         return;
     }
 

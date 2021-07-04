@@ -27,11 +27,15 @@ impl Buffer {
     pub fn text(&self) -> &str {
         &self.text
     }
+
+    pub fn text_mut(&mut self) -> &mut String {
+        &mut self.text
+    }
 }
 
 impl Buffer {
     pub fn to_lsp_pos(&self, pos: TextPos) -> lty::Position {
-        let (ln, col) = span::ln_col(pos, &self.text);
+        let (ln, col) = span::locate(pos, &self.text);
 
         lty::Position {
             line: ln as u32,
@@ -57,17 +61,20 @@ impl BufferSync {
         self.synced.get(uri)
     }
 
+    pub fn get_mut(&mut self, uri: &lty::Url) -> Option<&mut Buffer> {
+        self.synced.get_mut(uri)
+    }
+
     pub fn insert(&mut self, uri: lty::Url, buf: Buffer) {
         self.synced.insert(uri, buf);
     }
 
     pub fn set_buf(&mut self, uri: &lty::Url, new_text: String) {
-        return; // TODO:
         let buf = match self.synced.get_mut(uri) {
             Some(buf) => buf,
             None => return,
         };
-        buf.text = new_text;
+        // buf.text = new_text;
     }
 }
 

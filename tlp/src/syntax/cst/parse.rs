@@ -49,7 +49,7 @@ impl ParseError {
     }
 
     pub fn with_loc(&self, src: &str) -> ParseErrorWithLocation {
-        let (ln, col) = span::ln_col(self.span().lo, src);
+        let (ln, col) = span::locate(self.span().lo, src);
         ParseErrorWithLocation {
             err: self.clone(),
             ln,
