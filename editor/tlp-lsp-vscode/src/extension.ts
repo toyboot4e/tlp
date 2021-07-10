@@ -13,7 +13,7 @@ let client: LanguageClient;
 export function activate(context: ExtensionContext) {
     let lang = "tlp";
     // let cmd = "tlp-ls";
-    let cmd = "/Users/toy/dev/rs/tlp/tlp-ls/target/debug/tlp-ls";
+    let cmd = "/Users/toy/dev/rs/tlp/editor/tlp-ls/target/debug/tlp-ls";
 
     let serverOptions: ServerOptions = {
         run: { command: cmd },
@@ -23,6 +23,8 @@ export function activate(context: ExtensionContext) {
     // watch toylisp files
     let clientOptions: LanguageClientOptions = {
         documentSelector: [{ scheme: "file", language: "toylisp" }],
+        // ?
+        initializationOptions: workspace.getConfiguration("toylisp"),
         synchronize: {
             fileEvents: workspace.createFileSystemWatcher("*.tlp"),
         },

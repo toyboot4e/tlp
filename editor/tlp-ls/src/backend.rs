@@ -158,9 +158,6 @@ impl Inner {
 
             text.replace_range(lo..hi, &change.text);
         }
-
-        // FIXME:
-        self.client.semantic_tokens_refresh().await;
     }
 
     pub async fn did_save(&mut self, p: DidSaveTextDocumentParams) {

@@ -5,7 +5,7 @@ use tower_lsp::lsp_types as lty;
 // use codespan_reporting as cr;
 
 use tlp::syntax::{
-    cst::parse,
+    ast::{self, validate::Validate},
     span::{ByteLocation, ByteSpan, TextPos},
 };
 
@@ -73,9 +73,32 @@ impl BufferSync {
 pub fn analyze(buf: &Buffer) -> Vec<lty::Diagnostic> {
     let mut diags = vec![];
 
-    let (_tree, errs) = parse::from_str(&buf.text);
+    let (doc, errs) = ast::parse(&buf.text);
 
-    for e in &errs {
+    for e in errs {
+        let severity = lty::DiagnosticSeverity::Error;
+
+        let range = buf.to_lsp_range(e.span());
+
+        let diag = lty::Diagnostic {
+            range,
+            severity: Some(severity),
+            code: None,
+            code_description: None,
+            source: None,
+            message: format!("{}", e),
+            related_information: None,
+            tags: None,
+            data: None,
+        };
+
+        diags.push(diag);
+    }
+
+    let mut errs = vec![];
+    doc.validate(&mut errs);
+
+    for e in errs {
         let severity = lty::DiagnosticSeverity::Error;
 
         let range = buf.to_lsp_range(e.span());

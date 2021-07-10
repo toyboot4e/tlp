@@ -2,7 +2,7 @@
 Tree of tokens
 */
 
-use std::fmt::{self, Pointer};
+use std::fmt;
 
 use thiserror::Error;
 
@@ -129,6 +129,7 @@ impl ParseState {
 
         while self.tsp.lo < pcx.tks.len() {
             self.maybe_sx(&pcx);
+            self.maybe_bump_ws(pcx);
         }
 
         self.builder.finish_node();
@@ -177,8 +178,27 @@ impl ParseState {
 
     #[inline(always)]
     fn maybe_bump_ws(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.maybe_bump_kind(pcx, SyntaxKind::Ws)
-            .or_else(|| self.maybe_bump_kind(pcx, SyntaxKind::Comment))
+        let mut res = false;
+
+        loop {
+            let bump = self
+                .maybe_bump_kind(pcx, SyntaxKind::Ws)
+                .or_else(|| self.maybe_bump_kind(pcx, SyntaxKind::Comment))
+                .is_some();
+
+            if bump {
+                res = true;
+                continue;
+            }
+
+            break;
+        }
+
+        if res {
+            Some(())
+        } else {
+            None
+        }
     }
 }
 

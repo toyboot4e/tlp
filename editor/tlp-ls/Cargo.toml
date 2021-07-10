@@ -5,7 +5,7 @@ edition = "2018"
 
 [dependencies]
 env_logger = "0.8.4"
-tlp = { path = "../tlp", version = "0.1.0" }
+tlp = { path = "../../tlp", version = "0.1.0" }
 
 tokio = { version = "1.7.1", features = ["io-std", "io-util", "macros", "net", "rt-multi-thread", "time"] }
 tower-lsp = "0.14.1"
