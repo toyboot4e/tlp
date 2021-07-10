@@ -11,7 +11,7 @@ use crate::syntax::{
         data::{SyntaxKind, SyntaxNode},
         lex::{self, LexError, Token},
     },
-    span::{self, ByteSpan, TextPos},
+    span::{ByteLocation, ByteSpan, TextPos},
 };
 
 use rowan::{GreenNode, GreenNodeBuilder};
@@ -49,11 +49,9 @@ impl ParseError {
     }
 
     pub fn with_loc(&self, src: &str) -> ParseErrorWithLocation {
-        let (ln, col) = span::locate(self.span().lo, src);
         ParseErrorWithLocation {
             err: self.clone(),
-            ln,
-            col,
+            loc: ByteLocation::from_pos(self.span().lo, src),
         }
     }
 }
@@ -65,13 +63,12 @@ impl ParseError {
 #[derive(Debug, Clone)]
 pub struct ParseErrorWithLocation {
     err: ParseError,
-    ln: usize,
-    col: usize,
+    loc: ByteLocation,
 }
 
 impl fmt::Display for ParseErrorWithLocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{} {}", self.ln, self.col, self.err)
+        write!(f, "{}:{} {}", self.loc.ln, self.loc.col, self.err)
     }
 }
 

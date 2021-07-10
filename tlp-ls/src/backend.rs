@@ -1,12 +1,13 @@
 mod bufs;
+mod tokens;
 
-use tlp::syntax::span;
+use tlp::syntax::span::ByteLocation;
 
 use tower_lsp::{jsonrpc::Result, lsp_types::*, Client};
 
 use self::bufs::{Buffer, BufferSync};
 
-// TODO: cancelable
+// TODO: cancelable. progress option?
 
 #[derive(Debug)]
 pub struct Inner {
@@ -35,29 +36,40 @@ impl Inner {
 
 /// LSP API
 impl Inner {
-    pub async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult {
-            server_info: None,
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::Incremental,
-                )),
-                completion_provider: Some(CompletionOptions {
-                    resolve_provider: Some(false),
-                    trigger_characters: Some(vec![".".to_string()]),
-                    work_done_progress_options: Default::default(),
-                    all_commit_characters: None,
+    pub async fn initialize(&self, p: InitializeParams) -> Result<InitializeResult> {
+        let meta = ServerInfo {
+            name: "tlp-ls".to_string(),
+            version: Some(env!("CARGO_PKG_VERSION").to_string()),
+        };
+
+        let cap = ServerCapabilities {
+            text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                TextDocumentSyncKind::Incremental,
+            )),
+            completion_provider: Some(CompletionOptions {
+                resolve_provider: Some(false),
+                trigger_characters: Some(vec![".".to_string()]),
+                work_done_progress_options: Default::default(),
+                all_commit_characters: None,
+            }),
+            workspace: Some(WorkspaceServerCapabilities {
+                workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                    supported: Some(true),
+                    change_notifications: Some(OneOf::Left(true)),
                 }),
-                workspace: Some(WorkspaceServerCapabilities {
-                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
-                        supported: Some(true),
-                        change_notifications: Some(OneOf::Left(true)),
-                    }),
-                    file_operations: None,
-                }),
-                ..ServerCapabilities::default()
-            },
-        })
+                file_operations: None,
+            }),
+            ..ServerCapabilities::default()
+        };
+
+        let mut res = InitializeResult {
+            server_info: Some(meta),
+            capabilities: cap,
+        };
+
+        self::tokens::init(&p, &self.client, &mut res).await;
+
+        Ok(res)
     }
 
     pub async fn initialized(&self, _: InitializedParams) {
@@ -131,13 +143,24 @@ impl Inner {
                 .clone()
                 .expect("incremental document change expected");
 
-            let lo = span::loc_to_pos(rng.start.line as usize, rng.start.character as usize, text)
-                .unwrap();
+            let lo = ByteLocation::from_view(
+                rng.start.line as usize,
+                rng.start.character as usize,
+                text,
+            )
+            .unwrap()
+            .to_pos();
+
             let hi =
-                span::loc_to_pos(rng.end.line as usize, rng.end.character as usize, text).unwrap();
+                ByteLocation::from_view(rng.end.line as usize, rng.end.character as usize, text)
+                    .unwrap()
+                    .to_pos();
 
             text.replace_range(lo..hi, &change.text);
         }
+
+        // FIXME:
+        self.client.semantic_tokens_refresh().await;
     }
 
     pub async fn did_save(&mut self, p: DidSaveTextDocumentParams) {
@@ -165,6 +188,23 @@ impl Inner {
             CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
             CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
         ])))
+    }
+
+    pub async fn semantic_tokens_full(
+        &self,
+        p: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        self.client
+            .log_message(MessageType::Info, "semantic tokens full")
+            .await;
+
+        let uri = &p.text_document.uri;
+
+        // TODO: no unwrap
+        let buf = self.bufs.get(uri).unwrap();
+        let sts = tokens::highlight_full(buf);
+
+        Ok(Some(SemanticTokensResult::Tokens(sts)))
     }
 }
 

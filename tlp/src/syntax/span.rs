@@ -32,25 +32,40 @@ impl ByteSpan {
     }
 }
 
-/// TODO: Support UTF-16
-pub fn loc_to_pos(ln: LineNum, col: Col, src: &str) -> Option<TextPos> {
-    let line = self::line_starts(src).nth(ln)?;
-    Some(line + col)
+/// (Line, column) byte offset representation in UTF-8 text
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct ByteLocation {
+    /// Byte offset of the first character in the line
+    pub ln: TextPos,
+    /// Byte offset of the column from the first character in the line
+    pub col: Col,
 }
 
-/// TODO: Support UTF-16
-pub fn locate(pos: TextPos, src: &str) -> (LineNum, Col) {
-    let (nth_line, line_offset) = self::line(src, pos);
+impl ByteLocation {
+    /// TODO: Support UTF-16
+    pub fn from_view(ln: LineNum, col: Col, src: &str) -> Option<Self> {
+        let ln = self::line_starts(src).nth(ln)?;
+        Some(Self { ln, col })
+    }
 
-    let col = if line_offset >= src.len() {
-        0
-    } else {
-        let hi = usize::min(pos, src.len());
-        let s = &src[line_offset..hi];
-        s.chars().count()
-    };
+    /// TODO: Support UTF-16
+    pub fn from_pos(pos: TextPos, src: &str) -> Self {
+        let (ln, line_offset) = self::line(src, pos);
 
-    (nth_line, col)
+        let col = if line_offset >= src.len() {
+            0
+        } else {
+            let hi = usize::min(pos, src.len());
+            let s = &src[line_offset..hi];
+            s.chars().count()
+        };
+
+        Self { ln, col }
+    }
+
+    pub fn to_pos(&self) -> TextPos {
+        self.ln + self.col
+    }
 }
 
 /// Returns the line given `pos` is at with byte offset (line, line_offset)

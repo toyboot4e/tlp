@@ -6,7 +6,7 @@ use tower_lsp::lsp_types as lty;
 
 use tlp::syntax::{
     cst::parse,
-    span::{self, ByteSpan, TextPos},
+    span::{ByteLocation, ByteSpan, TextPos},
 };
 
 #[derive(Debug, Clone)]
@@ -35,11 +35,11 @@ impl Buffer {
 
 impl Buffer {
     pub fn to_lsp_pos(&self, pos: TextPos) -> lty::Position {
-        let (ln, col) = span::locate(pos, &self.text);
+        let loc = ByteLocation::from_pos(pos, &self.text);
 
         lty::Position {
-            line: ln as u32,
-            character: col as u32,
+            line: loc.ln as u32,
+            character: loc.col as u32,
         }
     }
 
@@ -67,14 +67,6 @@ impl BufferSync {
 
     pub fn insert(&mut self, uri: lty::Url, buf: Buffer) {
         self.synced.insert(uri, buf);
-    }
-
-    pub fn set_buf(&mut self, uri: &lty::Url, new_text: String) {
-        let buf = match self.synced.get_mut(uri) {
-            Some(buf) => buf,
-            None => return,
-        };
-        // buf.text = new_text;
     }
 }
 
