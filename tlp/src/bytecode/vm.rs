@@ -25,7 +25,7 @@ pub enum VmError {
 
 /// Toy Lisp bytecode virtual machine
 #[derive(Debug)]
-pub struct VM {
+pub struct Vm {
     /// Chunk of bytecode instructions
     chunk: Bytecode,
     /// Instuction pointer, index of current bytecode
@@ -34,7 +34,7 @@ pub struct VM {
     stack: Vec<Value>,
 }
 
-impl VM {
+impl Vm {
     pub fn new(chunk: Bytecode) -> Self {
         Self {
             chunk,
@@ -57,7 +57,7 @@ impl VM {
 }
 
 /// Run
-impl VM {
+impl Vm {
     pub fn run(&mut self) -> Result<()> {
         let chunk_len = self.chunk.bytes().len();
 
@@ -175,7 +175,7 @@ mod tests {
             chunk
         };
 
-        let mut vm = VM::new(chunk);
+        let mut vm = Vm::new(chunk);
 
         vm.run()?;
         assert_eq!(Some(&-2.0), vm.stack().last());

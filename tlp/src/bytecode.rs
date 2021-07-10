@@ -2,13 +2,12 @@
 Bytecode, runtime representation of toylisp program
 */
 
-pub mod compile;
 pub mod data;
 pub mod vm;
 
 #[cfg(test)]
 mod test {
-    use crate::syntax::ast;
+    use crate::{bytecode::vm, compile, syntax::ast};
 
     fn arithmetics() {
         let src = "(/ (- 64.0 32.0) 2)";
@@ -20,5 +19,8 @@ mod test {
             }
             panic!();
         }
+
+        // let code = compile::compile(&ast);
+        // let vm = vm::Vm::new(code);
     }
 }
