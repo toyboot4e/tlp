@@ -66,19 +66,22 @@ fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t')
 }
 
+/// "(" | ")"
 #[inline(always)]
 fn is_paren(c: u8) -> bool {
     matches!(c, b'(' | b')')
 }
 
+/// [0-9] | -
 #[inline(always)]
 fn is_num_start(c: u8) -> bool {
-    !(c < b'0' || b'9' < c)
+    !(c < b'0' || b'9' < c) || c == b'-'
 }
 
+/// [0-9] | . | E | _
 #[inline(always)]
 fn is_num_body(c: u8) -> bool {
-    is_num_start(c) || matches!(c, b'.' | b'E' | b'_')
+    !(c < b'0' || b'9' < c) || matches!(c, b'.' | b'E' | b'_')
 }
 
 #[inline(always)]
@@ -88,7 +91,7 @@ fn is_ident_body(c: u8) -> bool {
 
 #[inline(always)]
 fn is_ident_start(c: u8) -> bool {
-    is_ident_body(c) && !is_num_start(c)
+    is_ident_body(c) && !is_num_start(c) && !is_paren(c)
 }
 
 #[inline(always)]
