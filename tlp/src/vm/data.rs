@@ -7,9 +7,9 @@ Bytecode
 pub enum OpCode {
     OpReturn,
 
-    /// Followed by a byte index
+    /// Operand: byte index
     OpConst8,
-    /// Followed by a two bytes index
+    /// Operand: two bytes index
     OpConst16,
 
     // arithmetic
@@ -36,7 +36,7 @@ pub type Value = f64;
 pub struct Bytecode {
     /// Bytecode ([`OpCode`] and operands of them)
     bytes: Vec<u8>,
-    /// Constant table created statically
+    /// Constant table
     consts: Vec<Value>,
 }
 
@@ -56,6 +56,7 @@ impl Bytecode {
         &self.bytes
     }
 
+    #[inline(always)]
     pub fn read_opcode(&self, ix: usize) -> OpCode {
         unsafe { std::mem::transmute(self.bytes[ix]) }
     }

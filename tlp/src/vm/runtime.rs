@@ -5,7 +5,7 @@ Stack-based bytecode virtual machine
 use std::ops;
 use thiserror::Error;
 
-use crate::bytecode::data::*;
+use crate::vm::data::*;
 
 pub type Result<T, E = VmError> = std::result::Result<T, E>;
 
@@ -148,7 +148,7 @@ impl Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bytecode::data::OpCode::*;
+    use crate::vm::data::OpCode::*;
 
     /// Tests `-((64.0 - 32.0) / 16.0)` results in `2.0`
     #[test]
