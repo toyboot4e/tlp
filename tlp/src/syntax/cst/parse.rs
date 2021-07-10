@@ -240,6 +240,10 @@ impl ParseState {
                     expected: "symbol".to_string(),
                     found: format!("{:?}", tk),
                 });
+
+                // NOTE: Discard this symbol so that we won't enter infinite loop
+                self.tsp.hi += 1;
+                self.tsp.lo = self.tsp.hi;
             }
             None => {
                 self.errs.push(ParseError::Unexpected {

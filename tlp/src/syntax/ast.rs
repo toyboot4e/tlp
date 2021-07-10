@@ -7,14 +7,14 @@ around CST nodes. Each component is lazily retrieved via accessors traversing th
 
 use crate::syntax::cst::{
     data::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken},
-    parse::ParseError,
+    parse::{self, ParseError},
 };
 
 const DEF_FN: &'static str = "def:fn";
 
 pub fn parse(src: &str) -> (Document, Vec<ParseError>) {
-    let (cst, errs) = crate::syntax::cst::parse::from_str(src);
-    (Document::new(cst).unwrap(), errs)
+    let (cst, errs) = parse::from_str(src);
+    (Document::from_root(cst).unwrap(), errs)
 }
 
 /// Syntax node → AST node (semantic node)
@@ -53,20 +53,25 @@ fn find_token(syn: &SyntaxNode, kind: SyntaxKind) -> Option<SyntaxToken> {
 def_node!(Document, "toylisp representation of a file");
 
 impl Document {
-    fn new(syn: SyntaxNode) -> Option<Self> {
+    pub fn from_root(syn: SyntaxNode) -> Option<Self> {
         if syn.kind() == SyntaxKind::ROOT {
             Some(Self { syn })
         } else {
             None
         }
     }
+
+    pub fn items(&self) -> impl Iterator<Item = Form> {
+        self.syn.children().filter_map(Form::cast)
+    }
 }
 
-/// [`List`] | [`Atom`]
-#[derive(Debug, Clone, PartialEq)]
-pub struct Form {
-    syn: SyntaxNode,
-}
+def_node!(
+    Form,
+    "Data that forms the program
+
+Call | DefFn | Atom"
+);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FormKind {
@@ -90,11 +95,23 @@ impl Node for Form {
 }
 
 impl Form {
-    fn kind(&self) -> FormKind {
+    pub fn kind(&self) -> FormKind {
         None.or_else(|| DefFn::cast(self.syn.clone()).map(|_| FormKind::DefFn))
-            .or_else(|| Call::cast(self.syn.clone()).map(|_| FormKind::DefFn))
+            .or_else(|| Call::cast(self.syn.clone()).map(|_| FormKind::Call))
             .or_else(|| Atom::cast(self.syn.clone()).map(|_| FormKind::Atom))
             .unwrap()
+    }
+
+    pub fn as_call(&self) -> Option<Call> {
+        Call::cast(self.syn.clone())
+    }
+
+    pub fn as_def_fn(&self) -> Option<DefFn> {
+        DefFn::cast(self.syn.clone())
+    }
+
+    pub fn as_atom(&self) -> Option<Atom> {
+        Atom::cast(self.syn.clone())
     }
 }
 
@@ -115,6 +132,18 @@ impl Node for Call {
         }
 
         Some(Self { syn })
+    }
+}
+
+impl Call {
+    pub fn args(&self) -> impl Iterator<Item = Form> {
+        self.syn
+            .children_with_tokens()
+            .filter(|elem| elem.kind() != SyntaxKind::Ws)
+            .filter_map(|elem| match elem {
+                SyntaxElement::Token(_tk) => None,
+                SyntaxElement::Node(n) => Form::cast(n),
+            })
     }
 }
 
