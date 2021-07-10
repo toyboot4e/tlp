@@ -1,4 +1,4 @@
-// DSL for parse tests
+// DSL for CST parse tests
 
 # add
 (+ 1 2)

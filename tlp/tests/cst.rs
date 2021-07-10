@@ -17,7 +17,7 @@ struct Test {
 #[derive(Debug, Clone)]
 struct TestError {
     test: Test,
-    ast: String,
+    cst: String,
 }
 
 impl fmt::Display for TestError {
@@ -25,13 +25,13 @@ impl fmt::Display for TestError {
         write!(
             f,
             "{}
---- code
+--- code:
 {}
---- ast
+--- output ast:
 {}
---- expected
+--- expected:
 {}",
-            self.test.title, self.test.code, self.ast, self.test.expected,
+            self.test.title, self.test.code, self.cst, self.test.expected,
         )
     }
 }
@@ -55,7 +55,7 @@ fn run_test(test: Test) -> Result<(), TestError> {
     );
 
     let mut nest = 0;
-    let ast_repr = tree
+    let cst_repr = tree
         .children_with_tokens()
         .flat_map(|elem| match elem {
             SyntaxElement::Node(node) => node
@@ -84,13 +84,13 @@ fn run_test(test: Test) -> Result<(), TestError> {
         })
         .collect::<Vec<_>>();
 
-    let ast = ast_repr.join("\n");
+    let cst = cst_repr.join("\n");
     let expected = test.expected.trim();
 
-    if ast == expected {
+    if cst == expected {
         Ok(())
     } else {
-        Err(TestError { test, ast })
+        Err(TestError { test, cst })
     }
 }
 
@@ -101,12 +101,9 @@ fn is_ws(ln: &str) -> bool {
         .is_none()
 }
 
-#[test]
-fn parse() {
-    let src = include_str!("parse/cases.txt");
-
+fn collect_tests(src: &str) -> Vec<Test> {
     let mut chunks = {
-        // 40 - s
+        // 40 hyphens
         let delim = "----------------------------------------";
         src.split(delim)
     };
@@ -133,12 +130,18 @@ fn parse() {
         });
     }
 
-    let mut errs = vec![];
-    for test in tests {
-        if let Err(err) = self::run_test(test) {
-            errs.push(err);
-        }
-    }
+    tests
+}
+
+#[test]
+fn parse() {
+    let src = include_str!("cst/cases.txt");
+    let tests = self::collect_tests(src);
+
+    let errs = tests
+        .into_iter()
+        .filter_map(|t| self::run_test(t).err())
+        .collect::<Vec<_>>();
 
     if errs.is_empty() {
         return;
@@ -146,6 +149,8 @@ fn parse() {
 
     for e in &errs {
         eprintln!("{}", e);
+        eprintln!("");
     }
+
     panic!();
 }
