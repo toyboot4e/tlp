@@ -1,33 +1,21 @@
 /*!
-Run all test cases in `parse/cases.txt` (on `cargo test`)
+Run all test cases in `cst/cases.txt` (on `cargo test`)
 */
 
 use std::fmt::{self, Write};
 
-use tlp::syntax::cst::{self, data::SyntaxElement, parse::ParseError};
+use tlp::syntax::cst::{
+    self,
+    data::{SyntaxElement, SyntaxNode},
+    parse::ParseError,
+};
 
 use crate::utils::{self, Test, TestError};
 
-fn run_test(test: Test) -> Result<(), TestError> {
-    let (tree, errs) = cst::parse::from_str(&test.code);
-
-    if !errs.is_empty() {
-        let s = errs
-            .iter()
-            .map(|e| format!("{}", e.with_loc(&test.code)))
-            .collect::<Vec<_>>()
-            .join(", ");
-        panic!("{}", s);
-    }
-
-    // root
-    assert_eq!(
-        format!("{:?}", tree),
-        format!("ROOT@0..{}", test.code.len())
-    );
-
+fn display(cst: &SyntaxNode) -> String {
     let mut nest = 0;
-    let cst_repr = tree
+
+    let repr = cst
         .children_with_tokens()
         .flat_map(|elem| match elem {
             SyntaxElement::Node(node) => node
@@ -56,18 +44,39 @@ fn run_test(test: Test) -> Result<(), TestError> {
         })
         .collect::<Vec<_>>();
 
-    let cst = cst_repr.join("\n");
+    repr.join("\n")
+}
+
+fn run_test(test: Test) -> Result<(), TestError> {
+    let (cst, errs) = cst::parse::from_str(&test.code);
+
+    if !errs.is_empty() {
+        let s = errs
+            .iter()
+            .map(|e| format!("{}", e.with_loc(&test.code)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        panic!("{}", s);
+    }
+
+    // root
+    assert_eq!(format!("{:?}", cst), format!("ROOT@0..{}", test.code.len()));
+
+    let cst_string = self::display(&cst);
     let expected = test.expected.trim();
 
-    if cst == expected {
+    if cst_string == expected {
         Ok(())
     } else {
-        Err(TestError { test, output: cst })
+        Err(TestError {
+            test,
+            output: cst_string,
+        })
     }
 }
 
 #[test]
-fn parse() {
+fn cst() {
     let src = include_str!("cst/cases.txt");
     let tests = utils::collect_tests(src);
 
