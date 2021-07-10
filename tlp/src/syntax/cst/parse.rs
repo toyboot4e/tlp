@@ -201,8 +201,8 @@ impl ParseState {
     #[inline(always)]
     fn try_list(&mut self, pcx: &ParseContext) {
         self.builder.start_node(SyntaxKind::List.into());
-
         self.bump_kind(pcx, SyntaxKind::LParen);
+
         loop {
             self.maybe_bump_ws(pcx);
 
