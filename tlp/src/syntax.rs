@@ -1,5 +1,5 @@
 /*!
-Syntax tree
+Syntax tree (source code → AST)
 */
 
 pub mod ast;

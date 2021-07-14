@@ -1,6 +1,6 @@
 use crate::syntax::cst::data::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
 
-const DEF_FN: &'static str = "def:fn";
+const PROC: &'static str = "proc";
 
 /// Semantic node casted from syntax node
 pub trait AstNode: Sized {
@@ -32,14 +32,14 @@ impl Document {
         }
     }
 
-    pub fn items(&self) -> impl Iterator<Item = Form> {
+    pub fn item_nodes(&self) -> impl Iterator<Item = Form> {
         self.syn.children_with_tokens().filter_map(Form::cast_elem)
     }
 }
 
 /// S-expression, which forms the program
 ///
-/// Call | DefFn | Atom
+/// Call | DefProc | Atom
 #[derive(Debug, Clone, PartialEq)]
 pub struct Form {
     pub(crate) syn: SyntaxElement,
@@ -48,14 +48,15 @@ pub struct Form {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FormKind {
     Call,
-    DefFn,
+    Proc,
     Atom,
 }
 
 impl AstElement for Form {
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
         if let Some(node) = syn.clone().into_node() {
-            if Call::cast_node(node.clone()).is_some() || DefFn::cast_node(node.clone()).is_some() {
+            if Call::cast_node(node.clone()).is_some() || DefProc::cast_node(node.clone()).is_some()
+            {
                 Some(Self { syn })
             } else {
                 None
@@ -73,7 +74,7 @@ impl AstElement for Form {
 impl Form {
     pub fn kind(&self) -> FormKind {
         if let Some(node) = self.syn.clone().into_node() {
-            None.or_else(|| DefFn::cast_node(node.clone()).map(|_| FormKind::DefFn))
+            None.or_else(|| DefProc::cast_node(node.clone()).map(|_| FormKind::Proc))
                 .or_else(|| Call::cast_node(node.clone()).map(|_| FormKind::Call))
                 .or_else(|| Atom::cast_elem(self.syn.clone()).map(|_| FormKind::Atom))
                 .unwrap()
@@ -84,13 +85,13 @@ impl Form {
         }
     }
 
-    /// WARNING: Cast as DefFn first
+    /// WARNING: Cast as DefProc first
     pub fn as_call(&self) -> Option<Call> {
         Call::cast_node(self.syn.clone().into_node()?)
     }
 
-    pub fn as_def_fn(&self) -> Option<DefFn> {
-        DefFn::cast_node(self.syn.clone().into_node()?)
+    pub fn as_proc(&self) -> Option<DefProc> {
+        DefProc::cast_node(self.syn.clone().into_node()?)
     }
 
     pub fn as_atom(&self) -> Option<Atom> {
@@ -123,7 +124,7 @@ impl AstNode for Call {
 }
 
 impl Call {
-    pub fn name(&self) -> SyntaxToken {
+    pub fn name_tk(&self) -> SyntaxToken {
         match self
             .syn
             .children_with_tokens()
@@ -137,7 +138,7 @@ impl Call {
         }
     }
 
-    pub fn args(&self) -> impl Iterator<Item = Form> {
+    pub fn args_tk(&self) -> impl Iterator<Item = Form> {
         self.syn
             .children_with_tokens()
             .filter(|elem| elem.kind() != SyntaxKind::Ws)
@@ -145,13 +146,13 @@ impl Call {
     }
 }
 
-/// Function definition
+/// (proc name (params) (body)..)
 #[derive(Debug, Clone, PartialEq)]
-pub struct DefFn {
+pub struct DefProc {
     pub(crate) syn: SyntaxNode,
 }
 
-impl AstNode for DefFn {
+impl AstNode for DefProc {
     fn cast_node(syn: SyntaxNode) -> Option<Self> {
         let mut c = syn.children_with_tokens();
 
@@ -164,7 +165,7 @@ impl AstNode for DefFn {
         match c.next()? {
             SyntaxElement::Node(_n) => return None,
             SyntaxElement::Token(tk) => {
-                if tk.kind() != SyntaxKind::Ident || tk.text() != DEF_FN {
+                if tk.kind() != SyntaxKind::Ident || tk.text() != PROC {
                     return None;
                 }
             }
@@ -174,8 +175,16 @@ impl AstNode for DefFn {
     }
 }
 
-impl DefFn {
-    pub fn name(&self) -> SyntaxToken {
+impl DefProc {
+    pub fn proc_tk(&self) -> SyntaxToken {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .find(|t| t.kind() == SyntaxKind::Ident && t.text() == PROC)
+            .unwrap_or_else(|| unreachable!())
+    }
+
+    pub fn name_tk(&self) -> SyntaxToken {
         let mut c = self
             .syn
             .children_with_tokens()
@@ -190,7 +199,7 @@ impl DefFn {
         }
     }
 
-    pub fn params(&self) -> Option<Params> {
+    pub fn params_tk(&self) -> Option<Params> {
         self.syn
             .first_child()
             .filter(|node| node.kind() == SyntaxKind::List)
@@ -205,7 +214,7 @@ pub struct Params {
 }
 
 impl Params {
-    pub fn vars(&self) -> impl Iterator<Item = SyntaxToken> {
+    pub fn var_tks(&self) -> impl Iterator<Item = SyntaxToken> {
         self.syn
             .children_with_tokens()
             .filter_map(|elem| elem.into_token())
@@ -214,7 +223,7 @@ impl Params {
 
     /// Number of arguments
     pub fn arity(&self) -> usize {
-        self.vars().count()
+        self.var_tks().count()
     }
 }
 

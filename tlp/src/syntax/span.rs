@@ -1,5 +1,7 @@
 /*!
 Span of UTF-8 source text
+
+TODO: Just [`rowan`] types.
 */
 
 pub type TextLen = usize;
@@ -12,6 +14,15 @@ pub type Col = usize;
 pub struct ByteSpan {
     pub lo: TextPos,
     pub hi: TextPos,
+}
+
+impl From<rowan::TextRange> for ByteSpan {
+    fn from(rng: rowan::TextRange) -> Self {
+        Self {
+            lo: rng.start().into(),
+            hi: rng.end().into(),
+        }
+    }
 }
 
 impl ByteSpan {

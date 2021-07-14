@@ -44,6 +44,10 @@ pub enum SyntaxKind {
     RParen,
     /// `"`
     StrEnclosure,
+    /// `:`
+    Colon,
+    /// `.`
+    Dot,
     /// Text inside string enclosures
     StrContent,
     Num,
@@ -62,6 +66,7 @@ pub enum SyntaxKind {
     // CommentChunk
     List,
     String,
+    Path,
     // ----------------------------------------
     // composite node
     /// Beginning of text

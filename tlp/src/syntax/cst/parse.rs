@@ -27,7 +27,8 @@ pub enum ParseError {
         #[from]
         err: LexError,
     },
-    #[error("Expected `{expected}`, found `{found}`")]
+    /// TODO: context "Expected Symbol as argument, found .."
+    #[error("Expected {expected}, found {found}")]
     Unexpected {
         at: TextPos,
         expected: String,
@@ -35,6 +36,8 @@ pub enum ParseError {
     },
     #[error("Unterminated string")]
     UnterminatedString { sp: ByteSpan },
+    #[error("Path must end with identifier")]
+    PathNotEndWithIdent { sp: ByteSpan },
 }
 
 /// API for showing diagnostics via LSP
@@ -45,6 +48,7 @@ impl ParseError {
             Self::LexError { err } => err.span(),
             Self::Unexpected { at: pos, .. } => ByteSpan::at(*pos),
             Self::UnterminatedString { sp } => *sp,
+            Self::PathNotEndWithIdent { sp } => *sp,
         }
     }
 
@@ -209,7 +213,7 @@ impl ParseState {
         self.maybe_bump_ws(pcx);
 
         if self.peek(pcx)?.kind == SyntaxKind::LParen {
-            self.try_list(pcx);
+            self.always_list(pcx);
         } else {
             self.try_symbol(pcx);
         }
@@ -219,7 +223,7 @@ impl ParseState {
 
     /// list → "(" sexp* ")"
     #[inline(always)]
-    fn try_list(&mut self, pcx: &ParseContext) {
+    fn always_list(&mut self, pcx: &ParseContext) {
         self.builder.start_node(SyntaxKind::List.into());
         self.bump_kind(pcx, SyntaxKind::LParen);
 
@@ -233,6 +237,7 @@ impl ParseState {
             if self.maybe_sx(pcx).is_none() {
                 self.errs.push(ParseError::Unexpected {
                     // TODO: figure out why it's at this point
+                    // TODO: use span for error location
                     at: pcx.src.len(),
                     expected: ")".to_string(),
                     found: "EoF".to_string(),
@@ -244,13 +249,21 @@ impl ParseState {
         self.builder.finish_node();
     }
 
+    fn maybe_symbol(&mut self, pcx: &ParseContext) -> Option<()> {
+        if self.maybe_path_or_ident(pcx).is_some() || self.maybe_lit(pcx).is_some() {
+            Some(())
+        } else {
+            None
+        }
+    }
+
     /// symbol → atom
     ///
     /// atom → ident | lit
     #[inline(always)]
-    fn try_symbol(&mut self, pcx: &ParseContext) {
-        if self.maybe_ident(pcx).is_some() || self.maybe_lit(pcx).is_some() {
-            return;
+    fn try_symbol(&mut self, pcx: &ParseContext) -> bool {
+        if self.maybe_symbol(pcx).is_some() {
+            return true;
         }
 
         match self.peek(pcx) {
@@ -273,6 +286,54 @@ impl ParseState {
                 });
             }
         };
+
+        return false;
+    }
+
+    /// path → ident ( (:|.)+ ident )*
+    fn maybe_path_or_ident(&mut self, pcx: &ParseContext) -> Option<()> {
+        self.maybe_bump_ws(pcx);
+
+        let lo = if self.tsp.hi > 0 {
+            pcx.tks[self.tsp.hi - 1].sp.hi
+        } else {
+            0
+        };
+
+        let cp = self.builder.checkpoint();
+        self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
+
+        match self.peek(pcx) {
+            Some(tk) if matches!(tk.kind, SyntaxKind::Colon | SyntaxKind::Dot) => {}
+            // ident
+            _ => return Some(()),
+        };
+
+        // path
+        self.builder.start_node_at(cp, SyntaxKind::Path.into());
+
+        loop {
+            if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none()
+                && self.maybe_bump_kind(pcx, SyntaxKind::Dot).is_none()
+            {
+                break;
+            }
+
+            if self.maybe_bump_kind(pcx, SyntaxKind::Ident).is_none() {
+                let hi = match self.peek(pcx) {
+                    Some(tk) => tk.sp.lo,
+                    None => pcx.src.len(),
+                };
+
+                self.errs.push(ParseError::PathNotEndWithIdent {
+                    sp: ByteSpan { lo, hi },
+                });
+                break;
+            }
+        }
+
+        self.builder.finish_node();
+        return Some(());
     }
 }
 

@@ -10,9 +10,9 @@ use crate::syntax::{ast::data::*, cst::data::*, span::*};
 pub enum SyntaxError {
     #[error("Missing token {kind:?}")]
     MissingToken { at: TextPos, kind: SyntaxKind },
-    #[error("Unexpected {found}, expected {expected}")]
+    #[error("Expected `{expected}`, found `{found}`")]
     Unexpected {
-        at: TextPos,
+        sp: ByteSpan,
         found: String,
         expected: String,
     },
@@ -22,19 +22,13 @@ pub enum SyntaxError {
     FnParamsMissing { f: SyntaxNode },
 }
 
-/// Range to span
-fn r2s(rng: rowan::TextRange) -> ByteSpan {
-    let (lo, hi) = (rng.start().into(), rng.end().into());
-    ByteSpan { lo, hi }
-}
-
 impl SyntaxError {
     pub fn span(&self) -> ByteSpan {
         match self {
             Self::MissingToken { at, .. } => ByteSpan::at(*at),
-            Self::Unexpected { at, .. } => ByteSpan::at(*at),
-            Self::FnName { f } => self::r2s(f.text_range()),
-            Self::FnParamsMissing { f } => self::r2s(f.text_range()),
+            Self::Unexpected { sp, .. } => *sp,
+            Self::FnName { f } => f.text_range().into(),
+            Self::FnParamsMissing { f } => f.text_range().into(),
         }
     }
 }
@@ -84,7 +78,7 @@ fn rparen(syn: SyntaxNode, errs: &mut Vec<SyntaxError>) {
 
 impl Validate for Document {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        for form in self.items() {
+        for form in self.item_nodes() {
             form.validate(errs);
         }
     }
@@ -92,7 +86,7 @@ impl Validate for Document {
 
 impl Validate for Form {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        if let Some(defn) = self.as_def_fn() {
+        if let Some(defn) = self.as_proc() {
             defn.validate(errs);
             return;
         }
@@ -117,7 +111,7 @@ impl Validate for Call {
     }
 }
 
-impl Validate for DefFn {
+impl Validate for DefProc {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
         let mut c = self
             .syn
@@ -132,7 +126,7 @@ impl Validate for DefFn {
             });
         }
 
-        let params = match self.params() {
+        let params = match self.params_tk() {
             Some(params) => params,
             None => {
                 errs.push(SyntaxError::FnParamsMissing {
@@ -158,7 +152,7 @@ impl Validate for Params {
         for e in elems {
             if e.kind() != SyntaxKind::Ident {
                 errs.push(SyntaxError::Unexpected {
-                    at: e.text_range().start().into(),
+                    sp: e.text_range().into(),
                     found: format!("{:?}", e.kind()),
                     expected: format!("{:?}", SyntaxKind::Ident),
                 });

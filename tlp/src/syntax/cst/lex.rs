@@ -66,10 +66,9 @@ fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t')
 }
 
-/// "(" | ")"
-#[inline(always)]
-fn is_paren(c: u8) -> bool {
-    matches!(c, b'(' | b')')
+/// Single-character-delimited token
+fn is_symbol(c: u8) -> bool {
+    matches!(c, b'(' | b')' | b':' | b'.')
 }
 
 /// [0-9] | -
@@ -86,12 +85,12 @@ fn is_num_body(c: u8) -> bool {
 
 #[inline(always)]
 fn is_ident_body(c: u8) -> bool {
-    !(is_ws(c) || is_paren(c) || c == b'"')
+    !(is_ws(c) || is_symbol(c) || c == b'"')
 }
 
 #[inline(always)]
 fn is_ident_start(c: u8) -> bool {
-    is_ident_body(c) && !is_num_start(c) && !is_paren(c)
+    is_ident_body(c) && !is_num_start(c) && !is_symbol(c)
 }
 
 #[inline(always)]
@@ -99,6 +98,8 @@ fn tk_byte(c: u8) -> Option<SyntaxKind> {
     let kind = match c {
         b'(' => SyntaxKind::LParen,
         b')' => SyntaxKind::RParen,
+        b':' => SyntaxKind::Colon,
+        b'.' => SyntaxKind::Dot,
         _ => return None,
     };
 
