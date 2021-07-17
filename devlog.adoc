@@ -103,3 +103,64 @@ image::devlog/ls-eof.png[]
 +
 There are lots more things to, such as syncing the buffers, but now the front-end development is ready, so many works can directly improve user experience. Let's become a toylisp user!
 
+* Jul 11, 2021
++
+I hear _semantic tokens_ of language server can provide syntax highlighting _without_ highlighting by regex. But I could not let `semantic_highlight_full` called somehow. I'll leave it for later day.
+
+* Jul 17, 2021
++
+According to the dev guide, rust-analyzer does the following passes: AST → marco-expanded AST → name-resolved IR → type-resolved IR → HIR.
++
+While the conversions, RA uses some important patterns: interning, source map pattern and queries. They are (or will be) built around {salsa}. I used to think making my own tool was straight-forward, but {rowan} already changed my mind; there are small wizard's magic that works as a super nice framework. So I hope {salsa} is so, too.
++
+By the way, this is line counts of `rust-analyzer`;
+L
+[%collapsible]
+====
+[source]
+----
+crate            lines
+----------------------
+base_db          1014
+cfg              781
+flycheck         347
+hir              5695
+hir_def          21240
+hir_expand       3579
+hir_ty           26269
+ide              26290
+ide_assists      33940
+ide_completion   14292
+ide_db           14116
+ide_diagnostics  4427
+ide_ssr          3798
+mbe              5458
+parser           4886
+paths            227
+proc_macro_api   766
+proc_macro_srv   3830
+proc_macro_test  3
+profile          716
+project_model    2111
+rust-analyzer    13137
+stdx             542
+syntax           11753
+test_utils       1333
+text_edit        186
+toolchain        60
+tt               497
+vfs              881
+vfs-notify       219
+----
+====
++
+`hir_def` does name resolution (iiuc).
+
+* TODO
++
+{salsa} is an incremental computation framework. It's written in less than 4000 lines of code. I read the documentation, exampled and looked into the source code.
+
+==== Dynamic language
+
+Compile-time name resolution looks too difficult. toylisp would be a dynamic language.
+
