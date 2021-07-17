@@ -1,9 +1,9 @@
 /*!
-Interned representation of source code
+Interned data types
 */
 
 use crate::{
-    intern::interner::{AccessId, ModuleId, ScopeId},
+    ir::intern::interner::{AccessId, ModuleId, ScopeId},
     syntax::{ast::data as ast, cst::data as cst},
 };
 
@@ -43,7 +43,7 @@ pub enum Scope {
     },
 }
 
-/// Access to an item from a scope
+/// Relative path in toylisp source code
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelAccess {
     pub name: cst::SyntaxToken,
@@ -56,7 +56,7 @@ impl std::hash::Hash for RelAccess {
     }
 }
 
-/// Absolute access to an item
+/// Absolute path in toylisp source code
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct AbsAccess {
     // TODO: include crate index

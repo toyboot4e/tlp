@@ -1,11 +1,11 @@
 /*!
-Interner of IR items
+Interners of IR data
 */
 
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    intern::data::*,
+    ir::intern::data::*,
     utils::arena::{Arena, Idx},
 };
 

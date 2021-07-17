@@ -3,7 +3,7 @@ Tree representation of source code with indices to interned crate data
 */
 
 use crate::{
-    intern::{data::*, interner::*},
+    ir::intern::{data::*, interner::*},
     utils::arena::{Arena, Idx},
 };
 
