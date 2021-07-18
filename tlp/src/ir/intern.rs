@@ -2,16 +2,18 @@
 Interned view of AST
 */
 
-mod data;
-mod interner;
-mod tree;
+pub mod def;
+pub mod interner;
+pub mod krate;
+pub mod tree;
 
 use thiserror::Error;
 
 use crate::{syntax::ast::data as ast, utils::arena::Idx};
 
-use self::{data::*, interner::*, tree::*};
+use self::{def::*, interner::*, krate::*, tree::*};
 
+/// Interned crate data and crate tree built around it
 #[derive(Debug, Clone)]
 pub struct CrateData {
     pub intern: CrateIntern,
@@ -34,6 +36,8 @@ impl CrateData {
 pub enum InternError {
     #[error("Duplicate function definition: {s}")]
     DupFn { access: AbsAccess, s: String },
+    #[error("Duplicate module definition: {s}")]
+    DupMod { access: AbsAccess, s: String },
 }
 
 /// FIXME:
@@ -70,14 +74,17 @@ impl CrateInterner {
 
     pub fn intern_module(&mut self, access: AbsAccess, doc: ast::Document) {
         let module = self.data.intern.modules.alloc(ModuleToken { access });
-        let mut interner = ModuleIntern::new(self, self.token.clone(), module);
+        let mut interner = ModuleInterner::new(self, self.token.clone(), module);
         interner.intern(doc);
     }
 }
 
-fn intern_proc(ast: ast::DefProc, scope: ScopeId, icx: &mut CrateInterner) -> Option<Idx<DefProc>> {
-    let data = &mut icx.data;
-
+fn intern_proc(
+    ast: ast::DefProc,
+    scope: ScopeId,
+    intern: &mut CrateIntern,
+    errs: &mut Vec<InternError>,
+) -> Option<Idx<DefProc>> {
     let access = {
         let rel = RelAccess {
             name: ast.name_tk(),
@@ -86,32 +93,32 @@ fn intern_proc(ast: ast::DefProc, scope: ScopeId, icx: &mut CrateInterner) -> Op
     };
 
     let access_id = {
-        if data.intern.procs.contains(&access) {
-            icx.errs.push(InternError::DupFn {
+        if intern.procs.contains(&access) {
+            errs.push(InternError::DupFn {
                 access,
                 s: ast.name_tk().text().to_string(),
             });
             return None;
         }
 
-        data.intern.access.intern(access.clone())
+        intern.access.intern(access.clone())
     };
 
     let proc = DefProc::new(ast, scope, access_id);
-    let idx = data.intern.procs.intern(proc, access).unwrap();
+    let idx = intern.procs.intern(proc, access).unwrap();
 
     Some(idx)
 }
 
-struct ModuleIntern<'i> {
+struct ModuleInterner<'i> {
     icx: &'i mut CrateInterner,
     tree: Idx<ModuleTree>,
     scope: ScopeId,
 }
 
-impl<'i> ModuleIntern<'i> {
+impl<'i> ModuleInterner<'i> {
     pub fn new(icx: &'i mut CrateInterner, krate: CrateToken, module: Idx<ModuleToken>) -> Self {
-        let tree = icx.data.tree.insert_module(krate, module);
+        let tree = icx.data.tree.insert_top_module(krate, module);
         let scope = icx.data.intern.scopes.alloc(Scope::Module { module });
         Self { icx, tree, scope }
     }
@@ -121,10 +128,14 @@ impl<'i> ModuleIntern<'i> {
     }
 
     fn intern_procs(&mut self, forms: impl Iterator<Item = ast::Form>, scope: ScopeId) {
+        let tree = &mut self.icx.data.tree.mods[self.tree];
+
         for form in forms {
             if let Some(proc) = form.as_proc() {
-                if let Some(idx) = self::intern_proc(proc, scope, self.icx) {
-                    self.icx.data.tree.procs.push(idx);
+                if let Some(idx) =
+                    self::intern_proc(proc, scope, &mut self.icx.data.intern, &mut self.icx.errs)
+                {
+                    tree.procs.push(idx);
                 }
             }
         }

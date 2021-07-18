@@ -5,7 +5,7 @@ Interners of IR data
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ir::intern::data::*,
+    ir::intern::{def::*, krate::*},
     utils::arena::{Arena, Idx},
 };
 

@@ -1,16 +1,15 @@
 /*!
-Tree representation of source code with indices to interned crate data
+Tree representation of source code built aruond interned data
 */
 
 use crate::{
-    ir::intern::{data::*, interner::*},
+    ir::intern::{def::*, interner::*, krate::*},
     utils::arena::{Arena, Idx},
 };
 
 #[derive(Debug, Clone)]
 pub struct CrateTree {
     pub tk: CrateToken,
-    pub procs: Vec<Idx<DefProc>>,
     // pub vars: Vec<Idx<DefVar>>,
     pub mods: Arena<ModuleTree>,
     /// Implicit root module
@@ -21,14 +20,13 @@ impl CrateTree {
     pub fn new(tk: CrateToken, root: ModuleId) -> Self {
         Self {
             tk,
-            procs: Default::default(),
             mods: Default::default(),
             root,
         }
     }
 
     /// Allocates a module just under the crate root
-    pub fn insert_module(&mut self, krate: CrateToken, id: ModuleId) -> Idx<ModuleTree> {
+    pub fn insert_top_module(&mut self, krate: CrateToken, id: ModuleId) -> Idx<ModuleTree> {
         let tree = ModuleTree::sub_module(krate, id, self.root);
         self.mods.alloc(tree)
     }
