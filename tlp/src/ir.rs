@@ -3,7 +3,7 @@ Various intermadiate representations
 
 # Data flow
 
-AST → [`intern`] → resolved
+AST → [`lower`] → resolved
 */
 
-pub mod intern;
+pub mod lower;

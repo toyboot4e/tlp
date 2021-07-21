@@ -18,7 +18,7 @@ pub trait AstElement: Sized {
 }
 
 /// AST of a file
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Document {
     pub(crate) syn: SyntaxNode,
 }
@@ -147,7 +147,7 @@ impl Call {
 }
 
 /// (proc name (params) (body)..)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
     pub(crate) syn: SyntaxNode,
 }
@@ -208,7 +208,7 @@ impl DefProc {
 }
 
 /// Function paramaters
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Params {
     pub(crate) syn: SyntaxNode,
 }

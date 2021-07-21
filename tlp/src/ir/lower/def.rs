@@ -2,33 +2,28 @@
 Definitions, interned data types
 */
 
-use crate::{
-    ir::intern::interner::{AccessId, ScopeId},
-    syntax::ast::data as ast,
-};
+use crate::{db::intern::Access, syntax::ast::data as ast};
 
 /// Function definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
-    pub access: AccessId,
+    pub access: Access,
     pub params: Option<ProcParams>,
-    pub scope: ScopeId,
     pub ast: ast::DefProc,
 }
 
 impl DefProc {
-    pub fn new(ast: ast::DefProc, scope: ScopeId, access: AccessId) -> Self {
+    pub fn new(ast: ast::DefProc, access: Access) -> Self {
         Self {
             access,
             params: ast.params().map(|ast| ProcParams::from_ast(ast)),
-            scope,
             ast,
         }
     }
 }
 
 /// Function parameters
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProcParams {
     pub ast: ast::Params,
 }
@@ -39,10 +34,16 @@ impl ProcParams {
     }
 }
 
-/// Multiple lexical scopes in a function body
+/// Code block
+pub struct Body {
+    pub scope: LexScope,
+}
+
+/// Recursive lex scope
 #[derive(Debug, Clone)]
 pub struct LexScope {
-    depths: Vec<usize>,
+    pub exprs: Vec<Expr>,
+    pub depth: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -52,7 +53,7 @@ pub enum Expr {
 
 #[derive(Debug, Clone)]
 pub struct Call {
-    pub callee: AccessId,
+    pub callee: Access,
     pub args: Vec<Arg>,
     pub ast: ast::Call,
 }

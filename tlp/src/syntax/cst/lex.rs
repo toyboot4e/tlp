@@ -23,7 +23,7 @@ impl Token {
 }
 
 /// Error type accumulated while lexing
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum LexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
