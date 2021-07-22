@@ -2,10 +2,10 @@
 `salsa` integation where incremental computation is performed
 */
 
-pub mod intern;
+pub mod ids;
 pub mod queries;
 
-use self::{intern::InternDB, queries::*};
+use self::queries::*;
 
 /// `salsa` database for the [`queries`]
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]

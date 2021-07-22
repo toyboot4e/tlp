@@ -2,20 +2,10 @@
 IDs of interned data types
 */
 
-use crate::ir::lower::{def::DefProc, loc::*};
-
-/// Interner of locations
-#[salsa::query_group(InternDB)]
-pub trait Intern: salsa::Database {
-    #[salsa::interned]
-    fn intern_access(&self, access: AbsAccess) -> Access;
-    #[salsa::interned]
-    fn intern_proc(&self, def: DefProc) -> Proc;
-    #[salsa::interned]
-    fn intern_module_loc(&self, module: ModuleLoc) -> Module;
-    #[salsa::interned]
-    fn intern_crate_loc(&self, krate: CrateLoc) -> Crate;
-}
+use crate::{
+    db::Intern,
+    ir::lower::{def::DefProc, loc::*},
+};
 
 macro_rules! new_ids {
     ($($id:ident $data:ident $intern:ident $doc:expr,)*) => {

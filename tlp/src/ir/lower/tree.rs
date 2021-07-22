@@ -3,7 +3,7 @@ Tree representation of source code built aruond interned data
 */
 
 use crate::{
-    db::intern::*,
+    db::ids::*,
     ir::lower::{def::*, loc::*},
 };
 

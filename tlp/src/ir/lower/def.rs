@@ -2,7 +2,7 @@
 Definitions, interned data types
 */
 
-use crate::{db::intern::Access, syntax::ast::data as ast};
+use crate::{db::ids::Access, syntax::ast::data as ast};
 
 /// Function definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

@@ -13,7 +13,7 @@ pub mod tree;
 
 use thiserror::Error;
 
-use crate::{db::intern::*, syntax::ast::data as ast, utils::arena::Idx};
+use crate::db::ids::*;
 
 use self::{loc::*, tree::*};
 

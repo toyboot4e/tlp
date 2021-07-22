@@ -9,10 +9,10 @@ use std::sync::Arc;
 use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{
-    db::intern::*,
+    db::ids::*,
     ir::lower::{
         def,
-        loc::{AbsAccess, CrateLoc, RelAccess},
+        loc::*,
         tree::{CrateTree, ModuleTree},
         LowerError,
     },
@@ -50,6 +50,19 @@ fn parse(db: &dyn Parse, path: Utf8PathBuf) -> Arc<ParseResult> {
     // TODO: put parse result in ast module
     let (doc, errs) = ast::parse(&src);
     Arc::new(ParseResult { doc, errs })
+}
+
+/// Interner of locations
+#[salsa::query_group(InternDB)]
+pub trait Intern: salsa::Database {
+    #[salsa::interned]
+    fn intern_access(&self, access: AbsAccess) -> Access;
+    #[salsa::interned]
+    fn intern_proc(&self, def: def::DefProc) -> Proc;
+    #[salsa::interned]
+    fn intern_module_loc(&self, module: ModuleLoc) -> Module;
+    #[salsa::interned]
+    fn intern_crate_loc(&self, krate: CrateLoc) -> Crate;
 }
 
 #[salsa::query_group(LowerModuleDB)]

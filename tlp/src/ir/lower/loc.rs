@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 use camino::{Utf8Path, Utf8PathBuf};
 
-use crate::{db::intern::Module, syntax::cst::data as cst};
+use crate::{db::ids::Module, syntax::cst::data as cst};
 
 /// Relative path in toylisp source code
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
