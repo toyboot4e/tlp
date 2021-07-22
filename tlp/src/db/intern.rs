@@ -12,12 +12,12 @@ pub trait Intern: salsa::Database {
     #[salsa::interned]
     fn intern_proc(&self, def: DefProc) -> Proc;
     #[salsa::interned]
-    fn intern_module_token(&self, module: ModuleLoc) -> Module;
+    fn intern_module_loc(&self, module: ModuleLoc) -> Module;
     #[salsa::interned]
-    fn intern_crate_token(&self, krate: CrateLoc) -> Crate;
+    fn intern_crate_loc(&self, krate: CrateLoc) -> Crate;
 }
 
-macro_rules! keys {
+macro_rules! new_ids {
     ($($id:ident $data:ident $intern:ident $doc:expr,)*) => {
         $(
             #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -48,9 +48,9 @@ macro_rules! keys {
     };
 }
 
-keys! {
+new_ids! {
     Proc DefProc proc "Typed interned ID of procedure",
     Access AbsAccess access "Typed interned ID of path",
-    Module ModuleLoc module_token "Typed interned ID of module token",
-    Crate CrateLoc crate_token "Typed interned ID of crate token",
+    Module ModuleLoc module_loc "Typed interned ID of module token",
+    Crate CrateLoc crate_loc "Typed interned ID of crate token",
 }

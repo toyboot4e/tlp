@@ -5,7 +5,6 @@ Tree representation of source code built aruond interned data
 use crate::{
     db::intern::*,
     ir::lower::{def::*, loc::*},
-    utils::arena::{Arena, Idx},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -30,18 +29,20 @@ impl CrateTree {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleTree {
     pub krate: CrateLoc,
-    pub id: Module,
+    pub module: Module,
     pub parent: Option<Module>,
     pub children: Vec<Module>,
-    pub procs: Vec<Idx<DefProc>>,
+    /// TODO: Consider non-linear search for duplication check on insertion
+    pub procs: Vec<DefProc>,
+    // sub_modules: Vec<ModuleTree>,
 }
 
 impl ModuleTree {
     /// Implicit crate root module
-    fn crate_root(krate: CrateLoc, id: Module) -> Self {
+    pub fn crate_root(krate: CrateLoc, module: Module) -> Self {
         Self {
-            krate: krate.clone(),
-            id,
+            krate,
+            module,
             parent: None,
             children: vec![],
             procs: vec![],
@@ -49,10 +50,10 @@ impl ModuleTree {
     }
 
     /// Create a sub module of a parent modue
-    fn sub_module(krate: CrateLoc, id: Module, parent: Module) -> Self {
+    pub fn sub_module(krate: CrateLoc, module: Module, parent: Module) -> Self {
         Self {
-            krate: krate.clone(),
-            id,
+            krate,
+            module,
             parent: Some(parent),
             children: vec![],
             procs: vec![],

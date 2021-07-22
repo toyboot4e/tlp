@@ -7,9 +7,11 @@ use crate::{db::intern::Access, syntax::ast::data as ast};
 /// Function definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
+    /// TODO: Replace access with ItemLoc<Self>
     pub access: Access,
     pub params: Option<ProcParams>,
-    pub ast: ast::DefProc,
+    // pub name: crate::syntax::grammar::IdentString,
+    ast: ast::DefProc,
 }
 
 impl DefProc {
