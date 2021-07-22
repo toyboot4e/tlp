@@ -39,8 +39,8 @@ macro_rules! new_ids {
 }
 
 new_ids! {
-    Proc DefProc proc "Typed interned ID of procedure",
-    Access AbsAccess access "Typed interned ID of path",
-    Module ModuleLoc module_loc "Typed interned ID of module token",
-    Crate CrateLoc crate_loc "Typed interned ID of crate token",
+    Proc DefProc proc "Newtype of interned ID for procedure",
+    Access AbsAccess access "Newtype of interned ID for path",
+    Module ModuleLoc module_loc "Newtype of interned ID for module token",
+    Crate CrateLoc crate_loc "Newtype of interned ID for crate token",
 }
