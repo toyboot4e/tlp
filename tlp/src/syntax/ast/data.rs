@@ -18,7 +18,7 @@ pub trait AstElement: Sized {
 }
 
 /// AST of a file
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Document {
     pub(crate) syn: SyntaxNode,
 }
@@ -138,7 +138,7 @@ impl Call {
         }
     }
 
-    pub fn args_tk(&self) -> impl Iterator<Item = Form> {
+    pub fn arg_forms(&self) -> impl Iterator<Item = Form> {
         self.syn
             .children_with_tokens()
             .filter(|elem| elem.kind() != SyntaxKind::Ws)
@@ -147,7 +147,7 @@ impl Call {
 }
 
 /// (proc name (params) (body)..)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
     pub(crate) syn: SyntaxNode,
 }
@@ -188,7 +188,7 @@ impl DefProc {
         let mut c = self
             .syn
             .children_with_tokens()
-            .filter(|elem| elem.kind() == SyntaxKind::Ws);
+            .filter(|elem| elem.kind() != SyntaxKind::Ws);
 
         assert_eq!(c.next().unwrap().kind(), SyntaxKind::LParen);
 
@@ -199,7 +199,7 @@ impl DefProc {
         }
     }
 
-    pub fn params_tk(&self) -> Option<Params> {
+    pub fn params(&self) -> Option<Params> {
         self.syn
             .first_child()
             .filter(|node| node.kind() == SyntaxKind::List)
@@ -208,7 +208,7 @@ impl DefProc {
 }
 
 /// Function paramaters
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Params {
     pub(crate) syn: SyntaxNode,
 }
@@ -250,9 +250,14 @@ pub struct Symbol {
 }
 
 pub enum SymbolKind {
+    /// TODO: Nat, Int, Float
     Num,
+    /// String literal
     Str,
+    /// `true` | `false`
     Bool,
+    // /// ident | path
+    // Var
 }
 
 impl AstElement for Symbol {

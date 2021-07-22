@@ -126,7 +126,7 @@ impl Validate for DefProc {
             });
         }
 
-        let params = match self.params_tk() {
+        let params = match self.params() {
             Some(params) => params,
             None => {
                 errs.push(SyntaxError::FnParamsMissing {
