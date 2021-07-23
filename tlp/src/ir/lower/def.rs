@@ -1,5 +1,7 @@
 /*!
 Definitions, interned data types
+
+TODO: Use `AstId` indirection and do not dependent on AST nodes directly
 */
 
 use crate::{db::ids::Access, syntax::ast::data as ast};
@@ -37,16 +39,17 @@ impl ProcParams {
 }
 
 /// Code block
-pub struct Body {
-    pub scope: LexScope,
+pub struct Block {
+    // pub scope: LexScope,
+    pub ast: ast::Block,
 }
 
-/// Recursive lex scope
-#[derive(Debug, Clone)]
-pub struct LexScope {
-    pub exprs: Vec<Expr>,
-    pub depth: usize,
-}
+// /// Recursive lex scope
+// #[derive(Debug, Clone)]
+// pub struct LexScope {
+//     pub exprs: Vec<Expr>,
+//     pub depth: usize,
+// }
 
 #[derive(Debug, Clone)]
 pub enum Expr {

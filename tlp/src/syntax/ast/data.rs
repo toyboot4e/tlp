@@ -146,7 +146,7 @@ impl Call {
     }
 }
 
-/// (proc name (params) (body)..)
+/// (proc name (params) (block)..)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
     pub(crate) syn: SyntaxNode,
@@ -156,12 +156,14 @@ impl AstNode for DefProc {
     fn cast_node(syn: SyntaxNode) -> Option<Self> {
         let mut c = syn.children_with_tokens();
 
+        // (
         if c.next()?.kind() != SyntaxKind::LParen {
             return None;
         }
 
         let mut c = c.skip_while(|e| e.kind() == SyntaxKind::Ws);
 
+        // proc
         match c.next()? {
             SyntaxElement::Node(_n) => return None,
             SyntaxElement::Token(tk) => {
@@ -224,6 +226,28 @@ impl Params {
     /// Number of arguments
     pub fn arity(&self) -> usize {
         self.var_tks().count()
+    }
+}
+
+/// Code block
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Block {
+    pub(crate) syn: SyntaxNode,
+}
+
+impl AstNode for Block {
+    fn cast_node(syn: SyntaxNode) -> Option<Self> {
+        if syn.kind() == SyntaxKind::Block {
+            Some(Self { syn })
+        } else {
+            None
+        }
+    }
+}
+
+impl Block {
+    pub fn forms(&self) -> impl Iterator<Item = Form> {
+        self.syn.children_with_tokens().filter_map(Form::cast_elem)
     }
 }
 

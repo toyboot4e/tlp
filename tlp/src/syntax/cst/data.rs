@@ -67,6 +67,8 @@ pub enum SyntaxKind {
     List,
     String,
     Path,
+    /// Code block
+    Block,
     // ----------------------------------------
     // composite node
     /// Beginning of text
