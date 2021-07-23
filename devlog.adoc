@@ -24,13 +24,11 @@ I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice,
 
 I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs package in ELisp ({toy-scheme}), still I know little about Lisp. I'd have to struggle a lot.
 
-== Devlog
+== Devlog (initial approach)
 
-=== Initial approach
+This approach was soon abandoned. Compilation passes: source string → AST → bytecode.
 
-I believed toylisp would do this conversion: source string → AST → bytecode. It was soon to turn out there were better approaches.
-
-==== Lexer (tokenizer)
+=== Lexer (tokenizer)
 
 * Jun 9, 2021
 +
@@ -48,7 +46,7 @@ Just a note: nice resource from `rustc` dev guide: https://rustc-dev-guide.rust-
 +
 I parsed `Vec<Token>` into a hierarchy of tokens. I'm not sure if it's a good idea to stick with tokens and source string though; the API is already uncomfortable.
 
-==== Compiler and bytecode virtual machine
+=== Compiler and bytecode virtual machine
 
 * Jun 17, 2021
 +
@@ -56,9 +54,11 @@ I added a simple VM which can calculate arithmetics. It's a stack-based VM as on
 +
 I also added a simple compiler, which converts AST to bytecode. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
 
-=== Setting up frontend
+== Devlog
 
-I learned from `rust-analyzer`, especially {rowan} and reached another approach.
+I started to learn from {ra}.
+
+=== Setting up frontend
 
 ==== CST
 
@@ -162,3 +162,7 @@ vfs-notify       219
 ====
 +
 `hir_def` does name resolution (iiuc).
+
+=== salsa-based HIR
+
+{salsa} is an incremental computation framework, written in less than 4000 lines of code.
