@@ -28,9 +28,17 @@ pub type SyntaxToken = rowan::SyntaxToken<Lang>;
 /// Subtree or leaf: [`SyntaxNode`] | [`SyntaxToken`]
 pub type SyntaxElement = rowan::SyntaxElement<Lang>;
 
-/// Syntactic kind of a tree element
-///
-/// It's used for both lexing and parsing, but the lexer doesn't use compositing items.
+/**
+Syntactic kind of a tree element
+
+It's used for both lexing and parsing, but the lexer doesn't use compositing items.
+
+# Considerations
+
+* String can be a single token; we can retrieve components via methods in AST.
+* TODO: Inserting code block node? We can do it in parsing, but doesn't it duplicate the work when
+  casting?
+*/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u16)]
 pub enum SyntaxKind {

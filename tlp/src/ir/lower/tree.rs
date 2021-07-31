@@ -2,9 +2,9 @@
 Tree representation of source code built aruond interned data
 */
 
-use crate::{
+use crate::ir::{
     db::ids::*,
-    ir::lower::{def::*, loc::*},
+    lower::{def::*, loc::*},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

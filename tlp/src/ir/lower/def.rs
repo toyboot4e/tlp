@@ -1,10 +1,16 @@
 /*!
 Definitions, interned data types
-
-TODO: Use `AstId` indirection and do not dependent on AST nodes directly
 */
 
-use crate::{db::ids::Access, syntax::ast::data as ast};
+use crate::{ir::db::ids::Access, syntax::ast::data as ast};
+
+/// Visibility of an item
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Visibility {
+    /// The default
+    ModuleOnly,
+    Public,
+}
 
 /// Function definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -13,6 +19,7 @@ pub struct DefProc {
     pub access: Access,
     pub params: Option<ProcParams>,
     // pub name: crate::syntax::grammar::IdentString,
+    // pub vis: Visibility
     ast: ast::DefProc,
 }
 

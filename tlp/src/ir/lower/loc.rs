@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 use camino::{Utf8Path, Utf8PathBuf};
 
-use crate::{db::ids::Module, syntax::cst::data as cst};
+use crate::{ir::db::ids::Module, syntax::cst::data as cst};
 
 /// Relative path in toylisp source code
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -71,26 +71,27 @@ impl NamespaceAccess {
 
 // newtypes of absolute access
 
-/// Represents a crate, but doesn't contain anything in it
-///
-/// TODO: Intern
+/// Path to a crate
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CrateLoc {
-    access: NamespaceAccess,
+    /// Different from Rust, each crate has unique name in toylisp
+    name: String,
 }
 
 impl CrateLoc {
-    pub fn new(access: NamespaceAccess) -> Option<Self> {
-        // TODO: Validate the path
-        Some(Self { access })
+    pub fn new(name: String) -> Option<Self> {
+        // TODO: Validate the name
+        Some(Self { name })
     }
 
-    pub fn access(&self) -> &NamespaceAccess {
-        &self.access
+    pub fn name(&self) -> &str {
+        &self.name
     }
+
+    // pub fn join_module(&self, s: &str) -> ModuleLoc {
 }
 
-/// Represents a module, but doesn't contain anything in it
+/// Path to a module
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleLoc {
     access: NamespaceAccess,

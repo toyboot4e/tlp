@@ -1,5 +1,5 @@
 /*!
-Lowers AST into a tree
+Lowers AST into an item tree
 
 # The lowering pass
 
@@ -13,7 +13,7 @@ pub mod tree;
 
 use thiserror::Error;
 
-use crate::db::ids::*;
+use crate::ir::db::ids::*;
 
 use self::{loc::*, tree::*};
 

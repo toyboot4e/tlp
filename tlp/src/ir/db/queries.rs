@@ -9,23 +9,32 @@ use std::sync::Arc;
 use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{
-    db::ids::*,
-    ir::lower::{
-        def,
-        loc::*,
-        tree::{CrateTree, ModuleTree},
-        LowerError,
+    ir::{
+        db::ids::*,
+        lower::{
+            def,
+            loc::*,
+            tree::{CrateTree, ModuleTree},
+            LowerError,
+        },
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
+/// Source data available to both compiler and IDE
+///
+/// NOTE: RA separates `SourceDatabase` and `FileLoader` from `SourceDatabaseExt` so that some
+/// functionalities are not available in compiler-side code.
 #[salsa::query_group(SourceDB)]
 pub trait Source: salsa::Database {
     #[salsa::input]
     fn input(&self, path: Utf8PathBuf) -> Arc<String>;
 
     fn line_index(&self, path: Utf8PathBuf) -> Arc<LineIndex>;
+
+    // #[salsa::input]
+    // fn source_files(&self, krate: CrateLoc) -> ARc<Vec<Utf8PathBuf>>;
 }
 
 fn line_index(db: &dyn Source, name: Utf8PathBuf) -> Arc<LineIndex> {
