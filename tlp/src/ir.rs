@@ -1,5 +1,5 @@
 /*!
-Various intermadiate representations
+Intermadiate representations between AST and bytecode
 
 # Data flow
 
@@ -12,5 +12,6 @@ Various intermadiate representations
 * Source map pattern (AstID → AST)
 */
 
+pub mod data;
 pub mod db;
 pub mod lower;

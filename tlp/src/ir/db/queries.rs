@@ -10,13 +10,13 @@ use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{
     ir::{
-        db::ids::*,
-        lower::{
+        data::{
             def,
             loc::*,
             tree::{CrateTree, ModuleTree},
-            LowerError,
         },
+        db::ids::*,
+        lower::LowerError,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,

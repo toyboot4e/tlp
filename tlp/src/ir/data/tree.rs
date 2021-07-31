@@ -3,8 +3,8 @@ Tree representation of source code built aruond interned data
 */
 
 use crate::ir::{
+    data::{def::*, loc::*},
     db::ids::*,
-    lower::{def::*, loc::*},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

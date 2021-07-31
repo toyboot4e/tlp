@@ -1,5 +1,5 @@
 /*!
-`salsa` integation where incremental computation is performed
+`salsa` integration where incremental computation is performed
 */
 
 pub mod ids;

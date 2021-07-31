@@ -3,8 +3,8 @@ IDs of interned data types
 */
 
 use crate::ir::{
+    data::{def::DefProc, loc::*},
     db::Intern,
-    lower::{def::DefProc, loc::*},
 };
 
 macro_rules! new_ids {

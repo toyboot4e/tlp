@@ -7,15 +7,12 @@ Lowers AST into an item tree
 * Locations are interned with salsa database (for smaller use of memory)
 */
 
-pub mod def;
-pub mod loc;
-pub mod tree;
-
 use thiserror::Error;
 
-use crate::ir::db::ids::*;
-
-use self::{loc::*, tree::*};
+use crate::ir::{
+    data::{loc::*, tree::*},
+    db::ids::*,
+};
 
 #[derive(Debug, Clone)]
 pub struct CrateData {
