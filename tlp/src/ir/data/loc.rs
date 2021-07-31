@@ -11,6 +11,18 @@ use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{ir::db::ids::Module, syntax::cst::data as cst};
 
+/// TODO: Intern file paths
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FileId {
+    path: Utf8PathBuf,
+}
+
+impl FileId {
+    pub fn new(path: Utf8PathBuf) -> Self {
+        Self { path }
+    }
+}
+
 /// Relative path in toylisp source code
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RelAccess {
@@ -42,18 +54,22 @@ impl AbsAccess {
     pub fn to_path_buf(&self) -> Utf8PathBuf {
         self.path.to_path_buf()
     }
+
+    pub fn to_file(&self) -> Option<FileId> {
+        Some(FileId::new(self.path.to_path_buf()))
+    }
 }
 
 /// [`AbsAccess`] that only contains identifiers and `:`
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NamespaceAccess {
-    access: AbsAccess,
+    raw: AbsAccess,
 }
 
 impl NamespaceAccess {
     pub fn new(access: AbsAccess) -> Option<Self> {
         // TODO: Validate the path
-        Some(Self { access })
+        Some(Self { raw: access })
     }
 
     pub fn from_str(s: &str) -> Option<Self> {
@@ -61,11 +77,11 @@ impl NamespaceAccess {
     }
 
     pub fn as_path(&self) -> &Utf8Path {
-        self.access.as_path()
+        self.raw.as_path()
     }
 
     pub fn to_path_buf(&self) -> Utf8PathBuf {
-        self.access.to_path_buf()
+        self.raw.to_path_buf()
     }
 }
 
@@ -105,6 +121,10 @@ impl ModuleLoc {
 
     pub fn access(&self) -> &NamespaceAccess {
         &self.access
+    }
+
+    pub fn to_file(&self) -> Option<FileId> {
+        self.access.raw.to_file()
     }
 
     pub fn krate(&self) -> &CrateLoc {

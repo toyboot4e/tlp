@@ -10,13 +10,10 @@ use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{
     ir::{
-        data::{
-            def,
-            loc::*,
-            tree::{CrateTree, ModuleTree},
-        },
+        data::{def, loc::*},
         db::ids::*,
         lower::LowerError,
+        tree::{CrateTree, ModuleTree},
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
@@ -29,27 +26,27 @@ use crate::{
 #[salsa::query_group(SourceDB)]
 pub trait Source: salsa::Database {
     #[salsa::input]
-    fn input(&self, path: Utf8PathBuf) -> Arc<String>;
+    fn input(&self, file: FileId) -> Arc<String>;
 
-    fn line_index(&self, path: Utf8PathBuf) -> Arc<LineIndex>;
+    fn line_index(&self, file: FileId) -> Arc<LineIndex>;
 
     // #[salsa::input]
     // fn source_files(&self, krate: CrateLoc) -> ARc<Vec<Utf8PathBuf>>;
 }
 
-fn line_index(db: &dyn Source, name: Utf8PathBuf) -> Arc<LineIndex> {
-    let input = db.input(name);
+fn line_index(db: &dyn Source, file: FileId) -> Arc<LineIndex> {
+    let input = db.input(file);
     Arc::new(LineIndex::new(&input))
 }
 
 #[salsa::query_group(ParseDB)]
 pub trait Parse: Source {
     /// The parsed form of the request.
-    fn parse(&self, path: Utf8PathBuf) -> Arc<ParseResult>;
+    fn parse(&self, file: FileId) -> Arc<ParseResult>;
 }
 
-fn parse(db: &dyn Parse, path: Utf8PathBuf) -> Arc<ParseResult> {
-    let src = db.input(path);
+fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
+    let src = db.input(file);
     let res = ast::parse(&src);
     Arc::new(res)
 }
@@ -74,15 +71,15 @@ pub trait LowerModule: Parse + Intern {
 
 fn module_tree(db: &dyn LowerModule, module: Module) -> Arc<ModuleLower> {
     let module_loc = db.lookup_intern_module_loc(module);
-    let module_path = module_loc.access().to_path_buf();
 
-    let ast = db.parse(module_path.clone()).doc.clone();
+    let file = module_loc.to_file().unwrap();
+    let ast = db.parse(file).doc.clone();
 
     let krate = module_loc.krate().clone();
     let tree = ModuleTree::crate_root(krate, module);
 
     let mut lower = ModuleLower::new(tree);
-    lower.lower(db, &module_path, ast);
+    lower.lower(db, &module_loc.access().to_path_buf(), ast);
     Arc::new(lower)
 }
 
@@ -101,10 +98,10 @@ impl ModuleLower {
     }
 
     fn lower(&mut self, db: &dyn LowerModule, module_path: &Utf8Path, ast: ast::data::Document) {
-        self.lower_procs(db, module_path, ast.item_nodes());
+        self.collect_procs(db, module_path, ast.item_nodes());
     }
 
-    fn lower_procs(
+    fn collect_procs(
         &mut self,
         db: &dyn LowerModule,
         module_path: &Utf8Path,

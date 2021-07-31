@@ -9,10 +9,7 @@ Lowers AST into an item tree
 
 use thiserror::Error;
 
-use crate::ir::{
-    data::{loc::*, tree::*},
-    db::ids::*,
-};
+use crate::ir::{data::loc::*, db::ids::*, tree::*};
 
 #[derive(Debug, Clone)]
 pub struct CrateData {
