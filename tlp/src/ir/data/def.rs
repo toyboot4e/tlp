@@ -1,10 +1,10 @@
 /*!
-Definitions
+Item definitions
 */
 
 // TODO: Replace access types with ItemLoc<Self>
 
-use crate::{ir::db::ids::AccessId, syntax::ast::data as ast};
+use crate::syntax::{ast::data as ast, cst::data::SyntaxToken};
 use smol_str::SmolStr;
 
 /// Interned string that represents name of something in HIR
@@ -17,22 +17,32 @@ impl Name {
     pub fn from_str(s: &str) -> Self {
         Self { data: s.into() }
     }
+
+    pub fn from_tk(syn: SyntaxToken) -> Self {
+        Self {
+            data: SmolStr::from(syn.text()),
+        }
+    }
 }
 
-/// Visibility of an item
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Visibility {
-    /// The default
-    ModuleOnly,
-    Public,
+// /// Visibility of an item
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+// pub enum Visibility {
+//     /// The default
+//     ModuleOnly,
+//     Public,
+// }
+
+/// Function parameters
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProcParams {
+    pub ast: ast::Params,
 }
 
-/// Function definition
+/// Procedure definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
-    // FIXME:
-    pub access: AccessId,
-    // pub name: crate::syntax::grammar::IdentString,
+    pub name: Name,
     pub params: Option<ProcParams>,
     // pub vis: Visibility,
     // pub ret_ty: TypeRefId,
@@ -40,19 +50,14 @@ pub struct DefProc {
 }
 
 impl DefProc {
-    pub fn new(ast: ast::DefProc, access: AccessId) -> Self {
+    pub fn new(ast: ast::DefProc) -> Self {
+        let name = Name::from_tk(ast.name_tk());
         Self {
-            access,
+            name,
             params: ast.params().map(|ast| ProcParams::from_ast(ast)),
             ast,
         }
     }
-}
-
-/// Function parameters
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ProcParams {
-    pub ast: ast::Params,
 }
 
 impl ProcParams {
@@ -66,6 +71,8 @@ pub struct Block {
     // pub scope: LexScope,
     pub ast: ast::Block,
 }
+
+// DefStruct
 
 // /// Recursive lex scope
 // #[derive(Debug, Clone)]

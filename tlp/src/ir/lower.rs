@@ -9,31 +9,49 @@ Item definitions are collected into `DefMap`?
 * Locations are interned with salsa database (for smaller use of memory)
 */
 
-pub mod expand;
+use std::sync::Arc;
 
-use thiserror::Error;
+use crate::{
+    ir::{
+        data::{def, loc::*},
+        db::queries,
+        tree::ItemTree,
+    },
+    syntax::ast::data as ast,
+};
 
-use crate::ir::{data::loc::*, db::ids::*, tree::*};
-
-#[derive(Debug, Clone)]
-pub struct CrateData {
-    pub tk: CrateId,
-    pub tree: CrateTree,
+pub(crate) fn item_tree_query(db: &dyn queries::Def, file: FileId) -> Arc<ItemTree> {
+    let ast = db.parse(file).doc.clone();
+    Arc::new(ItemTreeCollect::run(ast))
 }
 
-impl CrateData {
-    pub fn new(krate: CrateId, root: ModuleId) -> Self {
-        CrateData {
-            tk: krate,
-            tree: CrateTree::new(krate, root),
+struct ItemTreeCollect {
+    tree: ItemTree,
+}
+
+impl ItemTreeCollect {
+    fn run(ast: ast::Document) -> ItemTree {
+        let mut me = Self {
+            tree: ItemTree::new(),
+        };
+
+        me.collect_procs(ast.item_nodes());
+
+        me.tree
+    }
+
+    fn collect_procs(&mut self, forms: impl Iterator<Item = ast::Form>) {
+        for form in forms {
+            if let Some(ast) = form.as_proc() {
+                if let Some(def_proc) = self.lower_proc(ast) {
+                    self.tree.procs.push(def_proc);
+                }
+            }
         }
     }
-}
 
-#[derive(Error, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum LowerError {
-    #[error("Duplicate procedure definition: {s}")]
-    DupProc { access: AbsAccess, s: String },
-    #[error("Duplicate module definition: {s}")]
-    DupMod { access: AbsAccess, s: String },
+    fn lower_proc(&mut self, ast: ast::DefProc) -> Option<def::DefProc> {
+        let proc = def::DefProc::new(ast);
+        Some(proc)
+    }
 }

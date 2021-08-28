@@ -2,6 +2,8 @@
 `salsa` integration where incremental computation is performed
 */
 
+pub extern crate salsa;
+
 pub mod ids;
 pub mod queries;
 

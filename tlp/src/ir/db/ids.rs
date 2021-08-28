@@ -2,10 +2,7 @@
 IDs of interned data types
 */
 
-use crate::ir::{
-    data::{def::DefProc, loc::*},
-    db::Intern,
-};
+use crate::ir::{data::def::DefProc, db::Intern};
 
 macro_rules! new_ids {
     ($($id:ident $data:ident $intern:ident $doc:expr,)*) => {
@@ -40,11 +37,4 @@ macro_rules! new_ids {
 
 new_ids! {
     ProcId DefProc proc "Newtype of interned ID for procedure",
-    AccessId AbsAccess access "Newtype of interned ID for path",
-    ModuleId ModuleLoc module_loc "Newtype of interned ID for module token",
-    CrateId CrateLoc crate_loc "Newtype of interned ID for crate token
-
-It's backed by an positional ID for simplicity. The con is that it doesn't allow multiple crates
-with same name, like same crate with different versions.
-",
 }
