@@ -1,8 +1,23 @@
 /*!
-Definitions, interned data types
+Definitions
 */
 
-use crate::{ir::db::ids::Access, syntax::ast::data as ast};
+// TODO: Replace access types with ItemLoc<Self>
+
+use crate::{ir::db::ids::AccessId, syntax::ast::data as ast};
+use smol_str::SmolStr;
+
+/// Interned string that represents name of something in HIR
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Name {
+    data: SmolStr,
+}
+
+impl Name {
+    pub fn from_str(s: &str) -> Self {
+        Self { data: s.into() }
+    }
+}
 
 /// Visibility of an item
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,16 +30,17 @@ pub enum Visibility {
 /// Function definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
-    /// TODO: Replace access with ItemLoc<Self>
-    pub access: Access,
-    pub params: Option<ProcParams>,
+    // FIXME:
+    pub access: AccessId,
     // pub name: crate::syntax::grammar::IdentString,
-    // pub vis: Visibility
+    pub params: Option<ProcParams>,
+    // pub vis: Visibility,
+    // pub ret_ty: TypeRefId,
     ast: ast::DefProc,
 }
 
 impl DefProc {
-    pub fn new(ast: ast::DefProc, access: Access) -> Self {
+    pub fn new(ast: ast::DefProc, access: AccessId) -> Self {
         Self {
             access,
             params: ast.params().map(|ast| ProcParams::from_ast(ast)),
@@ -57,27 +73,3 @@ pub struct Block {
 //     pub exprs: Vec<Expr>,
 //     pub depth: usize,
 // }
-
-#[derive(Debug, Clone)]
-pub enum Expr {
-    Call(Call),
-}
-
-#[derive(Debug, Clone)]
-pub struct Call {
-    pub callee: Access,
-    pub args: Vec<Arg>,
-    pub ast: ast::Call,
-}
-
-#[derive(Debug, Clone)]
-pub struct Arg {
-    /// TODO: lifetime?
-    pub name: rowan::SyntaxText,
-    // pub ast: Ident,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    F32(f32),
-}

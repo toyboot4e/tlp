@@ -1,5 +1,5 @@
 /*!
-Bytecode
+Bytecode, runtime representation of toylisp program
 */
 
 /// Instruction to the stack-based virtual machine

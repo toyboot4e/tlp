@@ -39,10 +39,10 @@ macro_rules! new_ids {
 }
 
 new_ids! {
-    Proc DefProc proc "Newtype of interned ID for procedure",
-    Access AbsAccess access "Newtype of interned ID for path",
-    Module ModuleLoc module_loc "Newtype of interned ID for module token",
-    Crate CrateLoc crate_loc "Newtype of interned ID for crate token
+    ProcId DefProc proc "Newtype of interned ID for procedure",
+    AccessId AbsAccess access "Newtype of interned ID for path",
+    ModuleId ModuleLoc module_loc "Newtype of interned ID for module token",
+    CrateId CrateLoc crate_loc "Newtype of interned ID for crate token
 
 It's backed by an positional ID for simplicity. The con is that it doesn't allow multiple crates
 with same name, like same crate with different versions.

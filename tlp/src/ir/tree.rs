@@ -9,14 +9,14 @@ use crate::ir::{
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CrateTree {
-    pub krate: Crate,
-    pub modules: Vec<Module>,
+    pub krate: CrateId,
+    pub modules: Vec<ModuleId>,
     /// Implicit root module
-    pub root: Module,
+    pub root: ModuleId,
 }
 
 impl CrateTree {
-    pub fn new(tk: Crate, root: Module) -> Self {
+    pub fn new(tk: CrateId, root: ModuleId) -> Self {
         Self {
             krate: tk,
             modules: Vec::new(),
@@ -29,9 +29,9 @@ impl CrateTree {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleTree {
     pub krate: CrateLoc,
-    pub module: Module,
-    pub parent: Option<Module>,
-    pub children: Vec<Module>,
+    pub module: ModuleId,
+    pub parent: Option<ModuleId>,
+    pub children: Vec<ModuleId>,
     /// TODO: Consider non-linear search for duplication check on insertion
     pub procs: Vec<DefProc>,
     // sub_modules: Vec<ModuleTree>,
@@ -39,7 +39,7 @@ pub struct ModuleTree {
 
 impl ModuleTree {
     /// Implicit crate root module
-    pub fn crate_root(krate: CrateLoc, module: Module) -> Self {
+    pub fn crate_root(krate: CrateLoc, module: ModuleId) -> Self {
         Self {
             krate,
             module,
@@ -50,7 +50,7 @@ impl ModuleTree {
     }
 
     /// Create a sub module of a parent modue
-    pub fn sub_module(krate: CrateLoc, module: Module, parent: Module) -> Self {
+    pub fn sub_module(krate: CrateLoc, module: ModuleId, parent: ModuleId) -> Self {
         Self {
             krate,
             module,
@@ -60,7 +60,7 @@ impl ModuleTree {
         }
     }
 
-    pub fn insert_sub_module(&self, id: Module) -> Self {
+    pub fn insert_sub_module(&self, id: ModuleId) -> Self {
         // let tree = Self::sub_module
         todo!()
     }

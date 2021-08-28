@@ -1,5 +1,5 @@
 /*!
-Bytecode, runtime representation of toylisp program
+Bytecode virtual machine
 */
 
 pub mod data;

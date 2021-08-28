@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 use camino::{Utf8Path, Utf8PathBuf};
 
-use crate::{ir::db::ids::Module, syntax::cst::data as cst};
+use crate::{ir::db::ids::ModuleId, syntax::cst::data as cst};
 
 /// TODO: Intern file paths
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -135,6 +135,6 @@ impl ModuleLoc {
 /// Internd location of an item of type T
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ModuleItemLoc<T> {
-    module: Module,
+    module: ModuleId,
     _ty: PhantomData<T>,
 }
