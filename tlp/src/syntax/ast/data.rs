@@ -194,6 +194,13 @@ impl DefProc {
 
         assert_eq!(c.next().unwrap().kind(), SyntaxKind::LParen);
 
+        match c.next().unwrap() {
+            SyntaxElement::Token(tk) => {
+                assert_eq!(tk.text(), "proc");
+            }
+            SyntaxElement::Node(_n) => panic!("Not (proc ..) !"),
+        };
+
         match c.next() {
             Some(elem) if elem.kind() == SyntaxKind::Ident => elem.clone().into_token().unwrap(),
             Some(elem) => unreachable!("Not identifier? {}", elem),

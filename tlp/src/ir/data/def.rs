@@ -23,6 +23,10 @@ impl Name {
             data: SmolStr::from(syn.text()),
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        self.data.as_str()
+    }
 }
 
 // /// Visibility of an item
@@ -42,8 +46,8 @@ pub struct ProcParams {
 /// Procedure definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
-    pub name: Name,
-    pub params: Option<ProcParams>,
+    name: Name,
+    params: Option<ProcParams>,
     // pub vis: Visibility,
     // pub ret_ty: TypeRefId,
     ast: ast::DefProc,
@@ -52,11 +56,14 @@ pub struct DefProc {
 impl DefProc {
     pub fn new(ast: ast::DefProc) -> Self {
         let name = Name::from_tk(ast.name_tk());
-        Self {
-            name,
-            params: ast.params().map(|ast| ProcParams::from_ast(ast)),
-            ast,
-        }
+        // TODO: Non-Option type
+        let params = ast.params().map(|ast| ProcParams::from_ast(ast));
+
+        Self { name, params, ast }
+    }
+
+    pub fn name(&self) -> &Name {
+        &self.name
     }
 }
 

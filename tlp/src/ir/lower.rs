@@ -1,12 +1,5 @@
 /*!
-Lowers AST into an item tree
-
-# The lowering pass
-
-Item definitions are collected into `DefMap`?
-
-* The output of the pass is the input to the name resolution pass
-* Locations are interned with salsa database (for smaller use of memory)
+Lowers AST into item tree
 */
 
 use std::sync::Arc;
@@ -21,8 +14,8 @@ use crate::{
 };
 
 pub(crate) fn item_tree_query(db: &dyn queries::Def, file: FileId) -> Arc<ItemTree> {
-    let ast = db.parse(file).doc.clone();
-    Arc::new(ItemTreeCollect::run(ast))
+    let ast = db.parse(file.clone()).doc.clone();
+    Arc::new(ItemTreeCollect::run(file, ast))
 }
 
 struct ItemTreeCollect {
@@ -30,9 +23,9 @@ struct ItemTreeCollect {
 }
 
 impl ItemTreeCollect {
-    fn run(ast: ast::Document) -> ItemTree {
+    fn run(file: FileId, ast: ast::Document) -> ItemTree {
         let mut me = Self {
-            tree: ItemTree::new(),
+            tree: ItemTree::new(file),
         };
 
         me.collect_procs(ast.item_nodes());
