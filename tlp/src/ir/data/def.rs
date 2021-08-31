@@ -37,27 +37,75 @@ impl Name {
 //     Public,
 // }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Param {
+    name: Name,
+    // ty: Type,
+}
+
+impl Param {
+    pub fn name(&self) -> &Name {
+        &self.name
+    }
+}
+
 /// Function parameters
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProcParams {
-    pub ast: ast::Params,
+    params: Vec<Param>,
+    // ast: ast::Params,
+}
+
+impl std::ops::Index<usize> for ProcParams {
+    type Output = Param;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.params[index]
+    }
+}
+
+impl ProcParams {
+    pub fn len(&self) -> usize {
+        self.params.len()
+    }
+}
+
+impl ProcParams {
+    pub fn none() -> Self {
+        Self { params: Vec::new() }
+    }
+
+    pub fn from_ast(ast: ast::Params) -> Self {
+        let mut params = Vec::new();
+
+        for tk in ast.param_tks() {
+            let text = tk.text();
+            params.push(Param {
+                name: Name::from_str(text),
+            });
+        }
+
+        Self { params }
+    }
 }
 
 /// Procedure definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
     name: Name,
-    params: Option<ProcParams>,
+    params: ProcParams,
     // pub vis: Visibility,
     // pub ret_ty: TypeRefId,
     ast: ast::DefProc,
 }
 
 impl DefProc {
-    pub fn new(ast: ast::DefProc) -> Self {
+    pub fn from_ast(ast: ast::DefProc) -> Self {
         let name = Name::from_tk(ast.name_tk());
-        // TODO: Non-Option type
-        let params = ast.params().map(|ast| ProcParams::from_ast(ast));
+
+        let params = match ast.params() {
+            Some(ast) => ProcParams::from_ast(ast),
+            None => ProcParams::none(),
+        };
 
         Self { name, params, ast }
     }
@@ -65,11 +113,9 @@ impl DefProc {
     pub fn name(&self) -> &Name {
         &self.name
     }
-}
 
-impl ProcParams {
-    pub fn from_ast(ast: ast::Params) -> Self {
-        Self { ast }
+    pub fn params(&self) -> &ProcParams {
+        &self.params
     }
 }
 
