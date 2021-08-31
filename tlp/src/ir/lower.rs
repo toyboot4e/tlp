@@ -7,13 +7,13 @@ use std::sync::Arc;
 use crate::{
     ir::{
         data::{def, loc::*},
-        db::queries,
+        db,
         tree::ItemTree,
     },
     syntax::ast::data as ast,
 };
 
-pub(crate) fn item_tree_query(db: &dyn queries::Def, file: FileId) -> Arc<ItemTree> {
+pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
 }

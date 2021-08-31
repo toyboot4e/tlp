@@ -2,13 +2,9 @@
 Tests for toylisp intermediate representations
 */
 
-use camino::Utf8PathBuf;
 use std::sync::Arc;
 
-use tlp::ir::{
-    data::loc::*,
-    db::{queries::*, DB},
-};
+use tlp::ir::{data::loc::*, db::*};
 
 #[test]
 fn module_tree() {
