@@ -4,7 +4,7 @@ Tests for toylisp intermediate representations
 
 use std::sync::Arc;
 
-use tlp::ir::{data::loc::*, db::*};
+use tlp::ir::db::{input::*, *};
 
 #[test]
 fn module_tree() {
