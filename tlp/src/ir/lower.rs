@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::{
     ir::{
-        data::{def, loc::*},
-        db,
+        data::def,
+        db::{self, input::*},
         tree::ItemTree,
     },
     syntax::ast::data as ast,

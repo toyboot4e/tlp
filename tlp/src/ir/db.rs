@@ -5,18 +5,17 @@
 pub extern crate salsa;
 
 pub mod ids;
+pub mod input;
 
 use std::sync::Arc;
 
 use crate::{
-    ir::{
-        data::{def, loc::FileId},
-        db::ids::*,
-        tree::ItemTree,
-    },
+    ir::{data::def, db::input::FileId, tree::ItemTree},
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
+
+use self::{ids::*, input::*};
 
 /// `salsa` database for the [`queries`]
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]

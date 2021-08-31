@@ -2,7 +2,7 @@
 Tree representation of source code built aruond interned data
 */
 
-use crate::ir::data::{def::*, loc::*};
+use crate::ir::{data::def::*, db::input::*};
 
 /// IDs of top-level items in a module
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
