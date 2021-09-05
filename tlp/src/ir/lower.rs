@@ -6,27 +6,26 @@ use std::sync::Arc;
 
 use crate::{
     ir::{
-        data::def,
+        data::{def, DeclTree},
         db::{self, input::*},
-        tree::ItemTree,
     },
     syntax::ast::data as ast,
 };
 
 /// Creates an [`ItemTree`] for given [`FileId`]
-pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemTree> {
+pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<DeclTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
 }
 
 struct ItemTreeCollect {
-    tree: ItemTree,
+    tree: DeclTree,
 }
 
 impl ItemTreeCollect {
-    fn run(file: FileId, ast: ast::Document) -> ItemTree {
+    fn run(file: FileId, ast: ast::Document) -> DeclTree {
         let mut me = Self {
-            tree: ItemTree::new(file),
+            tree: DeclTree::new(file),
         };
 
         me.collect(ast.item_nodes());

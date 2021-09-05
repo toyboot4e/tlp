@@ -15,4 +15,3 @@ Intermadiate representations between AST and bytecode
 pub mod data;
 pub mod db;
 pub mod lower;
-pub mod tree;

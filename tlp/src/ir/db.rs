@@ -10,12 +10,15 @@ pub mod input;
 use std::sync::Arc;
 
 use crate::{
-    ir::{data::def, db::input::FileId, tree::ItemTree},
+    ir::{
+        data::{def, DeclTree},
+        db::input::FileId,
+    },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
-use self::{ids::*, input::*};
+use self::ids::*;
 
 /// `salsa` database for the [`queries`]
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]
@@ -59,21 +62,22 @@ fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
     Arc::new(res)
 }
 
-/// Interner of locations
+/// Interner of definitions and locations
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
+    // Data → ID
     #[salsa::interned]
     fn intern_proc(&self, def: def::DefProc) -> ProcId;
+    // location → IDs
 }
 
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
-    /// Collects items in a module into a tree
-    ///
-    /// TODO: Detect duplicate items
+    /// Creates an item tree for a file
+    // TODO: Detect duplicate items?
     #[salsa::invoke(crate::ir::lower::item_tree_query)]
-    fn item_tree(&self, file: FileId) -> Arc<ItemTree>;
+    fn item_tree(&self, file: FileId) -> Arc<DeclTree>;
     // fn proc_data(&self, id: FnId) -> Arc<FnDef>;
 }
 

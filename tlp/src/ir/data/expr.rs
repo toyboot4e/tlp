@@ -30,3 +30,10 @@ pub struct Arg {
 pub enum Value {
     F32(f32),
 }
+
+/// Code block
+#[derive(Debug, Clone)]
+pub struct Body {
+    // owner: Id,
+    exprs: Vec<Expr>,
+}
