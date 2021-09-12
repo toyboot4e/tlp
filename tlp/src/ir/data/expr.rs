@@ -5,7 +5,7 @@ Lowered expressions
 * No AST information (AST is related via map)
 */
 
-use crate::ir::data::def::Name;
+use crate::ir::data::decl::Name;
 
 #[derive(Debug, Clone)]
 pub enum Expr {

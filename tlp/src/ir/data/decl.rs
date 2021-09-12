@@ -1,11 +1,38 @@
 /*!
-Item definitions
+Module item declarations
 */
 
 // TODO: Replace access types with ItemLoc<Self>
 
-use crate::syntax::{ast::data as ast, cst::data::SyntaxToken};
 use smol_str::SmolStr;
+
+use crate::{
+    ir::db::input::*,
+    syntax::{ast::data as ast, cst::data::SyntaxToken},
+};
+
+/// IDs of top-level items in a module
+///
+/// In rust-analyzer, `DeclTree` is known as `ItemTree`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DeclTree {
+    pub(crate) file: FileId,
+    pub(crate) procs: Vec<DefProc>,
+    // pub(crate) data: Vec<DefData>,
+}
+
+impl DeclTree {
+    pub fn new(file: FileId) -> Self {
+        Self {
+            file,
+            procs: Vec::new(),
+        }
+    }
+
+    pub fn procs(&self) -> &[DefProc] {
+        &self.procs
+    }
+}
 
 /// Interned string that represents name of something in HIR
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

@@ -2,10 +2,10 @@
 IDs of interned data types
 */
 
-use crate::ir::{data::def::DefProc, db::Intern};
+use crate::ir::{data::decl, db::Intern};
 
 macro_rules! new_ids {
-    ($($id:ident $data:ident $intern:ident $doc:expr,)*) => {
+    ($($id:ident $decl:path, $intern:ident $doc:expr,)*) => {
         $(
             #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
             #[doc = $doc]
@@ -25,7 +25,7 @@ macro_rules! new_ids {
 
             impl $id {
                 /// Calls corresponding lookup function of DB
-                pub fn lookup(&self, db: &dyn Intern) -> $data {
+                pub fn lookup(&self, db: &dyn Intern) -> $decl {
                     paste::paste! {
                         db. [<lookup_intern_ $intern>] (*self)
                     }
@@ -36,5 +36,5 @@ macro_rules! new_ids {
 }
 
 new_ids! {
-    ProcId DefProc proc "Newtype of interned ID for procedure",
+    ProcId decl::DefProc, proc "Newtype of interned ID for procedure",
 }

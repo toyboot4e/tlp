@@ -1,18 +1,18 @@
-/*!
-Lowers AST into item tree
-*/
-
 use std::sync::Arc;
 
 use crate::{
     ir::{
-        data::{def, DeclTree},
-        db::{self, input::*},
+        data::{
+            body::*,
+            decl::{self, DeclTree},
+            res::CrateDefMap,
+        },
+        db::{self, ids::*, input::*},
     },
     syntax::ast::data as ast,
 };
 
-/// Creates an [`ItemTree`] for given [`FileId`]
+/// Collects item declarations and makes up a tree
 pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<DeclTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
@@ -46,7 +46,24 @@ impl ItemTreeCollect {
         }
     }
 
-    fn lower_proc(&mut self, ast: ast::DefProc) -> def::DefProc {
-        def::DefProc::from_ast(ast)
+    fn lower_proc(&mut self, ast: ast::DefProc) -> decl::DefProc {
+        decl::DefProc::from_ast(ast)
     }
+}
+
+pub(crate) fn def_map_query(db: &dyn db::Def, tree: Arc<DeclTree>) -> Arc<CrateDefMap> {
+    // name-resolution loop to the fixed point
+    // loop {
+    //     // resolve imports and macros
+    // }
+
+    todo!()
+}
+
+fn collect_defs(db: &dyn db::Def, map: &mut CrateDefMap) {
+    todo!()
+}
+
+pub(crate) fn lower_proc_body(db: &dyn db::Def, proc: ProcId) -> Arc<Body> {
+    todo!()
 }

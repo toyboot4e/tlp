@@ -11,14 +11,12 @@ use std::sync::Arc;
 
 use crate::{
     ir::{
-        data::{def, DeclTree},
-        db::input::FileId,
+        data::decl::{self, DeclTree},
+        db::{ids::*, input::FileId},
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
-
-use self::ids::*;
 
 /// `salsa` database for the [`queries`]
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]
@@ -67,7 +65,7 @@ fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
 pub trait Intern: salsa::Database {
     // Data → ID
     #[salsa::interned]
-    fn intern_proc(&self, def: def::DefProc) -> ProcId;
+    fn intern_proc(&self, def: decl::DefProc) -> ProcId;
     // location → IDs
 }
 

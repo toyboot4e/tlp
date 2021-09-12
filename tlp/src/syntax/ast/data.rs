@@ -216,23 +216,45 @@ impl DefProc {
     }
 }
 
-/// Function paramaters
+/// A function parameter
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Param {
+    pub(crate) syn: SyntaxToken,
+}
+
+impl AstToken for Param {
+    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
+        if syn.kind() == SyntaxKind::Ident {
+            Some(Self { syn })
+        } else {
+            None
+        }
+    }
+}
+
+impl Param {
+    pub fn text(&self) -> &str {
+        self.syn.text()
+    }
+}
+
+/// Function parameters
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Params {
     pub(crate) syn: SyntaxNode,
 }
 
 impl Params {
-    pub fn var_tks(&self) -> impl Iterator<Item = SyntaxToken> {
+    pub fn param_tks(&self) -> impl Iterator<Item = Param> {
         self.syn
             .children_with_tokens()
             .filter_map(|elem| elem.into_token())
-            .filter(|tk| tk.kind() == SyntaxKind::Ident)
+            .filter_map(Param::cast_tk)
     }
 
     /// Number of arguments
     pub fn arity(&self) -> usize {
-        self.var_tks().count()
+        self.param_tks().count()
     }
 }
 
