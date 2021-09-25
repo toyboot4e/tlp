@@ -1,5 +1,5 @@
 /*!
-`salsa` integration for incremental computation
+[`salsa`] integration for incremental computation
 */
 
 pub extern crate salsa;
@@ -9,16 +9,22 @@ pub mod input;
 
 use std::sync::Arc;
 
+use la_arena::Idx;
+
 use crate::{
     ir::{
-        data::decl::{self, DeclTree},
-        db::{ids::*, input::FileId},
+        data::{
+            body::Body,
+            decl::{self, DeclTree},
+            res::CrateDefMap,
+        },
+        db::input::FileId,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
-/// `salsa` database for the [`queries`]
+/// [`salsa`] database for the `queries`
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]
 #[derive(Default)]
 pub struct DB {
@@ -63,20 +69,24 @@ fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
 /// Interner of definitions and locations
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
-    // Data → ID
-    #[salsa::interned]
-    fn intern_proc(&self, def: decl::DefProc) -> ProcId;
     // location → IDs
 }
 
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
-    /// Creates an item tree for a file
-    // TODO: Detect duplicate items?
+    /// Creates declarations
     #[salsa::invoke(crate::ir::lower::item_tree_query)]
-    fn item_tree(&self, file: FileId) -> Arc<DeclTree>;
-    // fn proc_data(&self, id: FnId) -> Arc<FnDef>;
+    fn decl_tree(&self, file: FileId) -> Arc<DeclTree>;
+
+    // TODO: duplicate item diagnostics
+
+    /// Collects module items and makes up a tree
+    #[salsa::invoke(crate::ir::lower::def_map_query)]
+    fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
+
+    #[salsa::invoke(crate::ir::lower::lower_proc_body)]
+    fn lower_proc_body(&self, proc: Idx<decl::DefProc>) -> Arc<Body>;
 }
 
 /// High-level inetrmediate representation

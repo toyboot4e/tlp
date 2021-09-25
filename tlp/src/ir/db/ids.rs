@@ -1,8 +1,17 @@
 /*!
 IDs of interned data types
+
+# Data flows
+
+ID ← Loc ← Data:
+* Interning: Loc → ID
+
+ID → Loc → Data:
+* lookup: ID → Loc
+* container: Loc → Container → Data
 */
 
-use crate::ir::{data::decl, db::Intern};
+// use crate::ir::{data::decl, db::Intern};
 
 macro_rules! new_ids {
     ($($id:ident $decl:path, $intern:ident $doc:expr,)*) => {
@@ -35,6 +44,10 @@ macro_rules! new_ids {
     };
 }
 
-new_ids! {
-    ProcId decl::DefProc, proc "Newtype of interned ID for procedure",
-}
+// loc → ID
+// new_ids! {
+//     Path
+// }
+
+// mistake: data → ID
+//     ProcId decl::DefProc, proc "Newtype of interned ID for procedure",

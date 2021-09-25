@@ -18,9 +18,12 @@ fn module_tree() {
 "#;
 
     db.set_input(file.clone(), Arc::new(String::from(src)));
-    let tree = db.item_tree(file);
 
-    let proc = &tree.procs()[0];
+    // declaration tree
+    let decls = db.decl_tree(file.clone());
+
+    let mut procs = decls.procs().iter();
+    let (_ix, proc) = procs.next().unwrap();
     let params = proc.params();
 
     assert_eq!(proc.name().as_str(), "f");
@@ -29,6 +32,15 @@ fn module_tree() {
     assert_eq!(params[1].name().as_str(), "y");
     assert_eq!(params[2].name().as_str(), "z");
 
-    assert_eq!(tree.procs()[1].name().as_str(), "g");
-    assert_eq!(tree.procs()[2].name().as_str(), "h");
+    let (_ix, proc) = procs.next().unwrap();
+    assert_eq!(proc.name().as_str(), "g");
+    let (_ix, proc) = procs.next().unwrap();
+    assert_eq!(proc.name().as_str(), "h");
+
+    // def map
+    let krate = file.clone();
+    let def_map = db.crate_def_map(krate.clone());
+
+    let root = def_map.root();
+    let module = def_map.module(root);
 }

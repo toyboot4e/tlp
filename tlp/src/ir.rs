@@ -12,7 +12,6 @@ Intermadiate representations between AST and bytecode
 * Source map pattern (AstID → AST)
 */
 
-pub mod db;
-
 pub mod data;
-pub mod lower;
+pub mod db;
+mod lower;

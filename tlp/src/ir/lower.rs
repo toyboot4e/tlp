@@ -1,18 +1,22 @@
 use std::sync::Arc;
 
+use la_arena::{Arena, Idx};
+
 use crate::{
     ir::{
         data::{
             body::*,
             decl::{self, DeclTree},
-            res::CrateDefMap,
+            res::{CrateDefMap, ItemScope, ModuleData},
         },
-        db::{self, ids::*, input::*},
+        db::{self, input::*},
     },
     syntax::ast::data as ast,
 };
 
-/// Collects item declarations and makes up a tree
+use super::data::decl::Visibility;
+
+/// Queries a syntax-reflected form of declarations and imports
 pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<DeclTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
@@ -37,7 +41,7 @@ impl ItemTreeCollect {
         for form in forms {
             if let Some(ast) = form.as_proc() {
                 let def_proc = self.lower_proc(ast);
-                self.tree.procs.push(def_proc);
+                self.tree.procs.alloc(def_proc);
                 continue;
             }
 
@@ -51,19 +55,48 @@ impl ItemTreeCollect {
     }
 }
 
-pub(crate) fn def_map_query(db: &dyn db::Def, tree: Arc<DeclTree>) -> Arc<CrateDefMap> {
-    // name-resolution loop to the fixed point
-    // loop {
-    //     // resolve imports and macros
-    // }
+/// Queries top-level name resolutions (name-declaration map and item scopes)
+pub(crate) fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap> {
+    let mut modules = Arena::<ModuleData>::new();
+
+    let root_decls = db.decl_tree(krate.clone());
+    let root_scope = self::module_scope(db, &root_decls);
+
+    let root = modules.alloc(ModuleData {
+        file: krate.clone(),
+        vis: Visibility::Public,
+        parent: None,
+        children: Vec::new(),
+        scope: root_scope,
+    });
+
+    Arc::new(CrateDefMap { root, modules })
+}
+
+/// Visits module items and makes up the scope
+fn module_scope(db: &dyn db::Def, decls: &DeclTree) -> Arc<ItemScope> {
+    let mut scope = ItemScope::default();
+
+    for (ix, proc) in decls.procs().iter() {
+        let name = proc.name.clone();
+        scope.declare_proc(name, ix);
+    }
+
+    Arc::new(scope)
+}
+
+pub(crate) fn lower_proc_body(db: &dyn db::Def, proc: Idx<decl::DefProc>) -> Arc<Body> {
+    // collect parameters as pattern IDs
+
+    // body = block expr
 
     todo!()
 }
 
-fn collect_defs(db: &dyn db::Def, map: &mut CrateDefMap) {
-    todo!()
+struct LowerExpr<'a> {
+    db: &'a dyn db::Def,
 }
 
-pub(crate) fn lower_proc_body(db: &dyn db::Def, proc: ProcId) -> Arc<Body> {
-    todo!()
+impl<'a> LowerExpr<'a> {
+    //
 }

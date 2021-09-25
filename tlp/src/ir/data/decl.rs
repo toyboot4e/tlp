@@ -2,8 +2,9 @@
 Module item declarations
 */
 
-// TODO: Replace access types with ItemLoc<Self>
+use std::ops;
 
+use la_arena::{Arena, Idx};
 use smol_str::SmolStr;
 
 use crate::{
@@ -11,32 +12,44 @@ use crate::{
     syntax::{ast::data as ast, cst::data::SyntaxToken},
 };
 
-/// IDs of top-level items in a module
+/// Upcast of module item IDs
+pub enum ItemDecl {
+    Proc(DefProc),
+}
+
+/// Simplified AST that only contains top-level items in a module
 ///
 /// In rust-analyzer, `DeclTree` is known as `ItemTree`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DeclTree {
     pub(crate) file: FileId,
-    pub(crate) procs: Vec<DefProc>,
-    // pub(crate) data: Vec<DefData>,
+    pub(crate) procs: Arena<DefProc>,
+    // pub(crate) imports: Vec<Import>,
+}
+
+impl ops::Index<Idx<DefProc>> for DeclTree {
+    type Output = DefProc;
+    fn index(&self, ix: Idx<DefProc>) -> &Self::Output {
+        &self.procs[ix]
+    }
 }
 
 impl DeclTree {
     pub fn new(file: FileId) -> Self {
         Self {
             file,
-            procs: Vec::new(),
+            procs: Default::default(),
         }
     }
 
-    pub fn procs(&self) -> &[DefProc] {
+    pub fn procs(&self) -> &Arena<DefProc> {
         &self.procs
     }
 }
 
-/// Interned string that represents name of something in HIR
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Name {
+    // TODO: consider preferring salsa?
     data: SmolStr,
 }
 
@@ -56,13 +69,12 @@ impl Name {
     }
 }
 
-// /// Visibility of an item
-// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-// pub enum Visibility {
-//     /// The default
-//     ModuleOnly,
-//     Public,
-// }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Visibility {
+    /// Default: can be seen from the module and sub modules
+    Module,
+    Public,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Param {
@@ -118,11 +130,11 @@ impl ProcParams {
 /// Procedure definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
-    name: Name,
-    params: ProcParams,
+    pub(crate) name: Name,
+    pub(crate) params: ProcParams,
     // pub vis: Visibility,
     // pub ret_ty: TypeRefId,
-    ast: ast::DefProc,
+    pub(crate) ast: ast::DefProc,
 }
 
 impl DefProc {
