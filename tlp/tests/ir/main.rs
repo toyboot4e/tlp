@@ -4,7 +4,10 @@ Tests for toylisp intermediate representations
 
 use std::sync::Arc;
 
-use tlp::ir::db::{input::*, *};
+use tlp::ir::{
+    data::decl,
+    db::{input::*, *},
+};
 
 #[test]
 fn module_tree() {
@@ -43,4 +46,17 @@ fn module_tree() {
 
     let root = def_map.root();
     let module = def_map.module(root);
+    let scope = module.scope();
+
+    let names = ["f", "g", "h"].map(|s| decl::Name::from_str(s));
+    let mut i = 0;
+
+    for name in &names {
+        i += 1;
+        let proc = scope.get_proc(name).unwrap();
+        let proc = &decls[proc];
+        assert!(matches!(proc.name().as_str(), "f" | "g" | "h"));
+    }
+
+    assert_eq!(i, 3);
 }

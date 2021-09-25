@@ -72,4 +72,8 @@ impl ItemScope {
     pub(crate) fn declare_proc(&mut self, name: Name, proc: Idx<decl::DefProc>) {
         self.procs.insert(name, proc);
     }
+
+    pub fn get_proc(&self, name: &Name) -> Option<Idx<decl::DefProc>> {
+        self.procs.get(name).cloned()
+    }
 }
