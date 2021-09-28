@@ -8,7 +8,7 @@ use la_arena::{Arena, Idx};
 use smol_str::SmolStr;
 
 use crate::{
-    ir::db::input::*,
+    ir::db::vfs::*,
     syntax::{ast::data as ast, cst::data::SyntaxToken},
 };
 
@@ -18,23 +18,21 @@ pub enum ItemDecl {
 }
 
 /// Simplified AST that only contains top-level items in a module
-///
-/// In rust-analyzer, `DeclTree` is known as `ItemTree`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct DeclTree {
+pub struct ItemTree {
     pub(crate) file: FileId,
     pub(crate) procs: Arena<DefProc>,
     // pub(crate) imports: Vec<Import>,
 }
 
-impl ops::Index<Idx<DefProc>> for DeclTree {
+impl ops::Index<Idx<DefProc>> for ItemTree {
     type Output = DefProc;
     fn index(&self, ix: Idx<DefProc>) -> &Self::Output {
         &self.procs[ix]
     }
 }
 
-impl DeclTree {
+impl ItemTree {
     pub fn new(file: FileId) -> Self {
         Self {
             file,
@@ -156,12 +154,6 @@ impl DefProc {
     pub fn params(&self) -> &ProcParams {
         &self.params
     }
-}
-
-/// Code block
-pub struct Block {
-    // pub scope: LexScope,
-    pub ast: ast::Block,
 }
 
 // DefStruct

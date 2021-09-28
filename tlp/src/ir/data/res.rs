@@ -9,7 +9,7 @@ use rustc_hash::FxHashMap;
 
 use crate::ir::{
     data::decl::{self, Name, Visibility},
-    db::input::FileId,
+    db::vfs::FileId,
 };
 
 pub type ModuleId = Idx<ModuleData>;

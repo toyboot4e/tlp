@@ -11,7 +11,15 @@ ID → Loc → Data:
 * container: Loc → Container → Data
 */
 
-// use crate::ir::{data::decl, db::Intern};
+use std::{marker::PhantomData, sync::Arc};
+
+use derivative::Derivative;
+use la_arena::Idx;
+
+use crate::ir::{
+    data::decl,
+    db::{self, vfs::FileId, Intern},
+};
 
 macro_rules! new_ids {
     ($($id:ident $decl:path, $intern:ident $doc:expr,)*) => {
@@ -42,6 +50,52 @@ macro_rules! new_ids {
             }
         )*
     };
+}
+
+/// Identifier of `ItemTree`
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct TreeId {
+    file: FileId,
+}
+
+impl TreeId {
+    pub fn item_tree(&self, db: &dyn db::Def) -> Arc<decl::ItemTree> {
+        db.item_tree(self.file)
+    }
+}
+
+/// ID that refers to a `ItemTree` item
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Loc<T> {
+    pub tree: TreeId,
+    pub item: Idx<T>,
+}
+
+/// Interned key of [`Loc`]
+#[derive(Derivative)]
+#[derivative(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct Id<T> {
+    raw: salsa::InternId,
+    _ty: PhantomData<T>,
+}
+
+impl<T> salsa::InternKey for Id<T> {
+    fn from_intern_id(id: salsa::InternId) -> Self {
+        Self {
+            raw: id,
+            _ty: PhantomData,
+        }
+    }
+
+    fn as_intern_id(&self) -> salsa::InternId {
+        self.raw
+    }
+}
+
+impl Id<Loc<decl::DefProc>> {
+    pub fn lookup(&self, db: &dyn Intern) -> Loc<decl::DefProc> {
+        db.lookup_intern_proc(*self)
+    }
 }
 
 // loc → ID

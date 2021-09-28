@@ -5,23 +5,25 @@
 pub extern crate salsa;
 
 pub mod ids;
-pub mod input;
+pub mod vfs;
 
 use std::sync::Arc;
 
 use la_arena::Idx;
 
 use crate::{
-    ir::{
-        data::{
-            body::Body,
-            decl::{self, DeclTree},
-            res::CrateDefMap,
-        },
-        db::input::FileId,
+    ir::data::{
+        body::Body,
+        decl::{self, ItemTree},
+        res::CrateDefMap,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
+};
+
+use self::{
+    ids::{Id, Loc},
+    vfs::FileId,
 };
 
 /// [`salsa`] database for the `queries`
@@ -70,6 +72,8 @@ fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     // location → IDs
+    #[salsa::interned]
+    fn intern_proc(&self, proc: Loc<decl::DefProc>) -> Id<Loc<decl::DefProc>>;
 }
 
 /// Collecter of definitions of items
@@ -77,7 +81,7 @@ pub trait Intern: salsa::Database {
 pub trait Def: Parse + Intern {
     /// Creates declarations
     #[salsa::invoke(crate::ir::lower::item_tree_query)]
-    fn decl_tree(&self, file: FileId) -> Arc<DeclTree>;
+    fn item_tree(&self, file: FileId) -> Arc<ItemTree>;
 
     // TODO: duplicate item diagnostics
 
@@ -86,7 +90,7 @@ pub trait Def: Parse + Intern {
     fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
 
     #[salsa::invoke(crate::ir::lower::lower_proc_body)]
-    fn lower_proc_body(&self, proc: Idx<decl::DefProc>) -> Arc<Body>;
+    fn lower_proc_body(&self, proc: Id<Loc<decl::DefProc>>) -> Arc<Body>;
 }
 
 /// High-level inetrmediate representation

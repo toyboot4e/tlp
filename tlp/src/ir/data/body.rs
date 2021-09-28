@@ -6,9 +6,9 @@ use la_arena::{Arena, Idx};
 
 use crate::ir::data::expr::Expr;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Body {
-    exprs: Arena<Expr>,
+    pub(crate) exprs: Arena<Expr>,
 }
 
 //

@@ -6,14 +6,17 @@ use std::sync::Arc;
 
 use tlp::ir::{
     data::decl,
-    db::{input::*, *},
+    db::{vfs::*, *},
 };
 
 #[test]
 fn module_tree() {
     let mut db = DB::default();
+    let mut vfs = Vfs::default();
 
-    let file = FileId::new("my-module.tlp".into());
+    let path = "my-module.tlp".into();
+    let file = vfs.intern(path);
+
     let src = r#"
 (proc f (x y z) (+ x y z))
 (proc g (x y z) (+ x y z))
@@ -23,9 +26,9 @@ fn module_tree() {
     db.set_input(file.clone(), Arc::new(String::from(src)));
 
     // declaration tree
-    let decls = db.decl_tree(file.clone());
+    let item_tree = db.item_tree(file.clone());
 
-    let mut procs = decls.procs().iter();
+    let mut procs = item_tree.procs().iter();
     let (_ix, proc) = procs.next().unwrap();
     let params = proc.params();
 
@@ -54,7 +57,7 @@ fn module_tree() {
     for name in &names {
         i += 1;
         let proc = scope.get_proc(name).unwrap();
-        let proc = &decls[proc];
+        let proc = &item_tree[proc];
         assert!(matches!(proc.name().as_str(), "f" | "g" | "h"));
     }
 

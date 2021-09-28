@@ -37,7 +37,7 @@ impl Document {
     }
 }
 
-/// S-expression, which forms the program
+/// Any kind of S-expression, which forms the program
 ///
 /// Call | DefProc | Atom
 #[derive(Debug, Clone, PartialEq)]
@@ -214,6 +214,21 @@ impl DefProc {
             .filter(|node| node.kind() == SyntaxKind::List)
             .map(|node| Params { syn: node.clone() })
     }
+
+    pub fn body(&self) -> impl Iterator<Item = Form> {
+        let mut nodes = self
+            .syn
+            .children_with_tokens()
+            .filter(|elem| elem.kind() != SyntaxKind::Ws);
+
+        // skip until parameter
+        match nodes.next().unwrap() {
+            SyntaxElement::Token(t) => assert_eq!(t.text(), "proc"),
+            _ => unreachable!(),
+        }
+
+        nodes.filter_map(Form::cast_elem)
+    }
 }
 
 /// A function parameter
@@ -255,28 +270,6 @@ impl Params {
     /// Number of arguments
     pub fn arity(&self) -> usize {
         self.param_tks().count()
-    }
-}
-
-/// Code block
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Block {
-    pub(crate) syn: SyntaxNode,
-}
-
-impl AstNode for Block {
-    fn cast_node(syn: SyntaxNode) -> Option<Self> {
-        if syn.kind() == SyntaxKind::Block {
-            Some(Self { syn })
-        } else {
-            None
-        }
-    }
-}
-
-impl Block {
-    pub fn forms(&self) -> impl Iterator<Item = Form> {
-        self.syn.children_with_tokens().filter_map(Form::cast_elem)
     }
 }
 
