@@ -2,7 +2,11 @@
 IR data types
 */
 
-pub mod body;
+// item tree and def map
 pub mod decl;
-pub mod expr;
 pub mod res;
+
+// hir item data
+pub mod body;
+pub mod def;
+pub mod expr;

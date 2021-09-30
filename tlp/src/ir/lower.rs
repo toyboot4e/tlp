@@ -7,6 +7,7 @@ use crate::{
         data::{
             body::*,
             decl::{self, ItemTree},
+            def,
             res::{CrateDefMap, ItemScope, ModuleData},
         },
         db::{
@@ -63,7 +64,7 @@ impl ItemTreeCollect {
 pub(crate) fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap> {
     let mut modules = Arena::<ModuleData>::new();
 
-    let root_item_tree = db.item_tree(krate.clone());
+    let root_item_tree = db.file_item_tree(krate.clone());
     let root_scope = self::module_scope(db, &root_item_tree);
 
     let root = modules.alloc(ModuleData {
@@ -87,6 +88,13 @@ fn module_scope(db: &dyn db::Def, item_tree: &ItemTree) -> Arc<ItemScope> {
     }
 
     Arc::new(scope)
+}
+
+pub(crate) fn proc_data_query(
+    db: &dyn db::Def,
+    proc: Id<Loc<def::ProcData>>,
+) -> Arc<def::ProcData> {
+    todo!()
 }
 
 pub(crate) fn lower_proc_body(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {

@@ -1,5 +1,5 @@
 /*!
-[`salsa`] integration for incremental computation
+Incremental computation powered by [`salsa`]
 */
 
 pub extern crate salsa;
@@ -12,10 +12,14 @@ use std::sync::Arc;
 use la_arena::Idx;
 
 use crate::{
-    ir::data::{
-        body::Body,
-        decl::{self, ItemTree},
-        res::CrateDefMap,
+    ir::{
+        data::{
+            body::Body,
+            decl::{self, ItemTree},
+            def,
+            res::CrateDefMap,
+        },
+        lower,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
@@ -68,10 +72,9 @@ fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
     Arc::new(res)
 }
 
-/// Interner of definitions and locations
+/// Interner of locations (`Loc<T>` → `Id<Loc<T>>` and vice versa)
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
-    // location → IDs
     #[salsa::interned]
     fn intern_proc(&self, proc: Loc<decl::DefProc>) -> Id<Loc<decl::DefProc>>;
 }
@@ -79,17 +82,24 @@ pub trait Intern: salsa::Database {
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
-    /// Creates declarations
+    /// Collects declarations in a module. This contains unresolved imports
     #[salsa::invoke(crate::ir::lower::item_tree_query)]
-    fn item_tree(&self, file: FileId) -> Arc<ItemTree>;
+    fn file_item_tree(&self, file: FileId) -> Arc<ItemTree>;
 
     // TODO: duplicate item diagnostics
 
-    /// Collects module items and makes up a tree
+    /// Collects module items and makes up a tree. All imports in the underlying `ItemTree` are
+    /// resolved in `ItemScope`.
     #[salsa::invoke(crate::ir::lower::def_map_query)]
     fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
 
-    #[salsa::invoke(crate::ir::lower::lower_proc_body)]
+    // #[salsa::invoke(DefMap::block_def_map_query)]
+    // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
+
+    #[salsa::invoke(lower::proc_data_query)]
+    fn proc_data(&self, proc: Id<Loc<def::ProcData>>) -> Arc<def::ProcData>;
+
+    #[salsa::invoke(lower::lower_proc_body)]
     fn lower_proc_body(&self, proc: Id<Loc<decl::DefProc>>) -> Arc<Body>;
 }
 

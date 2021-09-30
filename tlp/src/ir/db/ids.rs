@@ -60,7 +60,7 @@ pub struct TreeId {
 
 impl TreeId {
     pub fn item_tree(&self, db: &dyn db::Def) -> Arc<decl::ItemTree> {
-        db.item_tree(self.file)
+        db.file_item_tree(self.file)
     }
 }
 

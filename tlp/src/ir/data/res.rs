@@ -1,5 +1,5 @@
 /*!
-Module item definitions after import resolution and macro expansion
+Module item definitions. Import are resolved into [`ItemScope`] and top-level macros are expanded
 */
 
 use std::sync::Arc;
