@@ -9,8 +9,6 @@ pub mod vfs;
 
 use std::sync::Arc;
 
-use la_arena::Idx;
-
 use crate::{
     ir::{
         data::{
@@ -54,22 +52,11 @@ pub trait Source: salsa::Database {
     // fn source_files(&self, krate: CrateLoc) -> ARc<Vec<Utf8PathBuf>>;
 }
 
-fn line_index(db: &dyn Source, file: FileId) -> Arc<LineIndex> {
-    let input = db.input(file);
-    Arc::new(LineIndex::new(&input))
-}
-
 /// Parses source file into AST
 #[salsa::query_group(ParseDB)]
 pub trait Parse: Source {
     /// Parses the file into AST and returns AST and parse errors
     fn parse(&self, file: FileId) -> Arc<ParseResult>;
-}
-
-fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
-    let src = db.input(file);
-    let res = ast::parse(&src);
-    Arc::new(res)
 }
 
 /// Interner of locations (`Loc<T>` → `Id<Loc<T>>` and vice versa)
@@ -107,4 +94,15 @@ pub trait Def: Parse + Intern {
 pub trait Hir: Def {
     // fn infer(&self, def: DefWithBodyId) -> Arc<InferenceResult>;
     // fn lower_struct(&self, def: Struct) -> Arc<LowerBatchResult>;
+}
+
+fn line_index(db: &dyn Source, file: FileId) -> Arc<LineIndex> {
+    let input = db.input(file);
+    Arc::new(LineIndex::new(&input))
+}
+
+fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
+    let src = db.input(file);
+    let res = ast::parse(&src);
+    Arc::new(res)
 }

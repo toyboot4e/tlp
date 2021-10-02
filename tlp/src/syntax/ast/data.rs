@@ -152,6 +152,11 @@ pub struct DefProc {
     pub(crate) syn: SyntaxNode,
 }
 
+/// Function body
+pub struct Body {
+    forms: Box<dyn Iterator<Item = Form>>,
+}
+
 impl AstNode for DefProc {
     fn cast_node(syn: SyntaxNode) -> Option<Self> {
         let mut c = syn.children_with_tokens();
@@ -215,7 +220,7 @@ impl DefProc {
             .map(|node| Params { syn: node.clone() })
     }
 
-    pub fn body(&self) -> impl Iterator<Item = Form> {
+    pub fn body(&self) -> Body {
         let mut nodes = self
             .syn
             .children_with_tokens()
@@ -227,7 +232,9 @@ impl DefProc {
             _ => unreachable!(),
         }
 
-        nodes.filter_map(Form::cast_elem)
+        Body {
+            forms: Box::new(nodes.filter_map(Form::cast_elem)),
+        }
     }
 }
 

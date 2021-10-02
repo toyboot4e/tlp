@@ -51,15 +51,19 @@ fn module_tree() {
     let module = def_map.module(root);
     let scope = module.scope();
 
-    let names = ["f", "g", "h"].map(|s| decl::Name::from_str(s));
-    let mut i = 0;
+    {
+        let names = ["f", "g", "h"].map(|s| decl::Name::from_str(s));
+        let mut i = 0;
 
-    for name in &names {
-        i += 1;
-        let proc = scope.get_proc(name).unwrap();
-        let proc = &item_tree[proc];
-        assert!(matches!(proc.name().as_str(), "f" | "g" | "h"));
+        for name in &names {
+            i += 1;
+            let proc = scope.get_proc(name).unwrap();
+            let proc = &item_tree[proc];
+            assert!(matches!(proc.name().as_str(), "f" | "g" | "h"));
+        }
+
+        assert_eq!(i, 3);
     }
 
-    assert_eq!(i, 3);
+    // let proc = scope.
 }

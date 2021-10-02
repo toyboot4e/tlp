@@ -71,7 +71,7 @@ pub struct Loc<T> {
     pub item: Idx<T>,
 }
 
-/// Interned key of [`Loc`]
+/// Interned data ID
 #[derive(Derivative)]
 #[derivative(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Id<T> {

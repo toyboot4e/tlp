@@ -21,7 +21,7 @@ use crate::{
 
 use super::data::decl::Visibility;
 
-/// Queries a syntax-reflected form of declarations and imports
+/// Collets syntax-reflected form of declarations and imports
 pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
@@ -60,12 +60,12 @@ impl ItemTreeCollect {
     }
 }
 
-/// Queries top-level name resolutions (name-declaration map and item scopes)
+/// Collects tree of modules with `ItemScope`
 pub(crate) fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap> {
     let mut modules = Arena::<ModuleData>::new();
 
     let root_item_tree = db.file_item_tree(krate.clone());
-    let root_scope = self::module_scope(db, &root_item_tree);
+    let root_scope = self::module_item_scope(db, &root_item_tree);
 
     let root = modules.alloc(ModuleData {
         file: krate.clone(),
@@ -79,7 +79,7 @@ pub(crate) fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap>
 }
 
 /// Visits module items and makes up the scope
-fn module_scope(db: &dyn db::Def, item_tree: &ItemTree) -> Arc<ItemScope> {
+fn module_item_scope(db: &dyn db::Def, item_tree: &ItemTree) -> Arc<ItemScope> {
     let mut scope = ItemScope::default();
 
     for (ix, proc) in item_tree.procs().iter() {
@@ -110,7 +110,7 @@ pub(crate) fn lower_proc_body(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>)
         let proc_loc = db.lookup_intern_proc(proc_id);
         let tree = proc_loc.tree.item_tree(db);
         let proc = &tree[proc_loc.item];
-        lower.collect(proc.ast.clone());
+        lower.lower_proc(proc.ast.clone());
 
         lower.body
     };
@@ -118,13 +118,23 @@ pub(crate) fn lower_proc_body(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>)
     Arc::new(body)
 }
 
+/// Proc AST → Proc HIR
 struct LowerExpr<'a> {
     db: &'a dyn db::Def,
     body: Body,
 }
 
 impl<'a> LowerExpr<'a> {
-    pub fn collect(&mut self, proc: ast::DefProc) {
-        todo!()
+    pub fn lower_proc(&mut self, proc: ast::DefProc) {
+        if proc.params().is_some() {
+            // lower self parameter
+            // lower other parameters
+        }
+
+        self.lower_proc_body(proc.body())
+    }
+
+    fn lower_proc_body(&mut self, body: ast::Body) {
+        //
     }
 }
