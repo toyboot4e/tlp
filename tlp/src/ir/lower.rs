@@ -126,15 +126,20 @@ struct LowerExpr<'a> {
 
 impl<'a> LowerExpr<'a> {
     pub fn lower_proc(&mut self, proc: ast::DefProc) {
+        self.lower_proc_params(proc.clone());
+        self.lower_proc_body(proc.clone());
+    }
+
+    fn lower_proc_params(&mut self, proc: ast::DefProc) {
         if proc.params().is_some() {
             // lower self parameter
             // lower other parameters
         }
-
-        self.lower_proc_body(proc)
     }
 
     fn lower_proc_body(&mut self, proc: ast::DefProc) {
+        // TODO: Consider block modifier (e.g. coroutines)
+
         for form in proc.body_forms() {
             //
         }

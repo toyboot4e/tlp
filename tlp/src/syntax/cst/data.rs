@@ -28,6 +28,8 @@ pub type SyntaxToken = rowan::SyntaxToken<Lang>;
 /// Subtree or leaf: [`SyntaxNode`] | [`SyntaxToken`]
 pub type SyntaxElement = rowan::SyntaxElement<Lang>;
 
+pub use rowan::TextRange;
+
 /**
 Syntactic kind of a tree element
 
