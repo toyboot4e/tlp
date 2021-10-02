@@ -131,10 +131,12 @@ impl<'a> LowerExpr<'a> {
             // lower other parameters
         }
 
-        self.lower_proc_body(proc.body())
+        self.lower_proc_body(proc)
     }
 
-    fn lower_proc_body(&mut self, body: ast::Body) {
-        //
+    fn lower_proc_body(&mut self, proc: ast::DefProc) {
+        for form in proc.body_forms() {
+            //
+        }
     }
 }
