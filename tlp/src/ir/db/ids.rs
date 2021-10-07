@@ -64,7 +64,7 @@ impl TreeId {
     }
 }
 
-/// ID that refers to a `ItemTree` item
+/// Identifier of `ItemTree` item
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Loc<T> {
     pub tree: TreeId,
@@ -93,7 +93,9 @@ impl<T> salsa::InternKey for Id<T> {
 }
 
 impl Id<Loc<decl::DefProc>> {
-    pub fn lookup(&self, db: &dyn Intern) -> Loc<decl::DefProc> {
+    // NOTE: Use `Def` database, not `Intern` database as parameter. This is because Rust doesn't
+    // have upcasting coercion (yet).
+    pub fn lookup(&self, db: &dyn db::Def) -> Loc<decl::DefProc> {
         db.lookup_intern_proc(*self)
     }
 }

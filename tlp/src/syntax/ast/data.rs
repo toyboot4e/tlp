@@ -5,6 +5,7 @@ const PROC: &'static str = "proc";
 /// Semantic node casted from syntax node
 pub trait AstNode: Sized {
     fn cast_node(syn: SyntaxNode) -> Option<Self>;
+    fn syntax(&self) -> &SyntaxNode;
 }
 
 /// Semantic token casted from syntax token
@@ -106,6 +107,10 @@ pub struct Call {
 }
 
 impl AstNode for Call {
+    fn syntax(&self) -> &SyntaxNode {
+        &self.syn
+    }
+
     fn cast_node(syn: SyntaxNode) -> Option<Self> {
         let mut c = syn.children_with_tokens();
 
@@ -153,6 +158,10 @@ pub struct DefProc {
 }
 
 impl AstNode for DefProc {
+    fn syntax(&self) -> &SyntaxNode {
+        &self.syn
+    }
+
     fn cast_node(syn: SyntaxNode) -> Option<Self> {
         let mut c = syn.children_with_tokens();
 
@@ -354,6 +363,10 @@ pub struct Str {
 }
 
 impl AstNode for Str {
+    fn syntax(&self) -> &SyntaxNode {
+        &self.syn
+    }
+
     fn cast_node(syn: SyntaxNode) -> Option<Self> {
         if syn.kind() == SyntaxKind::String {
             Some(Self { syn })

@@ -84,10 +84,10 @@ pub trait Def: Parse + Intern {
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
     #[salsa::invoke(lower::proc_data_query)]
-    fn proc_data(&self, proc: Id<Loc<def::ProcData>>) -> Arc<def::ProcData>;
+    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData>;
 
     #[salsa::invoke(lower::lower_proc_body)]
-    fn lower_proc_body(&self, proc: Id<Loc<decl::DefProc>>) -> Arc<Body>;
+    fn lower_proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
 }
 
 /// High-level inetrmediate representation

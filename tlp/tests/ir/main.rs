@@ -26,7 +26,7 @@ fn module_tree() {
     db.set_input(file.clone(), Arc::new(String::from(src)));
 
     // declaration tree
-    let item_tree = db.item_tree(file.clone());
+    let item_tree = db.file_item_tree(file.clone());
 
     let mut procs = item_tree.procs().iter();
     let (_ix, proc) = procs.next().unwrap();

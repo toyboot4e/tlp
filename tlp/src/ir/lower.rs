@@ -21,7 +21,7 @@ use crate::{
 
 use super::data::decl::Visibility;
 
-/// Collets syntax-reflected form of declarations and imports
+/// Collects syntax-reflected form of declarations and imports
 pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
@@ -92,9 +92,15 @@ fn module_item_scope(db: &dyn db::Def, item_tree: &ItemTree) -> Arc<ItemScope> {
 
 pub(crate) fn proc_data_query(
     db: &dyn db::Def,
-    proc: Id<Loc<def::ProcData>>,
+    proc_id: Id<Loc<decl::DefProc>>,
 ) -> Arc<def::ProcData> {
-    todo!()
+    let proc_loc = proc_id.lookup(db);
+    let tree = proc_loc.tree.item_tree(db);
+    let proc = &tree[proc_loc.item];
+
+    Arc::new(def::ProcData {
+        name: proc.name.clone(),
+    })
 }
 
 pub(crate) fn lower_proc_body(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
