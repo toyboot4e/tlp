@@ -154,8 +154,18 @@ impl<'a> LowerExpr<'a> {
                 ast::Form::Call(_call) => {
                     todo!("function call");
                 }
-                ast::Form::Atom(_atom) => {
-                    todo!("lower atom");
+                ast::Form::Atom(atom) => {
+                    match atom {
+                        ast::Atom::Num(_num) => {
+                            //
+                        }
+                        ast::Atom::Str(_str) => {
+                            //
+                        }
+                        ast::Atom::Bool(_bool) => {
+                            //
+                        }
+                    }
                 }
             }
         }

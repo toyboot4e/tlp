@@ -11,6 +11,7 @@ pub trait AstNode: Sized {
 /// Semantic token casted from syntax token
 pub trait AstToken: Sized {
     fn cast_tk(syn: SyntaxToken) -> Option<Self>;
+    fn syntax(&self) -> &SyntaxToken;
 }
 
 /// Semantic element casted from syntax element
@@ -230,6 +231,10 @@ impl AstToken for Param {
             None
         }
     }
+
+    fn syntax(&self) -> &SyntaxToken {
+        &self.syn
+    }
 }
 
 impl Param {
@@ -258,97 +263,60 @@ impl Params {
     }
 }
 
-/// Atom = Symbol for now
+/// Atom (non-list). Not strictly typed.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Atom {
-    pub(crate) syn: SyntaxElement,
+pub enum Atom {
+    Num(Num),
+    Str(Str),
+    Bool(Bool),
 }
 
 impl AstElement for Atom {
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
-        if Symbol::cast_elem(syn.clone()).is_some() {
-            Some(Self { syn })
-        } else {
-            None
+        if let Some(num) = Num::cast_elem(syn.clone()) {
+            return Some(Self::Num(num));
+        }
+
+        match syn {
+            SyntaxElement::Node(n) => Str::cast_node(n).map(Self::Str),
+            SyntaxElement::Token(t) => Bool::cast_tk(t).map(Self::Bool),
         }
     }
+
     fn syntax(&self) -> SyntaxElement {
-        self.syn.clone()
+        match self {
+            Self::Num(x) => x.syntax(),
+            Self::Str(s) => SyntaxElement::Node(s.syntax().clone()),
+            Self::Bool(b) => SyntaxElement::Token(b.syntax().clone()),
+        }
     }
 }
 
-/// Non-list S-expression
 #[derive(Debug, Clone, PartialEq)]
-pub struct Symbol {
+pub struct Num {
     pub(crate) syn: SyntaxElement,
 }
 
-pub enum SymbolKind {
-    /// TODO: Nat, Int, Float
-    Num,
-    /// String literal
-    Str,
-    /// `true` | `false`
-    Bool,
-    // /// ident | path
-    // Var
-}
-
-impl AstElement for Symbol {
+impl AstElement for Num {
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
-        if matches!(
-            syn.kind(),
-            SyntaxKind::Num | SyntaxKind::String | SyntaxKind::True | SyntaxKind::False
-        ) {
-            Some(Self { syn })
-        } else {
-            None
-        }
-    }
-    fn syntax(&self) -> SyntaxElement {
-        self.syn.clone()
-    }
-}
-
-impl Symbol {
-    pub fn kind(&self) -> SymbolKind {
-        match self.syn.clone() {
-            SyntaxElement::Token(tk) => None
-                .or_else(|| Num::cast_tk(tk.clone()).map(|_| SymbolKind::Num))
-                .or_else(|| Bool::cast_tk(tk.clone()).map(|_| SymbolKind::Bool))
-                .unwrap(),
-            SyntaxElement::Node(n) => Str::cast_node(n.clone()).map(|_| SymbolKind::Str).unwrap(),
-        }
-    }
-}
-
-/// Number
-#[derive(Debug, Clone, PartialEq)]
-pub struct Num {
-    pub(crate) syn: SyntaxToken,
-}
-
-impl AstToken for Num {
-    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
         if syn.kind() == SyntaxKind::Num {
             Some(Self { syn })
         } else {
             None
         }
     }
+
+    fn syntax(&self) -> SyntaxElement {
+        self.syn.clone()
+    }
 }
 
-/// String
 #[derive(Debug, Clone, PartialEq)]
 pub struct Str {
     pub(crate) syn: SyntaxNode,
 }
 
 impl AstNode for Str {
-    fn syntax(&self) -> &SyntaxNode {
-        &self.syn
-    }
-
     fn cast_node(syn: SyntaxNode) -> Option<Self> {
         if syn.kind() == SyntaxKind::String {
             Some(Self { syn })
@@ -356,9 +324,12 @@ impl AstNode for Str {
             None
         }
     }
+
+    fn syntax(&self) -> &SyntaxNode {
+        &self.syn
+    }
 }
 
-/// Boolean
 #[derive(Debug, Clone, PartialEq)]
 pub struct Bool {
     pub(crate) syn: SyntaxToken,
@@ -366,10 +337,24 @@ pub struct Bool {
 
 impl AstToken for Bool {
     fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-        if matches!(syn.kind(), SyntaxKind::True | SyntaxKind::False) {
-            Some(Self { syn })
-        } else {
-            None
+        match syn.kind() {
+            SyntaxKind::True => Some(Self { syn }),
+            SyntaxKind::False => Some(Self { syn }),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxToken {
+        &self.syn
+    }
+}
+
+impl Bool {
+    pub fn truthy(&self) -> bool {
+        match self.syn.text() {
+            "true" => true,
+            "false" => false,
+            _ => unreachable!("bool token has to be true or false"),
         }
     }
 }
