@@ -86,22 +86,15 @@ impl Validate for Document {
 
 impl Validate for Form {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        if let Some(defn) = self.as_proc() {
-            defn.validate(errs);
-            return;
+        match self {
+            Self::DefProc(proc) => {
+                proc.validate(errs);
+            }
+            Self::Call(_call) => {}
+            Self::Atom(atom) => {
+                atom.validate(errs);
+            }
         }
-
-        if let Some(call) = self.as_call() {
-            call.validate(errs);
-            return;
-        }
-
-        if let Some(atom) = self.as_atom() {
-            atom.validate(errs);
-            return;
-        }
-
-        unreachable!("Not a form: {}", self.syn);
     }
 }
 

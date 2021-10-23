@@ -16,6 +16,7 @@ pub trait AstToken: Sized {
 /// Semantic element casted from syntax element
 pub trait AstElement: Sized {
     fn cast_elem(syn: SyntaxElement) -> Option<Self>;
+    fn syntax(&self) -> SyntaxElement;
 }
 
 /// AST of a file
@@ -42,61 +43,36 @@ impl Document {
 ///
 /// Call | DefProc | Atom
 #[derive(Debug, Clone, PartialEq)]
-pub struct Form {
-    pub(crate) syn: SyntaxElement,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FormKind {
-    Call,
-    Proc,
-    Atom,
+pub enum Form {
+    Call(Call),
+    DefProc(DefProc),
+    Atom(Atom),
 }
 
 impl AstElement for Form {
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
         if let Some(node) = syn.clone().into_node() {
-            if Call::cast_node(node.clone()).is_some() || DefProc::cast_node(node.clone()).is_some()
-            {
-                Some(Self { syn })
-            } else {
-                None
-            }
-        } else {
-            if Atom::cast_elem(syn.clone()).is_some() {
-                Some(Self { syn })
-            } else {
-                None
+            if let Some(proc) = DefProc::cast_node(node.clone()) {
+                return Some(Self::DefProc(proc));
+            } else if let Some(call) = Call::cast_node(node.clone()) {
+                return Some(Self::Call(call));
             }
         }
-    }
-}
 
-impl Form {
-    pub fn kind(&self) -> FormKind {
-        if let Some(node) = self.syn.clone().into_node() {
-            None.or_else(|| DefProc::cast_node(node.clone()).map(|_| FormKind::Proc))
-                .or_else(|| Call::cast_node(node.clone()).map(|_| FormKind::Call))
-                .or_else(|| Atom::cast_elem(self.syn.clone()).map(|_| FormKind::Atom))
-                .unwrap()
+        if let Some(atom) = Atom::cast_elem(syn.clone()) {
+            Some(Self::Atom(atom))
         } else {
-            Atom::cast_elem(self.syn.clone())
-                .map(|_| FormKind::Atom)
-                .unwrap()
+            None
         }
     }
 
-    /// WARNING: Cast as DefProc first
-    pub fn as_call(&self) -> Option<Call> {
-        Call::cast_node(self.syn.clone().into_node()?)
-    }
-
-    pub fn as_proc(&self) -> Option<DefProc> {
-        DefProc::cast_node(self.syn.clone().into_node()?)
-    }
-
-    pub fn as_atom(&self) -> Option<Atom> {
-        Atom::cast_elem(self.syn.clone())
+    fn syntax(&self) -> SyntaxElement {
+        match self {
+            // TODO: maybe don't create the node
+            Self::Call(x) => SyntaxElement::Node(x.syntax().clone()),
+            Self::DefProc(x) => SyntaxElement::Node(x.syntax().clone()),
+            Self::Atom(x) => x.syntax(),
+        }
     }
 }
 
@@ -296,6 +272,9 @@ impl AstElement for Atom {
             None
         }
     }
+    fn syntax(&self) -> SyntaxElement {
+        self.syn.clone()
+    }
 }
 
 /// Non-list S-expression
@@ -325,6 +304,9 @@ impl AstElement for Symbol {
         } else {
             None
         }
+    }
+    fn syntax(&self) -> SyntaxElement {
+        self.syn.clone()
     }
 }
 

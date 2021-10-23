@@ -44,14 +44,14 @@ impl ItemTreeCollect {
 
     fn collect(&mut self, forms: impl Iterator<Item = ast::Form>) {
         for form in forms {
-            if let Some(ast) = form.as_proc() {
-                let def_proc = self.lower_proc(ast);
-                self.tree.procs.alloc(def_proc);
-                continue;
+            match form {
+                ast::Form::DefProc(ast_proc) => {
+                    let hir_proc = self.lower_proc(ast_proc);
+                    self.tree.procs.alloc(hir_proc);
+                    continue;
+                }
+                _ => {}
             }
-
-            // if let Some(ast) = form.as_data() {
-            // }
         }
     }
 
@@ -127,7 +127,9 @@ pub(crate) fn lower_proc_body(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>)
 /// Proc AST → Proc HIR
 struct LowerExpr<'a> {
     db: &'a dyn db::Def,
+    /// The HIR procedure body we're building up
     body: Body,
+    // /// AST ID → HIR ID
 }
 
 impl<'a> LowerExpr<'a> {
@@ -147,7 +149,9 @@ impl<'a> LowerExpr<'a> {
         // TODO: Consider block modifier (e.g. coroutines)
 
         for form in proc.body_forms() {
-            //
+            // match form {
+            //     ast::Form::
+            // }
         }
     }
 }

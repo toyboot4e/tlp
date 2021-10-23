@@ -25,11 +25,11 @@ fn module_tree() {
 
     db.set_input(file.clone(), Arc::new(String::from(src)));
 
-    // declaration tree
+    // ItemTree
     let item_tree = db.file_item_tree(file.clone());
 
     let mut procs = item_tree.procs().iter();
-    let (_ix, proc) = procs.next().unwrap();
+    let (_ix, proc) = procs.next().expect("no procedure detected!");
     let params = proc.params();
 
     assert_eq!(proc.name().as_str(), "f");
@@ -43,7 +43,7 @@ fn module_tree() {
     let (_ix, proc) = procs.next().unwrap();
     assert_eq!(proc.name().as_str(), "h");
 
-    // def map
+    // DefMap
     let krate = file.clone();
     let def_map = db.crate_def_map(krate.clone());
 
@@ -65,5 +65,6 @@ fn module_tree() {
         assert_eq!(i, 3);
     }
 
+    // TODO: HIR
     // let proc = scope.
 }
