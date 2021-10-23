@@ -1,6 +1,6 @@
 use crate::syntax::cst::data::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
 
-const PROC: &'static str = "proc";
+const STR_PROC: &'static str = "proc";
 
 /// Semantic node casted from syntax node
 pub trait AstNode: Sized {
@@ -44,8 +44,8 @@ impl Document {
 /// Call | DefProc | Atom
 #[derive(Debug, Clone, PartialEq)]
 pub enum Form {
-    Call(Call),
     DefProc(DefProc),
+    Call(Call),
     Atom(Atom),
 }
 
@@ -127,7 +127,7 @@ impl Call {
     }
 }
 
-/// (proc name (params) (block)..)
+/// (proc name (params?) (block)..)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
     pub(crate) syn: SyntaxNode,
@@ -152,7 +152,7 @@ impl AstNode for DefProc {
         match c.next()? {
             SyntaxElement::Node(_n) => return None,
             SyntaxElement::Token(tk) => {
-                if tk.kind() != SyntaxKind::Ident || tk.text() != PROC {
+                if tk.kind() != SyntaxKind::Ident || tk.text() != STR_PROC {
                     return None;
                 }
             }
@@ -167,7 +167,7 @@ impl DefProc {
         self.syn
             .children_with_tokens()
             .filter_map(|e| e.into_token())
-            .find(|t| t.kind() == SyntaxKind::Ident && t.text() == PROC)
+            .find(|t| t.kind() == SyntaxKind::Ident && t.text() == STR_PROC)
             .unwrap_or_else(|| unreachable!())
     }
 

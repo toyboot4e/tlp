@@ -149,9 +149,15 @@ impl<'a> LowerExpr<'a> {
         // TODO: Consider block modifier (e.g. coroutines)
 
         for form in proc.body_forms() {
-            // match form {
-            //     ast::Form::
-            // }
+            match form {
+                ast::Form::DefProc(_proc) => todo!("nested procedure"),
+                ast::Form::Call(_call) => {
+                    todo!("function call");
+                }
+                ast::Form::Atom(_atom) => {
+                    todo!("lower atom");
+                }
+            }
         }
     }
 }

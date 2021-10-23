@@ -90,8 +90,8 @@ pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
 /// Creates a CST and optionally errors from output of lexer
 pub fn from_tks<'s, 't>(src: &'s str, tks: &'t [Token]) -> (GreenNode, Vec<ParseError>) {
     let pcx = ParseContext { src, tks };
-    let state = ParseState::new();
-    state.run(&pcx)
+    let parser = ParseState::new();
+    parser.run(&pcx)
 }
 
 /// Referred to as `pcx`

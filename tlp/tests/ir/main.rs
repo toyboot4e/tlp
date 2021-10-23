@@ -21,6 +21,7 @@ fn module_tree() {
 (proc f (x y z) (+ x y z))
 (proc g (x y z) (+ x y z))
 (proc h (x y z) (+ x y z))
+(proc atom () 10)
 "#;
 
     db.set_input(file.clone(), Arc::new(String::from(src)));
@@ -42,6 +43,8 @@ fn module_tree() {
     assert_eq!(proc.name().as_str(), "g");
     let (_ix, proc) = procs.next().unwrap();
     assert_eq!(proc.name().as_str(), "h");
+    let (_ix, proc) = procs.next().unwrap();
+    assert_eq!(proc.name().as_str(), "atom");
 
     // DefMap
     let krate = file.clone();
@@ -52,17 +55,15 @@ fn module_tree() {
     let scope = module.scope();
 
     {
-        let names = ["f", "g", "h"].map(|s| decl::Name::from_str(s));
+        let names = ["f", "g", "h", "atom"].map(|s| decl::Name::from_str(s));
         let mut i = 0;
 
         for name in &names {
             i += 1;
             let proc = scope.get_proc(name).unwrap();
             let proc = &item_tree[proc];
-            assert!(matches!(proc.name().as_str(), "f" | "g" | "h"));
+            assert!(matches!(proc.name().as_str(), "f" | "g" | "h" | "atom"));
         }
-
-        assert_eq!(i, 3);
     }
 
     // TODO: HIR
