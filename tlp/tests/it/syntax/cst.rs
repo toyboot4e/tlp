@@ -10,7 +10,7 @@ use tlp::syntax::cst::{
     parse::ParseError,
 };
 
-use crate::utils::{self, Test, TestError};
+use crate::syntax::utils::{self, Test, TestError};
 
 fn display(cst: &SyntaxNode) -> String {
     let mut nest = 0;
