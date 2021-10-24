@@ -49,7 +49,7 @@ impl SyntaxNodePtr {
     }
 
     // pub fn cast<N: AstNode>(self) -> Option<AstPtr<N>> {
-    //     if N::cast_node(self.kind) {
+    //     if N::cast_node(self.clone()).is_none() {
     //         return None;
     //     }
     //     Some(AstPtr {

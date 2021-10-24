@@ -8,6 +8,7 @@ use crate::{
             body::*,
             decl::{self, ItemTree},
             def,
+            expr::Expr,
             res::{CrateDefMap, ItemScope, ModuleData},
         },
         db::{
@@ -129,7 +130,8 @@ struct LowerExpr<'a> {
     db: &'a dyn db::Def,
     /// The HIR procedure body we're building up
     body: Body,
-    // /// AST ID → HIR ID
+    // /// AST expr ID → HIR expr ID
+    // /// HIR expr ID → AST expr ID
 }
 
 impl<'a> LowerExpr<'a> {
@@ -149,25 +151,37 @@ impl<'a> LowerExpr<'a> {
         // TODO: Consider block modifier (e.g. coroutines)
 
         for form in proc.body_forms() {
-            match form {
-                ast::Form::DefProc(_proc) => todo!("nested procedure"),
-                ast::Form::Call(_call) => {
-                    todo!("function call");
-                }
-                ast::Form::Atom(atom) => {
-                    match atom {
-                        ast::Atom::Num(_num) => {
-                            //
-                        }
-                        ast::Atom::Str(_str) => {
-                            //
-                        }
-                        ast::Atom::Bool(_bool) => {
-                            //
-                        }
-                    }
-                }
-            }
+            self.lower_expr(form);
         }
+    }
+
+    /// Allocates an expression making up the AST-HIR map. The separation of the source text from
+    /// the HIR is helpful to not recompute on syntax changes that do not affect the HIR.
+    fn lower_expr(&mut self, form: ast::Form) -> Idx<Expr> {
+        // TODO: cast AST node to a syntax pointer in order to make up the AST-HIR map
+        match form {
+            ast::Form::DefProc(_proc) => todo!("nested procedure"),
+            ast::Form::Call(_call) => {
+                todo!("function call");
+            }
+            ast::Form::Atom(atom) => match atom {
+                ast::Atom::Literal(lit) => match lit {
+                    ast::Literal::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
+                    ast::Literal::Str(_str) => {
+                        todo!()
+                    }
+                    ast::Literal::Bool(_bool) => {
+                        todo!()
+                    }
+                },
+            },
+        }
+    }
+
+    /// Allocates an expression making up the AST-HIR map. The separation of the source text from
+    /// the HIR is helpful to not recompute on syntax changes that do not affect the HIR.
+    fn alloc_expr(&mut self, expr: Expr) -> Idx<Expr> {
+        // TODO: make up the AST-HIR map
+        self.body.exprs.alloc(expr)
     }
 }

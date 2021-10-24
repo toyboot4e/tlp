@@ -90,3 +90,10 @@ impl From<SyntaxKind> for rowan::SyntaxKind {
         Self(kind as u16)
     }
 }
+
+impl SyntaxKind {
+    #[inline]
+    pub fn is_trivia(self) -> bool {
+        matches!(self, SyntaxKind::Ws | SyntaxKind::Comment)
+    }
+}

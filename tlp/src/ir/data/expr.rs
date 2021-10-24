@@ -4,7 +4,13 @@ HIR expression (unresolved syntax separated from AST, still disugared)
 
 use la_arena::Idx;
 
-use crate::ir::data::decl::Name;
+use crate::{
+    ir::data::decl::Name,
+    syntax::{
+        ast::data::{self as ast, AstElement, AstNode, AstToken},
+        cst::data::SyntaxElement,
+    },
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
@@ -74,4 +80,10 @@ pub enum BuiltinType {
     Int(BuiltinInt),
     Uint(BuiltinUint),
     Float(BuiltinFloat),
+}
+
+impl From<ast::Num> for Literal {
+    fn from(x: ast::Num) -> Self {
+        todo!()
+    }
 }

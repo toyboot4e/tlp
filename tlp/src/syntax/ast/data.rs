@@ -263,15 +263,36 @@ impl Params {
     }
 }
 
-/// Atom (non-list). Not strictly typed.
+/// Atom (any non-list)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Atom {
+    Literal(Literal),
+}
+
+impl AstElement for Atom {
+    fn cast_elem(syn: SyntaxElement) -> Option<Self> {
+        if let Some(x) = Literal::cast_elem(syn.clone()) {
+            return Some(Self::Literal(x));
+        }
+
+        None
+    }
+
+    fn syntax(&self) -> SyntaxElement {
+        match self {
+            Self::Literal(x) => x.syntax(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
     Num(Num),
     Str(Str),
     Bool(Bool),
 }
 
-impl AstElement for Atom {
+impl AstElement for Literal {
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
         if let Some(num) = Num::cast_elem(syn.clone()) {
             return Some(Self::Num(num));
@@ -292,6 +313,19 @@ impl AstElement for Atom {
     }
 }
 
+/// Temp access to the literal content
+#[derive(Clone, Debug, PartialEq)]
+pub enum LiteralKind {
+    Str(Str),
+    // ByteString(ast::ByteString),
+    // IntNumber(IntNumber),
+    // FloatNumber(FloatNumber),
+    // Char,
+    // Byte,
+    Bool(bool),
+}
+
+/// Untyped, not validated number type (integers and floats)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Num {
     pub(crate) syn: SyntaxElement,
