@@ -52,6 +52,8 @@ pub enum SyntaxKind {
     LParen,
     /// `)`
     RParen,
+    // TODO:
+    String,
     /// `"`
     StrEnclosure,
     /// `:`
@@ -73,12 +75,16 @@ pub enum SyntaxKind {
     Comment,
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
-    // CommentChunk
-    List,
-    String,
+    /// Path node
     Path,
-    /// Code block
-    Block,
+    /// Call node
+    Call,
+    /// DefProc node
+    DefProc,
+    /// Procedure parameter list
+    Params,
+    /// Procedure body node
+    Body,
     // ----------------------------------------
     // composite node
     /// Beginning of text

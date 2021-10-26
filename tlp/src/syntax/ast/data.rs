@@ -197,7 +197,7 @@ impl DefProc {
     pub fn params(&self) -> Option<Params> {
         self.syn
             .first_child()
-            .filter(|node| node.kind() == SyntaxKind::List)
+            .filter(|node| node.kind() == SyntaxKind::Params)
             .map(|node| Params { syn: node.clone() })
     }
 
