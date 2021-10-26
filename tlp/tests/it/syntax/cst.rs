@@ -56,7 +56,7 @@ fn run_test(test: Test) -> Result<(), TestError> {
             .map(|e| format!("{}", e.with_loc(&test.code)))
             .collect::<Vec<_>>()
             .join(", ");
-        panic!("{}", s);
+        panic!("{}\nsource: {}", s, test.code);
     }
 
     // root
@@ -94,5 +94,5 @@ fn cst() {
         eprintln!("");
     }
 
-    panic!("See cargo text --no-capture --test-threads=1");
+    panic!("See `cargo text -- -no-capture --test-threads=1`");
 }

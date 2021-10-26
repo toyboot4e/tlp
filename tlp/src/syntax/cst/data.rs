@@ -52,14 +52,12 @@ pub enum SyntaxKind {
     LParen,
     /// `)`
     RParen,
-    /// `"`
-    StrEnclosure,
+    /// String token, including the enclosures
+    String,
     /// `:`
     Colon,
     /// `.`
     Dot,
-    /// Text inside string enclosures
-    StrContent,
     Num,
     /// `true`
     True,
@@ -73,12 +71,16 @@ pub enum SyntaxKind {
     Comment,
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
-    // CommentChunk
-    List,
-    String,
+    /// Path node
     Path,
-    /// Code block
-    Block,
+    /// Call node
+    Call,
+    /// DefProc node
+    DefProc,
+    /// Procedure parameter list
+    Params,
+    /// Procedure body node
+    Body,
     // ----------------------------------------
     // composite node
     /// Beginning of text

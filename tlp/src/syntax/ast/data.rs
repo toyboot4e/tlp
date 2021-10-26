@@ -2,6 +2,8 @@ use crate::syntax::cst::data::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToke
 
 const STR_PROC: &'static str = "proc";
 
+// FIXME: prefer can_cast
+
 /// Semantic node casted from syntax node
 pub trait AstNode: Sized {
     fn cast_node(syn: SyntaxNode) -> Option<Self>;
@@ -197,7 +199,7 @@ impl DefProc {
     pub fn params(&self) -> Option<Params> {
         self.syn
             .first_child()
-            .filter(|node| node.kind() == SyntaxKind::List)
+            .filter(|node| node.kind() == SyntaxKind::Params)
             .map(|node| Params { syn: node.clone() })
     }
 
@@ -299,15 +301,17 @@ impl AstElement for Literal {
         }
 
         match syn {
-            SyntaxElement::Node(n) => Str::cast_node(n).map(Self::Str),
-            SyntaxElement::Token(t) => Bool::cast_tk(t).map(Self::Bool),
+            SyntaxElement::Node(_) => None,
+            SyntaxElement::Token(t) => Str::cast_tk(t.clone())
+                .map(Self::Str)
+                .or_else(|| Bool::cast_tk(t.clone()).map(Self::Bool)),
         }
     }
 
     fn syntax(&self) -> SyntaxElement {
         match self {
             Self::Num(x) => x.syntax(),
-            Self::Str(s) => SyntaxElement::Node(s.syntax().clone()),
+            Self::Str(s) => SyntaxElement::Token(s.syntax().clone()),
             Self::Bool(b) => SyntaxElement::Token(b.syntax().clone()),
         }
     }
@@ -347,11 +351,11 @@ impl AstElement for Num {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Str {
-    pub(crate) syn: SyntaxNode,
+    pub(crate) syn: SyntaxToken,
 }
 
-impl AstNode for Str {
-    fn cast_node(syn: SyntaxNode) -> Option<Self> {
+impl AstToken for Str {
+    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
         if syn.kind() == SyntaxKind::String {
             Some(Self { syn })
         } else {
@@ -359,7 +363,7 @@ impl AstNode for Str {
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn syntax(&self) -> &SyntaxToken {
         &self.syn
     }
 }
