@@ -52,16 +52,12 @@ pub enum SyntaxKind {
     LParen,
     /// `)`
     RParen,
-    // TODO:
+    /// String token, including the enclosures
     String,
-    /// `"`
-    StrEnclosure,
     /// `:`
     Colon,
     /// `.`
     Dot,
-    /// Text inside string enclosures
-    StrContent,
     Num,
     /// `true`
     True,

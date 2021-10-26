@@ -277,18 +277,13 @@ impl<'s> Lexer<'s> {
     #[inline(always)]
     fn process_str(&mut self) -> Option<()> {
         self.advance_if(|b| b == b'"')?;
-        self.push_span_as(SyntaxKind::StrEnclosure);
-
         self.advance_while(|b| b != b'"');
-        // always push the span as content even if it's empty
-        self.push_span_as(SyntaxKind::StrContent);
-
-        if self.advance_if(|b| b == b'"').is_some() {
-            self.push_span_as(SyntaxKind::StrEnclosure);
-        } else {
+        if self.advance_if(|b| b == b'"').is_none() {
             self.errs.push(LexError::Eof { at: self.src.len() });
-            self.consume_span();
         }
+
+        // push the span as string EVEN IF IT'S NOT TERMINATED
+        self.push_span_as(SyntaxKind::String);
 
         Some(())
     }

@@ -326,7 +326,7 @@ impl ParseState {
         self.builder.start_node(SyntaxKind::Params.into());
 
         self.bump_kind(pcx, SyntaxKind::LParen);
-        // TODO: combine the loops
+        // TODO: refactor duplicate loops
         loop {
             self.maybe_bump_ws(pcx);
 
@@ -400,25 +400,33 @@ impl ParseState {
             0
         };
 
-        let cp = self.builder.checkpoint();
+        let checkpoint = self.builder.checkpoint();
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
 
         match self.peek(pcx) {
+            // path
             Some(tk) if matches!(tk.kind, SyntaxKind::Colon | SyntaxKind::Dot) => {}
             // ident
             _ => return Some(()),
         };
 
         // path
-        self.builder.start_node_at(cp, SyntaxKind::Path.into());
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Path.into());
 
         loop {
+            self.maybe_bump_ws(pcx);
+
+            // delimiter
             if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none()
                 && self.maybe_bump_kind(pcx, SyntaxKind::Dot).is_none()
             {
                 break;
             }
 
+            self.maybe_bump_ws(pcx);
+
+            // ident
             if self.maybe_bump_kind(pcx, SyntaxKind::Ident).is_none() {
                 let hi = match self.peek(pcx) {
                     Some(tk) => tk.sp.lo,
@@ -462,28 +470,11 @@ impl ParseState {
     fn maybe_str(&mut self, pcx: &ParseContext) -> Option<()> {
         let top = self.peek(pcx)?;
 
-        if top.kind != SyntaxKind::StrEnclosure {
+        if top.kind != SyntaxKind::String {
             return None;
         }
 
-        self.builder.start_node(SyntaxKind::String.into());
-
-        self.bump_kind(pcx, SyntaxKind::StrEnclosure);
-
-        let content = self.bump_kind(pcx, SyntaxKind::StrContent);
-        if self
-            .maybe_bump_kind(pcx, SyntaxKind::StrEnclosure)
-            .is_none()
-        {
-            self.errs.push(ParseError::UnterminatedString {
-                sp: ByteSpan {
-                    lo: content.sp.lo,
-                    hi: pcx.src.len(),
-                },
-            });
-        };
-
-        self.builder.finish_node();
+        self.bump_kind(pcx, SyntaxKind::String);
 
         Some(())
     }

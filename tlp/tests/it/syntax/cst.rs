@@ -94,5 +94,5 @@ fn cst() {
         eprintln!("");
     }
 
-    panic!("See cargo text --no-capture --test-threads=1");
+    panic!("See `cargo text -- -no-capture --test-threads=1`");
 }
