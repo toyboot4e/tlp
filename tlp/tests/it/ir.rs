@@ -26,7 +26,7 @@ fn module_tree() {
 
     db.set_input(file.clone(), Arc::new(String::from(src)));
 
-    // ItemTree
+    // 1. ItemTree
     let item_tree = db.file_item_tree(file.clone());
 
     let mut procs = item_tree.procs().iter();
@@ -46,7 +46,7 @@ fn module_tree() {
     let (_ix, proc) = procs.next().unwrap();
     assert_eq!(proc.name().as_str(), "atom");
 
-    // DefMap
+    // 2. DefMap
     let krate = file.clone();
     let def_map = db.crate_def_map(krate.clone());
 
@@ -60,12 +60,20 @@ fn module_tree() {
 
         for name in &names {
             i += 1;
-            let proc = scope.get_proc(name).unwrap();
-            let proc = &item_tree[proc];
+
+            let proc_id = scope.lookup_proc(name).unwrap();
+            let proc_loc = proc_id.lookup(&db);
+            let proc = &item_tree[proc_loc.item];
+
             assert!(matches!(proc.name().as_str(), "f" | "g" | "h" | "atom"));
         }
     }
 
-    // TODO: HIR
-    // let proc = scope.
+    // 3. HIR definition data
+    let name = decl::Name::from_str("atom");
+
+    let proc_id = scope.lookup_proc(&name).unwrap();
+    let proc_data = db.proc_data(proc_id);
+
+    assert_eq!(proc_data.name, name);
 }

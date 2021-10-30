@@ -13,8 +13,9 @@ use crate::{
         },
         db::{
             self,
-            ids::{Id, Loc},
+            ids::{DefId, Id, Loc, TreeId},
             vfs::*,
+            Intern,
         },
     },
     syntax::ast::data as ast,
@@ -66,7 +67,8 @@ pub(crate) fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap>
     let mut modules = Arena::<ModuleData>::new();
 
     let root_item_tree = db.file_item_tree(krate.clone());
-    let root_scope = self::module_item_scope(db, &root_item_tree);
+    let tree_id = TreeId::new(krate);
+    let root_scope = ModCollector { tree_id }.module_item_scope(db);
 
     let root = modules.alloc(ModuleData {
         file: krate.clone(),
@@ -79,16 +81,29 @@ pub(crate) fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap>
     Arc::new(CrateDefMap { root, modules })
 }
 
-/// Visits module items and makes up the scope
-fn module_item_scope(db: &dyn db::Def, item_tree: &ItemTree) -> Arc<ItemScope> {
-    let mut scope = ItemScope::default();
+struct ModCollector {
+    tree_id: TreeId,
+}
 
-    for (ix, proc) in item_tree.procs().iter() {
-        let name = proc.name.clone();
-        scope.declare_proc(name, ix);
+impl ModCollector {
+    /// Visits module items and makes up the scope
+    fn module_item_scope(&self, db: &dyn db::Def) -> Arc<ItemScope> {
+        let item_tree = self.tree_id.item_tree(db);
+        let mut scope = ItemScope::default();
+
+        for (id, proc) in item_tree.procs().iter() {
+            let name = proc.name.clone();
+
+            let id = db.intern_proc(Loc {
+                tree: self.tree_id,
+                item: id,
+            });
+
+            let ix = scope.declare_proc(name, id);
+        }
+
+        Arc::new(scope)
     }
-
-    Arc::new(scope)
 }
 
 pub(crate) fn proc_data_query(
@@ -104,7 +119,7 @@ pub(crate) fn proc_data_query(
     })
 }
 
-pub(crate) fn lower_proc_body(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
+pub(crate) fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
     // collect parameters as pattern IDs
 
     // body = block expr
@@ -147,12 +162,14 @@ impl<'a> LowerExpr<'a> {
         }
     }
 
-    fn lower_proc_body(&mut self, proc: ast::DefProc) {
+    fn lower_proc_body(&mut self, proc: ast::DefProc) -> Arc<Body> {
         // TODO: Consider block modifier (e.g. coroutines)
 
         for form in proc.body_forms() {
             self.lower_expr(form);
         }
+
+        todo!()
     }
 
     /// Allocates an expression making up the AST-HIR map. The separation of the source text from

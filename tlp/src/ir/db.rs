@@ -24,7 +24,7 @@ use crate::{
 };
 
 use self::{
-    ids::{Id, Loc},
+    ids::{DefId, Id, Loc},
     vfs::FileId,
 };
 
@@ -86,8 +86,8 @@ pub trait Def: Parse + Intern {
     #[salsa::invoke(lower::proc_data_query)]
     fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData>;
 
-    #[salsa::invoke(lower::lower_proc_body)]
-    fn lower_proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
+    #[salsa::invoke(lower::proc_body_query)]
+    fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
 }
 
 /// High-level inetrmediate representation

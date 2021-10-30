@@ -9,7 +9,10 @@ use rustc_hash::FxHashMap;
 
 use crate::ir::{
     data::decl::{self, Name, Visibility},
-    db::vfs::FileId,
+    db::{
+        ids::{AnyDefId, DefId, Id, Loc},
+        vfs::FileId,
+    },
 };
 
 pub type ModuleId = Idx<ModuleData>;
@@ -59,21 +62,24 @@ impl ModuleData {
 }
 
 /// `ItemTree` with imports resolved
+///
+/// Every ID in `ItemScope` is upcasted to [`DefId`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ItemScope {
-    // TODO: upcast to types (ModuleDefId)
-    procs: FxHashMap<Name, Idx<decl::DefProc>>,
+    procs: FxHashMap<Name, Id<Loc<decl::DefProc>>>,
     // values:
     // delcs
 }
 
 impl ItemScope {
-    // TODO: upcast to types (ModuleDefId)
-    pub(crate) fn declare_proc(&mut self, name: Name, proc: Idx<decl::DefProc>) {
+    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<Loc<decl::DefProc>>) {
+        // TOOD: consider upcasting or not
+        // let id = DefId { loc_id: proc };
+        // self.procs.insert(name, AnyDefId::from(id));
         self.procs.insert(name, proc);
     }
 
-    pub fn get_proc(&self, name: &Name) -> Option<Idx<decl::DefProc>> {
+    pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<decl::DefProc>>> {
         self.procs.get(name).cloned()
     }
 }

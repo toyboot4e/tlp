@@ -2,7 +2,7 @@
 Lowered code block
 */
 
-use la_arena::{Arena, Idx};
+use la_arena::Arena;
 
 use crate::ir::data::expr::Expr;
 

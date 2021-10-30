@@ -37,7 +37,7 @@ pub trait Validate {
     fn validate(&self, errs: &mut Vec<SyntaxError>);
 }
 
-fn lparen(syn: SyntaxNode, errs: &mut Vec<SyntaxError>) {
+fn lparen(syn: SyntaxNode, _errs: &mut Vec<SyntaxError>) {
     let tk = match syn.first_token() {
         Some(tk) => tk,
         None => return,

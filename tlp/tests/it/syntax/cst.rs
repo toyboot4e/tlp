@@ -2,12 +2,9 @@
 Run all test cases in `cst/cases.txt` (on `cargo test`)
 */
 
-use std::fmt::{self, Write};
-
 use tlp::syntax::cst::{
     self,
     data::{SyntaxElement, SyntaxNode},
-    parse::ParseError,
 };
 
 use crate::syntax::utils::{self, Test, TestError};

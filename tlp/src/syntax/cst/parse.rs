@@ -4,7 +4,6 @@ Tree of tokens
 
 use std::fmt;
 
-use salsa::ParallelDatabase;
 use thiserror::Error;
 
 use crate::syntax::{
