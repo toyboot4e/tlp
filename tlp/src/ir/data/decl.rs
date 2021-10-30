@@ -49,6 +49,7 @@ impl ItemTree {
 pub struct Name {
     // TODO: consider preferring salsa?
     data: SmolStr,
+    // hygiene info?
 }
 
 impl Name {

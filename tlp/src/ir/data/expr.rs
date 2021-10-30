@@ -2,6 +2,8 @@
 HIR expression (unresolved syntax separated from AST, still disugared)
 */
 
+use std::cmp;
+
 use la_arena::Idx;
 
 use crate::{
@@ -39,15 +41,17 @@ pub struct Param {
     // pub ast: Ident,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     String(String),
     Char(char),
     Bool(bool),
     Int(i64, Option<BuiltinInt>),
     Uint(u64, Option<BuiltinUint>),
-    Float(u64, Option<BuiltinFloat>),
+    Float(f64, Option<BuiltinFloat>),
 }
+
+impl cmp::Eq for Literal {}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BuiltinInt {
@@ -84,6 +88,15 @@ pub enum BuiltinType {
 
 impl From<ast::Num> for Literal {
     fn from(x: ast::Num) -> Self {
+        // let text = match x.syntax() {
+        //     SyntaxElement::Node(x) => x.text(),
+        //     SyntaxElement::Token(x) => x.text(),
+        // };
+
+        // if let Ok(x) = text.parse::<u64>() {
+        //     //
+        // }
+
         todo!()
     }
 }

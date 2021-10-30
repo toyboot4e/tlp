@@ -123,21 +123,15 @@ pub(crate) fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>)
     // collect parameters as pattern IDs
 
     // body = block expr
-    let body = {
-        let mut lower = LowerExpr {
-            db,
-            body: Body::default(),
-        };
+    let proc_loc = db.lookup_intern_proc(proc_id);
+    let tree = proc_loc.tree.item_tree(db);
+    let proc = &tree[proc_loc.item];
 
-        let proc_loc = db.lookup_intern_proc(proc_id);
-        let tree = proc_loc.tree.item_tree(db);
-        let proc = &tree[proc_loc.item];
-        lower.lower_proc(proc.ast.clone());
-
-        lower.body
-    };
-
-    Arc::new(body)
+    LowerExpr {
+        db,
+        body: Body::default(),
+    }
+    .lower_proc(proc.ast.clone())
 }
 
 /// Proc AST → Proc HIR
@@ -150,9 +144,10 @@ struct LowerExpr<'a> {
 }
 
 impl<'a> LowerExpr<'a> {
-    pub fn lower_proc(&mut self, proc: ast::DefProc) {
+    pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
         self.lower_proc_params(proc.clone());
         self.lower_proc_body(proc.clone());
+        Arc::new(self.body)
     }
 
     fn lower_proc_params(&mut self, proc: ast::DefProc) {
@@ -162,14 +157,12 @@ impl<'a> LowerExpr<'a> {
         }
     }
 
-    fn lower_proc_body(&mut self, proc: ast::DefProc) -> Arc<Body> {
+    fn lower_proc_body(&mut self, proc: ast::DefProc) {
         // TODO: Consider block modifier (e.g. coroutines)
 
         for form in proc.body_forms() {
             self.lower_expr(form);
         }
-
-        todo!()
     }
 
     /// Allocates an expression making up the AST-HIR map. The separation of the source text from

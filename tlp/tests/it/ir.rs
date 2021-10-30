@@ -69,8 +69,38 @@ fn module_tree() {
         }
     }
 
-    // 3. HIR definition data
+    // 3-1. HIR definition data
     let name = decl::Name::from_str("atom");
+    let proc_id = scope.lookup_proc(&name).unwrap();
+
+    let proc_data = db.proc_data(proc_id);
+    assert_eq!(proc_data.name, name);
+
+    // 3-2. HIR body
+    // let body = db.proc_body(proc_id);
+}
+
+#[test]
+fn main_literal() {
+    let mut db = DB::default();
+    let mut vfs = Vfs::default();
+
+    let path = "my-module.tlp".into();
+    let file = vfs.intern(path);
+
+    // => 7
+    let src = r#"(proc main () 12)"#;
+    db.set_input(file.clone(), Arc::new(String::from(src)));
+
+    let krate = file.clone();
+    let def_map = db.crate_def_map(krate.clone());
+
+    let root = def_map.root();
+    let module = def_map.module(root);
+    let scope = module.scope();
+
+    // 3. HIR definition data
+    let name = decl::Name::from_str("main");
 
     let proc_id = scope.lookup_proc(&name).unwrap();
     let proc_data = db.proc_data(proc_id);
