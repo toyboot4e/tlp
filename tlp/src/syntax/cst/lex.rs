@@ -1,5 +1,5 @@
 /*!
-Stream of tokens
+Lexer or otkenizer
 */
 
 use thiserror::Error;
@@ -13,6 +13,7 @@ use crate::syntax::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: SyntaxKind,
+    /// I wonder if `&str` is better
     pub sp: ByteSpan,
 }
 
@@ -22,12 +23,15 @@ impl Token {
     }
 }
 
+// TODO: try ariadne
+
 /// Error type accumulated while lexing
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum LexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
+    // TODO: while what?
     #[error("Unexpected end of file")]
     Eof { at: TextPos },
 }
@@ -81,7 +85,7 @@ fn is_num_start(c: u8) -> bool {
 
 /// [0-9] | . | E | _
 fn is_num_body(c: u8) -> bool {
-    !(c < b'0' || b'9' < c) || matches!(c, b'.' | b'E' | b'_')
+    !(c < b'0' || b'9' < c) || matches!(c, b'.' | b'e' | b'E' | b'_' | b'-')
 }
 
 fn is_ident_body(c: u8) -> bool {
@@ -104,6 +108,7 @@ fn tk_byte(c: u8) -> Option<SyntaxKind> {
     Some(kind)
 }
 
+/// Lexing utilities
 impl<'s> Lexer<'s> {
     fn consume_span(&mut self) -> ByteSpan {
         let sp = self.sp.clone();
@@ -194,19 +199,8 @@ impl<'s> Lexer<'s> {
     }
 }
 
-/// Utilities
+/// Syntax utilities
 impl<'s> Lexer<'s> {
-    fn lex_one_byte(&mut self) -> Option<Token> {
-        let c = self.src[self.sp.hi];
-
-        if let Some(kind) = self::tk_byte(c) {
-            self.sp.hi += 1;
-            Some(self.consume_span_as(kind))
-        } else {
-            None
-        }
-    }
-
     /// Lexes tokens in syntax `Start Body*`
     fn lex_syntax(
         &mut self,
@@ -222,6 +216,18 @@ impl<'s> Lexer<'s> {
 
 /// Syntaxes (&mut self → Option<Token>)
 impl<'s> Lexer<'s> {
+    /// Byte token such as parentheses
+    fn lex_one_byte(&mut self) -> Option<Token> {
+        let c = self.src[self.sp.hi];
+
+        if let Some(kind) = self::tk_byte(c) {
+            self.sp.hi += 1;
+            Some(self.consume_span_as(kind))
+        } else {
+            None
+        }
+    }
+
     /// Trivia
     fn lex_ws(&mut self) -> Option<Token> {
         self.lex_syntax(&self::is_ws, &self::is_ws, SyntaxKind::Ws)
