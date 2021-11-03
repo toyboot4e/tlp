@@ -6,13 +6,7 @@ use std::cmp;
 
 use la_arena::Idx;
 
-use crate::{
-    ir::data::decl::Name,
-    syntax::{
-        ast::data::{self as ast, AstElement, AstNode, AstToken},
-        cst::data::SyntaxElement,
-    },
-};
+use crate::{ir::data::decl::Name, syntax::ast::data as ast};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {

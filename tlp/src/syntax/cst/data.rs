@@ -52,6 +52,7 @@ pub enum SyntaxKind {
     Colon,
     /// `.`
     Dot,
+    /// Number token, including dots
     Num,
     /// `true`
     True,
