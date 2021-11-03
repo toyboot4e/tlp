@@ -61,7 +61,6 @@ struct Lexer<'s> {
     errs: Vec<LexError>,
 }
 
-#[inline(always)]
 fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t')
 }
@@ -72,28 +71,23 @@ fn is_symbol(c: u8) -> bool {
 }
 
 /// [0-9] | -
-#[inline(always)]
 fn is_num_start(c: u8) -> bool {
     !(c < b'0' || b'9' < c) || c == b'-'
 }
 
 /// [0-9] | . | E | _
-#[inline(always)]
 fn is_num_body(c: u8) -> bool {
     !(c < b'0' || b'9' < c) || matches!(c, b'.' | b'E' | b'_')
 }
 
-#[inline(always)]
 fn is_ident_body(c: u8) -> bool {
     !(is_ws(c) || is_symbol(c) || c == b'"')
 }
 
-#[inline(always)]
 fn is_ident_start(c: u8) -> bool {
     is_ident_body(c) && !is_num_start(c) && !is_symbol(c)
 }
 
-#[inline(always)]
 fn tk_byte(c: u8) -> Option<SyntaxKind> {
     let kind = match c {
         b'(' => SyntaxKind::LParen,
@@ -124,7 +118,6 @@ impl<'s> Lexer<'s> {
     }
 
     /// The predicate returns if we should continue scanning reading a byte
-    #[inline(always)]
     fn advance_if(&mut self, p: impl Fn(u8) -> bool) -> Option<()> {
         if self.sp.hi >= self.src.len() {
             return None;
@@ -141,7 +134,6 @@ impl<'s> Lexer<'s> {
     }
 
     /// The predicate returns if we should continue scanning reading a byte
-    #[inline(always)]
     fn advance_while(&mut self, p: impl Fn(u8) -> bool) {
         while self.sp.hi < self.src.len() {
             let peek = self.src[self.sp.hi];
@@ -154,7 +146,6 @@ impl<'s> Lexer<'s> {
         }
     }
 
-    #[inline(always)]
     fn advance_until(&mut self, p: impl Fn(u8) -> bool) {
         while self.sp.hi < self.src.len() {
             let peek = self.src[self.sp.hi];
@@ -176,7 +167,6 @@ impl<'s> Lexer<'s> {
         (self.tks, self.errs)
     }
 
-    #[inline(always)]
     fn process_forward(&mut self) {
         if let Some(tk) = self.lex_one_byte() {
             self.tks.push(tk);
@@ -228,7 +218,6 @@ impl<'s> Lexer<'s> {
 
 /// Utilities
 impl<'s> Lexer<'s> {
-    #[inline(always)]
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.hi];
 
@@ -254,13 +243,11 @@ impl<'s> Lexer<'s> {
 
 /// Lexing syntax
 impl<'s> Lexer<'s> {
-    #[inline(always)]
     fn lex_ws(&mut self) -> Option<Token> {
         self.lex_syntax(&self::is_ws, &self::is_ws, SyntaxKind::Ws)
     }
 
     /// Any kind of comment (oneline/multiline, normal/docstring)
-    #[inline(always)]
     fn lex_comment(&mut self) -> Option<Token> {
         self.advance_if(|b| b == b';')?;
         self.advance_until(|b| b == b'\n');
@@ -268,13 +255,11 @@ impl<'s> Lexer<'s> {
     }
 
     /// [0-9]<num>*
-    #[inline(always)]
     fn lex_num(&mut self) -> Option<Token> {
         self.lex_syntax(self::is_num_start, self::is_num_body, SyntaxKind::Num)
     }
 
     /// "[^"]*"
-    #[inline(always)]
     fn process_str(&mut self) -> Option<()> {
         self.advance_if(|b| b == b'"')?;
         self.advance_while(|b| b != b'"');
@@ -289,7 +274,6 @@ impl<'s> Lexer<'s> {
     }
 
     /// [^<ws>]*
-    #[inline(always)]
     fn lex_ident(&mut self) -> Option<Token> {
         self.lex_syntax(self::is_ident_start, self::is_ident_body, SyntaxKind::Ident)
     }

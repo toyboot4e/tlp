@@ -145,7 +145,6 @@ impl ParseState {
 
 /// Helpers
 impl ParseState {
-    #[inline(always)]
     fn peek<'pcx>(&mut self, pcx: &'pcx ParseContext) -> Option<&'pcx Token> {
         if self.tsp.hi < pcx.tks.len() {
             Some(&pcx.tks[self.tsp.hi])
@@ -155,7 +154,6 @@ impl ParseState {
     }
 
     /// Consume the next element as a token
-    #[inline(always)]
     fn bump<'pcx>(&mut self, pcx: &'pcx ParseContext) -> &'pcx Token {
         let tk = &pcx.tks[self.tsp.hi];
         self.builder.token(tk.kind.into(), tk.slice(pcx.src));
@@ -170,7 +168,6 @@ impl ParseState {
         self.bump(pcx)
     }
 
-    #[inline(always)]
     fn maybe_bump_kind(&mut self, pcx: &ParseContext, kind: SyntaxKind) -> Option<()> {
         let top = self.peek(pcx)?;
         if top.kind == kind {
@@ -181,7 +178,6 @@ impl ParseState {
         }
     }
 
-    #[inline(always)]
     fn maybe_bump_ws(&mut self, pcx: &ParseContext) -> Option<()> {
         let mut res = false;
 
@@ -225,7 +221,6 @@ impl ParseState {
     /// list → Call | DefProc
     ///
     /// TODO: allow unit?
-    #[inline(always)]
     fn always_list(&mut self, pcx: &ParseContext) {
         // We don't know the node kind yet, so let's wrap the tokens later
         let checkpoint = self.builder.checkpoint();
@@ -359,7 +354,6 @@ impl ParseState {
     /// symbol → atom
     ///
     /// atom → ident | lit
-    #[inline(always)]
     fn try_symbol(&mut self, pcx: &ParseContext) -> bool {
         if self.maybe_symbol(pcx).is_some() {
             return true;
@@ -446,13 +440,11 @@ impl ParseState {
 
 /// Lower-level syntactic items
 impl ParseState {
-    #[inline(always)]
     fn maybe_ident(&mut self, pcx: &ParseContext) -> Option<()> {
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)
     }
 
     /// lit → num | str
-    #[inline(always)]
     fn maybe_lit(&mut self, pcx: &ParseContext) -> Option<()> {
         if self.maybe_bump_kind(pcx, SyntaxKind::Num).is_some() {
             return Some(());
@@ -465,7 +457,6 @@ impl ParseState {
         None
     }
 
-    #[inline(always)]
     fn maybe_str(&mut self, pcx: &ParseContext) -> Option<()> {
         let top = self.peek(pcx)?;
 

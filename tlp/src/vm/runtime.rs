@@ -132,7 +132,6 @@ impl Vm {
     }
 
     /// Pushes binary operator to the stack
-    #[inline]
     fn binary_op(&mut self, op: OpCode, apply_op: impl Fn(Value, Value) -> Value) -> Result<()> {
         // bbbb aaaa
         let b = self.stack.pop().ok_or_else(|| VmError::EofWhileOp { op })?;
