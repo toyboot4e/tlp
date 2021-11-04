@@ -210,9 +210,11 @@ impl DefProc {
             .filter(|elem| elem.kind() != SyntaxKind::Ws);
 
         // skip until parameter
-        match nodes.next().unwrap() {
-            SyntaxElement::Token(t) => assert_eq!(t.text(), "proc"),
-            _ => unreachable!(),
+        loop {
+            match nodes.next().unwrap() {
+                SyntaxElement::Token(t) if t.text() == "proc" => break,
+                _ => {}
+            }
         }
 
         nodes.filter_map(Form::cast_elem)
@@ -273,8 +275,13 @@ pub enum Atom {
 
 impl AstElement for Atom {
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
-        if let Some(x) = Literal::cast_elem(syn.clone()) {
-            return Some(Self::Literal(x));
+        match syn {
+            SyntaxElement::Token(tk) => {
+                if let Some(x) = Literal::cast_tk(tk.clone()) {
+                    return Some(Self::Literal(x));
+                }
+            }
+            _ => {}
         }
 
         None
@@ -282,7 +289,7 @@ impl AstElement for Atom {
 
     fn syntax(&self) -> SyntaxElement {
         match self {
-            Self::Literal(x) => x.syntax(),
+            Self::Literal(x) => SyntaxElement::Token(x.syntax().clone()),
         }
     }
 }
@@ -294,25 +301,18 @@ pub enum Literal {
     Bool(Bool),
 }
 
-impl AstElement for Literal {
-    fn cast_elem(syn: SyntaxElement) -> Option<Self> {
-        if let Some(num) = Num::cast_elem(syn.clone()) {
-            return Some(Self::Num(num));
-        }
-
-        match syn {
-            SyntaxElement::Node(_) => None,
-            SyntaxElement::Token(t) => Str::cast_tk(t.clone())
-                .map(Self::Str)
-                .or_else(|| Bool::cast_tk(t.clone()).map(Self::Bool)),
-        }
+impl AstToken for Literal {
+    fn cast_tk(tk: SyntaxToken) -> Option<Self> {
+        None.or_else(|| Num::cast_tk(tk.clone()).map(Self::Num))
+            .or_else(|| Str::cast_tk(tk.clone()).map(Self::Str))
+            .or_else(|| Bool::cast_tk(tk.clone()).map(Self::Bool))
     }
 
-    fn syntax(&self) -> SyntaxElement {
+    fn syntax(&self) -> &SyntaxToken {
         match self {
             Self::Num(x) => x.syntax(),
-            Self::Str(s) => SyntaxElement::Token(s.syntax().clone()),
-            Self::Bool(b) => SyntaxElement::Token(b.syntax().clone()),
+            Self::Str(x) => x.syntax(),
+            Self::Bool(x) => x.syntax(),
         }
     }
 }
@@ -332,11 +332,11 @@ pub enum LiteralKind {
 /// Untyped, not validated number type (integers and floats)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Num {
-    pub(crate) syn: SyntaxElement,
+    pub(crate) syn: SyntaxToken,
 }
 
-impl AstElement for Num {
-    fn cast_elem(syn: SyntaxElement) -> Option<Self> {
+impl AstToken for Num {
+    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
         if syn.kind() == SyntaxKind::Num {
             Some(Self { syn })
         } else {
@@ -344,8 +344,8 @@ impl AstElement for Num {
         }
     }
 
-    fn syntax(&self) -> SyntaxElement {
-        self.syn.clone()
+    fn syntax(&self) -> &SyntaxToken {
+        &self.syn
     }
 }
 

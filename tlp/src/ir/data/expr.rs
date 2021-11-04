@@ -6,7 +6,10 @@ use std::cmp;
 
 use la_arena::Idx;
 
-use crate::{ir::data::decl::Name, syntax::ast::data as ast};
+use crate::{
+    ir::data::decl::Name,
+    syntax::ast::data::{self as ast, AstToken},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
@@ -82,15 +85,22 @@ pub enum BuiltinType {
 
 impl From<ast::Num> for Literal {
     fn from(x: ast::Num) -> Self {
-        // let text = match x.syntax() {
-        //     SyntaxElement::Node(x) => x.text(),
-        //     SyntaxElement::Token(x) => x.text(),
-        // };
+        let text = x.syntax().text();
 
-        // if let Ok(x) = text.parse::<u64>() {
-        //     //
-        // }
+        // TODO: parse explicit type name
 
-        todo!()
+        if let Ok(x) = text.parse::<u64>() {
+            return Self::Uint(x, None);
+        }
+
+        if let Ok(x) = text.parse::<i64>() {
+            return Self::Int(x, None);
+        }
+
+        if let Ok(x) = text.parse::<f64>() {
+            return Self::Float(x, None);
+        }
+
+        todo!("if not a number");
     }
 }

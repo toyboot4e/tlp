@@ -13,9 +13,8 @@ use crate::{
         },
         db::{
             self,
-            ids::{DefId, Id, Loc, TreeId},
+            ids::{Id, Loc, TreeId},
             vfs::*,
-            Intern,
         },
     },
     syntax::ast::data as ast,

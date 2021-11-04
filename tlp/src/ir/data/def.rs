@@ -1,5 +1,5 @@
 /*!
-HIR item definitions in name-resolved form
+HIR item definitions, views to `ItemTree` items
 */
 
 use la_arena::Idx;
