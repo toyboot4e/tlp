@@ -106,4 +106,7 @@ fn main_literal() {
     let proc_data = db.proc_data(proc_id);
 
     assert_eq!(proc_data.name, name);
+
+    // 4. Body
+    let body = db.proc_body(proc_id);
 }
