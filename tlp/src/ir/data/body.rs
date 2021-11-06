@@ -9,7 +9,7 @@ use crate::ir::data::expr::Expr;
 /// HIR procedure body type
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Body {
-    pub(crate) exprs: Arena<Expr>,
+    pub exprs: Arena<Expr>,
     // TOOD: separate BlockDefMap from CrateDefMap and add block scope stack
 }
 

@@ -5,7 +5,7 @@ Tests for toylisp intermediate representations
 use std::sync::Arc;
 
 use tlp::ir::{
-    data::decl,
+    data::{decl, expr::*},
     db::{vfs::*, *},
 };
 
@@ -109,4 +109,8 @@ fn main_literal() {
 
     // 4. Body
     let body = db.proc_body(proc_id);
+    assert_eq!(
+        body.exprs.iter().next().unwrap().1,
+        &Expr::Literal(Literal::Uint(12, None))
+    );
 }
