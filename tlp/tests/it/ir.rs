@@ -88,7 +88,7 @@ fn main_literal() {
     let path = "my-module.tlp".into();
     let file = vfs.intern(path);
 
-    // => 7
+    // => 12
     let src = r#"(proc main () 12)"#;
     db.set_input(file.clone(), Arc::new(String::from(src)));
 

@@ -6,18 +6,24 @@ const STR_PROC: &'static str = "proc";
 
 /// Semantic node casted from syntax node
 pub trait AstNode: Sized {
+    /// Method for "syntax pointers"
+    fn can_cast(kind: SyntaxKind) -> bool;
     fn cast_node(syn: SyntaxNode) -> Option<Self>;
     fn syntax(&self) -> &SyntaxNode;
 }
 
 /// Semantic token casted from syntax token
 pub trait AstToken: Sized {
+    /// Method for "syntax pointers"
+    fn can_cast(kind: SyntaxKind) -> bool;
     fn cast_tk(syn: SyntaxToken) -> Option<Self>;
     fn syntax(&self) -> &SyntaxToken;
 }
 
 /// Semantic element casted from syntax element
 pub trait AstElement: Sized {
+    /// Method for "syntax pointers"
+    fn can_cast(kind: SyntaxKind) -> bool;
     fn cast_elem(syn: SyntaxElement) -> Option<Self>;
     fn syntax(&self) -> SyntaxElement;
 }
@@ -53,6 +59,10 @@ pub enum Form {
 }
 
 impl AstElement for Form {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        DefProc::can_cast(kind) || Call::can_cast(kind) || Atom::can_cast(kind)
+    }
+
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
         if let Some(node) = syn.clone().into_node() {
             if let Some(proc) = DefProc::cast_node(node.clone()) {
@@ -86,6 +96,10 @@ pub struct Call {
 }
 
 impl AstNode for Call {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        matches!(kind, SyntaxKind::Call)
+    }
+
     fn syntax(&self) -> &SyntaxNode {
         &self.syn
     }
@@ -137,6 +151,10 @@ pub struct DefProc {
 }
 
 impl AstNode for DefProc {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        matches!(kind, SyntaxKind::DefProc)
+    }
+
     fn syntax(&self) -> &SyntaxNode {
         &self.syn
     }
@@ -228,6 +246,10 @@ pub struct Param {
 }
 
 impl AstToken for Param {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        matches!(kind, SyntaxKind::Params)
+    }
+
     fn cast_tk(syn: SyntaxToken) -> Option<Self> {
         if syn.kind() == SyntaxKind::Ident {
             Some(Self { syn })
@@ -274,6 +296,10 @@ pub enum Atom {
 }
 
 impl AstElement for Atom {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        Literal::can_cast(kind)
+    }
+
     fn cast_elem(syn: SyntaxElement) -> Option<Self> {
         match syn {
             SyntaxElement::Token(tk) => {
@@ -302,6 +328,10 @@ pub enum Literal {
 }
 
 impl AstToken for Literal {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        Num::can_cast(kind) || Str::can_cast(kind) || Bool::can_cast(kind)
+    }
+
     fn cast_tk(tk: SyntaxToken) -> Option<Self> {
         None.or_else(|| Num::cast_tk(tk.clone()).map(Self::Num))
             .or_else(|| Str::cast_tk(tk.clone()).map(Self::Str))
@@ -336,6 +366,10 @@ pub struct Num {
 }
 
 impl AstToken for Num {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::Num
+    }
+
     fn cast_tk(syn: SyntaxToken) -> Option<Self> {
         if syn.kind() == SyntaxKind::Num {
             Some(Self { syn })
@@ -355,6 +389,10 @@ pub struct Str {
 }
 
 impl AstToken for Str {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::String
+    }
+
     fn cast_tk(syn: SyntaxToken) -> Option<Self> {
         if syn.kind() == SyntaxKind::String {
             Some(Self { syn })
@@ -374,6 +412,10 @@ pub struct Bool {
 }
 
 impl AstToken for Bool {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        matches!(kind, SyntaxKind::True | SyntaxKind::False)
+    }
+
     fn cast_tk(syn: SyntaxToken) -> Option<Self> {
         match syn.kind() {
             SyntaxKind::True => Some(Self { syn }),

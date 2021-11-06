@@ -1,4 +1,6 @@
-//! Weak reference to syntax
+/*!
+Syntax pointer
+*/
 
 use std::{
     hash::{Hash, Hasher},
@@ -48,15 +50,15 @@ impl SyntaxNodePtr {
         .unwrap_or_else(|| panic!("can't resolve local ptr to SyntaxNode: {:?}", self))
     }
 
-    // pub fn cast<N: AstNode>(self) -> Option<AstPtr<N>> {
-    //     if N::cast_node(self.clone()).is_none() {
-    //         return None;
-    //     }
-    //     Some(AstPtr {
-    //         raw: self,
-    //         _ty: PhantomData,
-    //     })
-    // }
+    pub fn cast<N: AstNode>(self) -> Option<AstPtr<N>> {
+        if !N::can_cast(self.kind) {
+            return None;
+        }
+        Some(AstPtr {
+            raw: self,
+            _ty: PhantomData,
+        })
+    }
 }
 
 /// Like `SyntaxNodePtr`, but remembers the type of node
@@ -106,15 +108,15 @@ impl<N: AstNode> AstPtr<N> {
         self.raw.clone()
     }
 
-    // pub fn cast<U: AstNode>(self) -> Option<AstPtr<U>> {
-    //     if !U::can_cast(self.raw.kind) {
-    //         return None;
-    //     }
-    //     Some(AstPtr {
-    //         raw: self.raw,
-    //         _ty: PhantomData,
-    //     })
-    // }
+    pub fn cast<U: AstNode>(self) -> Option<AstPtr<U>> {
+        if !U::can_cast(self.raw.kind) {
+            return None;
+        }
+        Some(AstPtr {
+            raw: self.raw,
+            _ty: PhantomData,
+        })
+    }
 }
 
 impl<N: AstNode> From<AstPtr<N>> for SyntaxNodePtr {
