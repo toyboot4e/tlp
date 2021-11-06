@@ -1,9 +1,22 @@
 // DSL for CST parse tests
 
+# num
+(+ 1.15e-4 2)
+----------------------------------------
+Call@0..13
+    LParen@0..1
+    Ident@1..2
+    Ws@2..3
+    Num@3..10
+    Ws@10..11
+    Num@11..12
+    RParen@12..13
+----------------------------------------
+
 # add
 (+ 1 2)
 ----------------------------------------
-List@0..7
+Call@0..7
     LParen@0..1
     Ident@1..2
     Ws@2..3
@@ -16,7 +29,7 @@ List@0..7
 # negation
 (+ 1 -2)
 ----------------------------------------
-List@0..8
+Call@0..8
     LParen@0..1
     Ident@1..2
     Ws@2..3
@@ -29,13 +42,13 @@ List@0..8
 # nest
 (+ 1 (* 2 3))
 ----------------------------------------
-List@0..13
+Call@0..13
     LParen@0..1
     Ident@1..2
     Ws@2..3
     Num@3..4
     Ws@4..5
-    List@5..12
+    Call@5..12
         LParen@5..6
         Ident@6..7
         Ws@7..8
@@ -51,13 +64,10 @@ ident"str"ident
 ----------------------------------------
 Ident@0..5
 String@5..10
-    StrEnclosure@5..6
-    StrContent@6..9
-    StrEnclosure@9..10
 Ident@10..15
 ----------------------------------------
 
-# comment
+# comment (includes newline character!)
 ;; comment
 x
 ----------------------------------------
@@ -68,18 +78,18 @@ Ident@11..12
 # simple proc
 (proc f (args) (none))
 ----------------------------------------
-List@0..22
+DefProc@0..22
     LParen@0..1
     Ident@1..5
     Ws@5..6
     Ident@6..7
     Ws@7..8
-    List@8..14
+    Params@8..14
         LParen@8..9
         Ident@9..13
         RParen@13..14
     Ws@14..15
-    List@15..21
+    Call@15..21
         LParen@15..16
         Ident@16..20
         RParen@20..21
@@ -89,7 +99,7 @@ List@0..22
 # path
 (proc mod:var)
 ----------------------------------------
-List@0..14
+DefProc@0..14
     LParen@0..1
     Ident@1..5
     Ws@5..6

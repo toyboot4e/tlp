@@ -1,9 +1,8 @@
 /*!
-toylisp is a variant of Lisp for my game dev (?)
+ToyLisp is the scripting language for SnowRL
 */
 
 pub mod compile;
-pub mod db;
 pub mod ir;
 pub mod syntax;
 pub mod utils;

@@ -2,15 +2,9 @@
 Run all test cases in `cst/cases.txt` (on `cargo test`)
 */
 
-use std::fmt::{self, Write};
+use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
-use tlp::syntax::cst::{
-    self,
-    data::{SyntaxElement, SyntaxNode},
-    parse::ParseError,
-};
-
-use crate::utils::{self, Test, TestError};
+use crate::syntax::utils::{self, Test, TestError};
 
 fn display(cst: &SyntaxNode) -> String {
     let mut nest = 0;
@@ -48,7 +42,7 @@ fn display(cst: &SyntaxNode) -> String {
 }
 
 fn run_test(test: Test) -> Result<(), TestError> {
-    let (cst, errs) = cst::parse::from_str(&test.code);
+    let (cst, errs) = cst::parse_str(&test.code);
 
     if !errs.is_empty() {
         let s = errs
@@ -56,7 +50,7 @@ fn run_test(test: Test) -> Result<(), TestError> {
             .map(|e| format!("{}", e.with_loc(&test.code)))
             .collect::<Vec<_>>()
             .join(", ");
-        panic!("{}", s);
+        panic!("{}\nsource: {}", s, test.code);
     }
 
     // root
@@ -94,5 +88,5 @@ fn cst() {
         eprintln!("");
     }
 
-    panic!("See cargo text --no-capture --test-threads=1");
+    panic!("See `cargo text -- -no-capture --test-threads=1`");
 }

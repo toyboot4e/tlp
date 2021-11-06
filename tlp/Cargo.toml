@@ -4,12 +4,28 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+# std++
 env_logger = "0.8.4"
 log = "0.4.14"
 thiserror = "1.0.25"
-
 camino = "1.0.4"
+
+# framework
 rowan = "0.12.6"
 salsa = "0.16.1"
 
+# data structures and algorithms
+rustc-hash = "1.1.0"
+indexmap = "1.7.0"
+
+# meta programming
 paste = "1.0.5"
+derivative = "2.2.0"
+
+# optimization
+smol_str = "0.1.17"
+la-arena = "0.2.1"
+nonmax = "0.5.0"
+
+# utilities
+itertools = "0.10.1"

@@ -8,8 +8,8 @@ use thiserror::Error;
 
 use crate::syntax::{
     cst::{
-        data::{SyntaxKind, SyntaxNode},
         lex::{self, LexError, Token},
+        SyntaxKind, SyntaxNode,
     },
     span::{ByteLocation, ByteSpan, TextPos},
 };
@@ -30,6 +30,7 @@ pub enum ParseError {
     /// TODO: context "Expected Symbol as argument, found .."
     #[error("Expected {expected}, found {found}")]
     Unexpected {
+        // TODO: add text length
         at: TextPos,
         expected: String,
         found: String,
@@ -78,7 +79,7 @@ impl fmt::Display for ParseErrorWithLocation {
 
 /// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
 /// grammer.
-pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
+pub fn parse_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
     let (tks, lex_errs) = lex::from_str(src);
 
     let (tree, mut errs) = self::from_tks(src, &tks);
@@ -90,8 +91,8 @@ pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
 /// Creates a CST and optionally errors from output of lexer
 pub fn from_tks<'s, 't>(src: &'s str, tks: &'t [Token]) -> (GreenNode, Vec<ParseError>) {
     let pcx = ParseContext { src, tks };
-    let state = ParseState::new();
-    state.run(&pcx)
+    let parser = ParseState::new();
+    parser.run(&pcx)
 }
 
 /// Referred to as `pcx`
@@ -144,7 +145,6 @@ impl ParseState {
 
 /// Helpers
 impl ParseState {
-    #[inline(always)]
     fn peek<'pcx>(&mut self, pcx: &'pcx ParseContext) -> Option<&'pcx Token> {
         if self.tsp.hi < pcx.tks.len() {
             Some(&pcx.tks[self.tsp.hi])
@@ -154,7 +154,6 @@ impl ParseState {
     }
 
     /// Consume the next element as a token
-    #[inline(always)]
     fn bump<'pcx>(&mut self, pcx: &'pcx ParseContext) -> &'pcx Token {
         let tk = &pcx.tks[self.tsp.hi];
         self.builder.token(tk.kind.into(), tk.slice(pcx.src));
@@ -169,7 +168,6 @@ impl ParseState {
         self.bump(pcx)
     }
 
-    #[inline(always)]
     fn maybe_bump_kind(&mut self, pcx: &ParseContext, kind: SyntaxKind) -> Option<()> {
         let top = self.peek(pcx)?;
         if top.kind == kind {
@@ -180,7 +178,6 @@ impl ParseState {
         }
     }
 
-    #[inline(always)]
     fn maybe_bump_ws(&mut self, pcx: &ParseContext) -> Option<()> {
         let mut res = false;
 
@@ -221,12 +218,82 @@ impl ParseState {
         Some(())
     }
 
-    /// list → "(" sexp* ")"
-    #[inline(always)]
+    /// list → Call | DefProc
+    ///
+    /// TODO: allow unit?
     fn always_list(&mut self, pcx: &ParseContext) {
-        self.builder.start_node(SyntaxKind::List.into());
-        self.bump_kind(pcx, SyntaxKind::LParen);
+        // We don't know the node kind yet, so let's wrap the tokens later
+        let checkpoint = self.builder.checkpoint();
 
+        self.bump_kind(pcx, SyntaxKind::LParen);
+        self.maybe_bump_ws(pcx);
+
+        let kind = match self.peek(pcx) {
+            Some(tk) if tk.kind == SyntaxKind::Ident && tk.slice(pcx.src) == "proc" => {
+                self.bump_kind(pcx, SyntaxKind::Ident);
+                SyntaxKind::DefProc
+            }
+            Some(tk) if tk.kind == SyntaxKind::Ident => {
+                self.bump_kind(pcx, SyntaxKind::Ident);
+                SyntaxKind::Call
+            }
+            Some(tk) => {
+                self.errs.push(ParseError::Unexpected {
+                    at: pcx.src.len(),
+                    expected: "<call or special form>".to_string(),
+                    found: format!("{:?}", tk.kind),
+                });
+
+                // FIXME: recovery on wrong form
+                return;
+            }
+            None => {
+                self.errs.push(ParseError::Unexpected {
+                    at: pcx.src.len(),
+                    expected: "<call or special form>".to_string(),
+                    found: "EoF".to_string(),
+                });
+
+                // FIXME: recovery on wrong form
+                return;
+            }
+        };
+
+        // Now we know the syntax kind: `DefProc`
+        // TODO: support more special forms
+        self.builder.start_node_at(checkpoint, kind.into());
+
+        // DefProc
+        loop {
+            if kind != SyntaxKind::DefProc {
+                break;
+            }
+            self.maybe_bump_ws(pcx);
+
+            // proc name
+            match self.peek(pcx) {
+                Some(tk) if tk.kind == SyntaxKind::Ident => {
+                    self.maybe_path_or_ident(pcx).unwrap();
+                }
+                _ => {
+                    break;
+                }
+            }
+
+            self.maybe_bump_ws(pcx);
+
+            // params
+            match self.peek(pcx) {
+                Some(tk) if tk.kind == SyntaxKind::LParen => {
+                    self.always_param(pcx);
+                }
+                _ => {}
+            }
+
+            break;
+        }
+
+        // list
         loop {
             self.maybe_bump_ws(pcx);
 
@@ -236,11 +303,38 @@ impl ParseState {
 
             if self.maybe_sx(pcx).is_none() {
                 self.errs.push(ParseError::Unexpected {
-                    // TODO: figure out why it's at this point
-                    // TODO: use span for error location
+                    // todo: figure out why it's at this point
+                    // todo: use span for error location
                     at: pcx.src.len(),
                     expected: ")".to_string(),
-                    found: "EoF".to_string(),
+                    found: "eof".to_string(),
+                });
+                break;
+            }
+        }
+
+        self.builder.finish_node();
+    }
+
+    fn always_param(&mut self, pcx: &ParseContext) {
+        self.builder.start_node(SyntaxKind::Params.into());
+
+        self.bump_kind(pcx, SyntaxKind::LParen);
+        // TODO: refactor duplicate loops
+        loop {
+            self.maybe_bump_ws(pcx);
+
+            if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_some() {
+                break;
+            }
+
+            if self.maybe_sx(pcx).is_none() {
+                self.errs.push(ParseError::Unexpected {
+                    // todo: figure out why it's at this point
+                    // todo: use span for error location
+                    at: pcx.src.len(),
+                    expected: ")".to_string(),
+                    found: "eof".to_string(),
                 });
                 break;
             }
@@ -260,7 +354,6 @@ impl ParseState {
     /// symbol → atom
     ///
     /// atom → ident | lit
-    #[inline(always)]
     fn try_symbol(&mut self, pcx: &ParseContext) -> bool {
         if self.maybe_symbol(pcx).is_some() {
             return true;
@@ -300,25 +393,33 @@ impl ParseState {
             0
         };
 
-        let cp = self.builder.checkpoint();
+        let checkpoint = self.builder.checkpoint();
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
 
         match self.peek(pcx) {
+            // path
             Some(tk) if matches!(tk.kind, SyntaxKind::Colon | SyntaxKind::Dot) => {}
             // ident
             _ => return Some(()),
         };
 
         // path
-        self.builder.start_node_at(cp, SyntaxKind::Path.into());
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Path.into());
 
         loop {
+            self.maybe_bump_ws(pcx);
+
+            // delimiter
             if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none()
                 && self.maybe_bump_kind(pcx, SyntaxKind::Dot).is_none()
             {
                 break;
             }
 
+            self.maybe_bump_ws(pcx);
+
+            // ident
             if self.maybe_bump_kind(pcx, SyntaxKind::Ident).is_none() {
                 let hi = match self.peek(pcx) {
                     Some(tk) => tk.sp.lo,
@@ -339,13 +440,11 @@ impl ParseState {
 
 /// Lower-level syntactic items
 impl ParseState {
-    #[inline(always)]
     fn maybe_ident(&mut self, pcx: &ParseContext) -> Option<()> {
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)
     }
 
     /// lit → num | str
-    #[inline(always)]
     fn maybe_lit(&mut self, pcx: &ParseContext) -> Option<()> {
         if self.maybe_bump_kind(pcx, SyntaxKind::Num).is_some() {
             return Some(());
@@ -358,32 +457,14 @@ impl ParseState {
         None
     }
 
-    #[inline(always)]
     fn maybe_str(&mut self, pcx: &ParseContext) -> Option<()> {
         let top = self.peek(pcx)?;
 
-        if top.kind != SyntaxKind::StrEnclosure {
+        if top.kind != SyntaxKind::String {
             return None;
         }
 
-        self.builder.start_node(SyntaxKind::String.into());
-
-        self.bump_kind(pcx, SyntaxKind::StrEnclosure);
-
-        let content = self.bump_kind(pcx, SyntaxKind::StrContent);
-        if self
-            .maybe_bump_kind(pcx, SyntaxKind::StrEnclosure)
-            .is_none()
-        {
-            self.errs.push(ParseError::UnterminatedString {
-                sp: ByteSpan {
-                    lo: content.sp.lo,
-                    hi: pcx.src.len(),
-                },
-            });
-        };
-
-        self.builder.finish_node();
+        self.bump_kind(pcx, SyntaxKind::String);
 
         Some(())
     }

@@ -24,13 +24,11 @@ I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice,
 
 I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs package in ELisp ({toy-scheme}), still I know little about Lisp. I'd have to struggle a lot.
 
-== Devlog
+== Devlog (initial approach)
 
-=== Initial approach
+This approach was soon abandoned. Compilation passes: source string → AST → bytecode.
 
-I believed toylisp would do this conversion: source string → AST → bytecode. It was soon to turn out there were better approaches.
-
-==== Lexer (tokenizer)
+=== Lexer (tokenizer)
 
 * Jun 9, 2021
 +
@@ -46,9 +44,9 @@ Just a note: nice resource from `rustc` dev guide: https://rustc-dev-guide.rust-
 
 * Jun 17, 2021
 +
-I parsed `Vec<Token>` into a hierarchy of tokens. I'm not sure if it's a good idea to stick with tokens and source string though; the API is already uncomfortable.
+I parsed `Vec<Token>` into a hierarchy of tokens. I'm not sure if it's good idea to stick with tokens and source string though; the API is already uncomfortable.
 
-==== Compiler and bytecode virtual machine
+=== Compiler and bytecode virtual machine
 
 * Jun 17, 2021
 +
@@ -56,27 +54,27 @@ I added a simple VM which can calculate arithmetics. It's a stack-based VM as on
 +
 I also added a simple compiler, which converts AST to bytecode. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
 
-=== Setting up frontend
+== Devlog
 
-I learned from `rust-analyzer`, especially {rowan} and reached another approach.
+I started to learn from {ra}.
+
+=== Setting up frontend
 
 ==== CST
 
-I want my ideal lang to be statically typed, and the parser should be IDE-oriented. toylisp is not that language, still it would be a great if I can learn from {ra}.
+I want my ideal lang to be statically typed, and the parser should be IDE-oriented. toylisp is not that language, still it would be great if I can learn from {ra}.
 
 * Jun 21, 2021
 +
 Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization: deduplication of subtree and use of thin pointers. I couldn't do better than that, so I decided to just use {rowan} instead of re-writing it.].
 +
-I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with _syntax kind_ s. One good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST even for invalid source text in toylisp grammer. I'll know other points of CST in later days.
+I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with _syntax kind_ s. One good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST even for invalid source text in toylisp grammer.
 +
-Today I parsed simple arithmetics into CST with {rowan}. I can't run the code yet.
+Today I parsed simple arithmetics into CST with {rowan}. I can't run the code yet (and for a while).
 
 * Jun 25, 2021
 +
-I added a WIP AST. In context of {rowan}, an AST node is just a wrapper around a CST node; it's just a subtree of CST with accessor methods.
-+
-I'll make an LSP server while developing `tlp`.
+I added a WIP AST. In context of {rowan}, an AST node is just a wrapper around a CST node with accessor methods; AST node is always backed by a CST node!
 
 ==== Language server and syntax highlighting (tree-sitter)
 
@@ -84,7 +82,7 @@ I'll develop both the language and a language server as the same time.
 
 * Jul 1, 2021
 +
-I'm making a simple language server using {tower-lsp}. The simple LS got connected to VSCode:
+I'm making a simple language server using {tower-lsp}. It got connected to VSCode:
 +
 image::devlog/ls-connected.png[]
 +
@@ -108,7 +106,7 @@ Summon EoF error!
 +
 image::devlog/ls-eof.png[]
 +
-There are lots more things to, such as syncing the buffers, but now the front-end development is ready, so many works can directly improve user experience. Let's become a toylisp user!
+There are lots more things to, such as syncing the buffers, but now the front-end development is ready, so many works can directly improve the user experience. Let's become a toylisp user!
 
 * Jul 11, 2021
 +
@@ -116,9 +114,9 @@ I hear _semantic tokens_ of language server can provide syntax highlighting _wit
 
 * Jul 17, 2021
 +
-According to the dev guide, rust-analyzer does the following passes: AST → marco-expanded AST (?) → name-resolved IR → type-resolved IR → HIR. While the conversions, RA uses some important patterns: interning, source map pattern and queries. They are (or will be) built around {salsa}.
+According to the dev guide, {ra} does the following passes: AST → marco-expanded AST (?) → name-resolved IR → type-resolved IR → HIR. While the conversions, RA uses some important patterns: interning, source map pattern and queries. They are (or will be) built around {salsa}.
 +
-I used to think making my own tool was straight-forward, but {rowan} already changed my mind; there are lightweight wizard's magic that works as a super nice framework. So I hope {salsa} is so, too.
+I used to think making my own tool was straight-forward, but {rowan} already changed my mind; there are lightweight wizard's magic that works as a super nice framework. So I expect the same thing for {salsa}, too.
 +
 By the way, this is line counts of `rust-analyzer`;
 +
@@ -160,5 +158,7 @@ vfs              881
 vfs-notify       219
 ----
 ====
-+
-`hir_def` does name resolution (iiuc).
+
+=== salsa-based HIR
+
+{salsa} is an incremental computation framework, written in less than 4000 lines of code. It also provides with interning implementation.

@@ -1,11 +1,11 @@
 /*!
-Stream of tokens
+Lexer or otkenizer
 */
 
 use thiserror::Error;
 
 use crate::syntax::{
-    cst::data::SyntaxKind,
+    cst::SyntaxKind,
     span::{ByteSpan, TextPos},
 };
 
@@ -13,6 +13,7 @@ use crate::syntax::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: SyntaxKind,
+    /// I wonder if `&str` is better
     pub sp: ByteSpan,
 }
 
@@ -22,12 +23,15 @@ impl Token {
     }
 }
 
+// TODO: try ariadne
+
 /// Error type accumulated while lexing
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum LexError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
+    // TODO: while what?
     #[error("Unexpected end of file")]
     Eof { at: TextPos },
 }
@@ -55,13 +59,16 @@ pub fn from_str<'s>(src: &'s str) -> (Vec<Token>, Vec<LexError>) {
 /// Stateful lexer that converts given string into simple [`Token`] s
 #[derive(Debug)]
 struct Lexer<'s> {
+    /// We treat the UTF-8 source string as bytes. This is valid since we're only interested in
+    /// ASCII characteres while lexing, and all of them are single byte. Single byte characters in
+    /// UTF-8 are all a byte starting with `0`.
     src: &'s [u8],
     sp: ByteSpan,
     tks: Vec<Token>,
     errs: Vec<LexError>,
 }
 
-#[inline(always)]
+/// Is trivia
 fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t')
 }
@@ -72,28 +79,23 @@ fn is_symbol(c: u8) -> bool {
 }
 
 /// [0-9] | -
-#[inline(always)]
 fn is_num_start(c: u8) -> bool {
     !(c < b'0' || b'9' < c) || c == b'-'
 }
 
 /// [0-9] | . | E | _
-#[inline(always)]
 fn is_num_body(c: u8) -> bool {
-    !(c < b'0' || b'9' < c) || matches!(c, b'.' | b'E' | b'_')
+    !(c < b'0' || b'9' < c) || matches!(c, b'.' | b'e' | b'E' | b'_' | b'-')
 }
 
-#[inline(always)]
 fn is_ident_body(c: u8) -> bool {
     !(is_ws(c) || is_symbol(c) || c == b'"')
 }
 
-#[inline(always)]
 fn is_ident_start(c: u8) -> bool {
     is_ident_body(c) && !is_num_start(c) && !is_symbol(c)
 }
 
-#[inline(always)]
 fn tk_byte(c: u8) -> Option<SyntaxKind> {
     let kind = match c {
         b'(' => SyntaxKind::LParen,
@@ -106,6 +108,7 @@ fn tk_byte(c: u8) -> Option<SyntaxKind> {
     Some(kind)
 }
 
+/// Lexing utilities
 impl<'s> Lexer<'s> {
     fn consume_span(&mut self) -> ByteSpan {
         let sp = self.sp.clone();
@@ -118,13 +121,7 @@ impl<'s> Lexer<'s> {
         Token { kind, sp }
     }
 
-    fn push_span_as(&mut self, kind: SyntaxKind) {
-        let tk = self.consume_span_as(kind);
-        self.tks.push(tk);
-    }
-
     /// The predicate returns if we should continue scanning reading a byte
-    #[inline(always)]
     fn advance_if(&mut self, p: impl Fn(u8) -> bool) -> Option<()> {
         if self.sp.hi >= self.src.len() {
             return None;
@@ -141,7 +138,6 @@ impl<'s> Lexer<'s> {
     }
 
     /// The predicate returns if we should continue scanning reading a byte
-    #[inline(always)]
     fn advance_while(&mut self, p: impl Fn(u8) -> bool) {
         while self.sp.hi < self.src.len() {
             let peek = self.src[self.sp.hi];
@@ -154,7 +150,6 @@ impl<'s> Lexer<'s> {
         }
     }
 
-    #[inline(always)]
     fn advance_until(&mut self, p: impl Fn(u8) -> bool) {
         while self.sp.hi < self.src.len() {
             let peek = self.src[self.sp.hi];
@@ -167,6 +162,18 @@ impl<'s> Lexer<'s> {
     }
 }
 
+macro_rules! apply_syntax {
+    ($obj:ident, $syn:tt) => {
+        if let Some(tk) = $obj.$syn() {
+            $obj.tks.push(tk);
+            return;
+        }
+    };
+    ($obj:ident, $($syn:tt),* $(,)?) => {
+        $(apply_syntax!($obj, $syn);)*
+    };
+}
+
 impl<'s> Lexer<'s> {
     pub fn run(mut self) -> (Vec<Token>, Vec<LexError>) {
         while self.sp.lo < self.src.len() {
@@ -176,70 +183,25 @@ impl<'s> Lexer<'s> {
         (self.tks, self.errs)
     }
 
-    #[inline(always)]
+    /// Processes one token/node and stores those tokens in `self.tks`
     fn process_forward(&mut self) {
-        if let Some(tk) = self.lex_one_byte() {
-            self.tks.push(tk);
-            return;
-        }
-
-        if let Some(tk) = self.lex_comment() {
-            self.tks.push(tk);
-            return;
-        }
-
-        if let Some(tk) = self.lex_ws() {
-            self.tks.push(tk);
-            return;
-        }
-
-        if let Some(tk) = self.lex_num() {
-            self.tks.push(tk);
-            return;
-        }
-
-        if let Some(()) = self.process_str() {
-            return;
-        }
-
-        if let Some(mut tk) = self.lex_ident() {
-            // override the token kind with reserved keyword tokens
-            let s: &str = unsafe { std::str::from_utf8_unchecked(self.src) };
-            match tk.sp.slice(s) {
-                "true" => {
-                    tk.kind = SyntaxKind::True;
-                }
-                "false" => {
-                    tk.kind = SyntaxKind::False;
-                }
-                "nil" => {
-                    tk.kind = SyntaxKind::Nil;
-                }
-                _ => {}
-            }
-
-            self.tks.push(tk);
-            return;
-        }
+        apply_syntax!(
+            self,
+            lex_one_byte,
+            lex_comment,
+            lex_ws,
+            lex_num,
+            lex_str,
+            lex_ident_or_kwd,
+        );
 
         unreachable!("lex error at span {:?}", self.sp);
     }
 }
 
-/// Utilities
+/// Syntax utilities
 impl<'s> Lexer<'s> {
-    #[inline(always)]
-    fn lex_one_byte(&mut self) -> Option<Token> {
-        let c = self.src[self.sp.hi];
-
-        if let Some(kind) = self::tk_byte(c) {
-            self.sp.hi += 1;
-            Some(self.consume_span_as(kind))
-        } else {
-            None
-        }
-    }
-
+    /// Lexes tokens in syntax `Start Body*`
     fn lex_syntax(
         &mut self,
         start: impl Fn(u8) -> bool,
@@ -252,15 +214,26 @@ impl<'s> Lexer<'s> {
     }
 }
 
-/// Lexing syntax
+/// Syntaxes (&mut self → Option<Token>)
 impl<'s> Lexer<'s> {
-    #[inline(always)]
+    /// Byte token such as parentheses
+    fn lex_one_byte(&mut self) -> Option<Token> {
+        let c = self.src[self.sp.hi];
+
+        if let Some(kind) = self::tk_byte(c) {
+            self.sp.hi += 1;
+            Some(self.consume_span_as(kind))
+        } else {
+            None
+        }
+    }
+
+    /// Trivia
     fn lex_ws(&mut self) -> Option<Token> {
         self.lex_syntax(&self::is_ws, &self::is_ws, SyntaxKind::Ws)
     }
 
     /// Any kind of comment (oneline/multiline, normal/docstring)
-    #[inline(always)]
     fn lex_comment(&mut self) -> Option<Token> {
         self.advance_if(|b| b == b';')?;
         self.advance_until(|b| b == b'\n');
@@ -268,34 +241,66 @@ impl<'s> Lexer<'s> {
     }
 
     /// [0-9]<num>*
-    #[inline(always)]
     fn lex_num(&mut self) -> Option<Token> {
-        self.lex_syntax(self::is_num_start, self::is_num_body, SyntaxKind::Num)
+        self.advance_if(self::is_num_start)?;
+        while self.sp.hi < self.src.len() {
+            let b = self.src[self.sp.hi];
+
+            // consider method call
+            if b == b'.' {
+                let peek = self.sp.hi + 1;
+                if peek < self.src.len() && !self::is_num_body(self.src[peek]) {
+                    break;
+                }
+            }
+
+            if !self::is_num_body(b) {
+                break;
+            }
+
+            self.sp.hi += 1;
+        }
+        Some(self.consume_span_as(SyntaxKind::Num))
     }
 
     /// "[^"]*"
-    #[inline(always)]
-    fn process_str(&mut self) -> Option<()> {
+    fn lex_str(&mut self) -> Option<Token> {
         self.advance_if(|b| b == b'"')?;
-        self.push_span_as(SyntaxKind::StrEnclosure);
-
         self.advance_while(|b| b != b'"');
-        // always push the span as content even if it's empty
-        self.push_span_as(SyntaxKind::StrContent);
-
-        if self.advance_if(|b| b == b'"').is_some() {
-            self.push_span_as(SyntaxKind::StrEnclosure);
-        } else {
+        if self.advance_if(|b| b == b'"').is_none() {
             self.errs.push(LexError::Eof { at: self.src.len() });
-            self.consume_span();
+            // No early return; allow non-terminated string at EoF
         }
 
-        Some(())
+        Some(self.consume_span_as(SyntaxKind::String))
     }
 
     /// [^<ws>]*
-    #[inline(always)]
-    fn lex_ident(&mut self) -> Option<Token> {
-        self.lex_syntax(self::is_ident_start, self::is_ident_body, SyntaxKind::Ident)
+    fn lex_ident_or_kwd(&mut self) -> Option<Token> {
+        let mut tk = lex_ident(self)?;
+
+        // If it's a keyword, override the syntax kind
+        let s: &str = unsafe { std::str::from_utf8_unchecked(self.src) };
+        if let Some(kind) = parse_kwd(s) {
+            tk.kind = kind;
+        }
+
+        return Some(tk);
+
+        /// [^<ws>]*
+        fn lex_ident(me: &mut Lexer) -> Option<Token> {
+            me.lex_syntax(self::is_ident_start, self::is_ident_body, SyntaxKind::Ident)
+        }
+
+        fn parse_kwd(kwd: &str) -> Option<SyntaxKind> {
+            Some(match kwd {
+                "true" => SyntaxKind::True,
+                "false" => SyntaxKind::False,
+                "nil" => SyntaxKind::Nil,
+                _ => {
+                    return None;
+                }
+            })
+        }
     }
 }

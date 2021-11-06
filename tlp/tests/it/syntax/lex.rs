@@ -1,7 +1,7 @@
 use tlp::syntax::{
     cst::{
-        data::SyntaxKind,
         lex::{self, Token},
+        SyntaxKind,
     },
     span::ByteSpan,
 };
@@ -125,16 +125,8 @@ fn string() {
                 sp: ByteSpan { lo: 0, hi: 1 },
             },
             Token {
-                kind: SyntaxKind::StrEnclosure,
-                sp: ByteSpan { lo: 1, hi: 2 },
-            },
-            Token {
-                kind: SyntaxKind::StrContent,
-                sp: ByteSpan { lo: 2, hi: 6 },
-            },
-            Token {
-                kind: SyntaxKind::StrEnclosure,
-                sp: ByteSpan { lo: 6, hi: 7 },
+                kind: SyntaxKind::String,
+                sp: ByteSpan { lo: 1, hi: 7 },
             },
             Token {
                 kind: SyntaxKind::RParen,
