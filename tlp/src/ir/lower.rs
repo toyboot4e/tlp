@@ -17,7 +17,7 @@ use crate::{
             vfs::*,
         },
     },
-    syntax::ast::data as ast,
+    syntax::ast,
 };
 
 use super::data::decl::Visibility;

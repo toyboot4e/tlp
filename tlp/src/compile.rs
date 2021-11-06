@@ -4,7 +4,7 @@ Compiler (HIR → bytecode)
 
 use thiserror::Error;
 
-use crate::{syntax::ast::data::*, vm::data::Chunk};
+use crate::{syntax::ast::*, vm::data::Chunk};
 
 type Result<T, E = CompileError> = std::result::Result<T, E>;
 

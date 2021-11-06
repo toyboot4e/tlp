@@ -4,7 +4,7 @@ Syntactic validation of AST
 
 use thiserror::Error;
 
-use crate::syntax::{ast::data::*, cst::data::*, span::*};
+use crate::syntax::{ast::*, cst::*, span::*};
 
 #[derive(Debug, Clone, Error)]
 pub enum SyntaxError {

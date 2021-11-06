@@ -2,10 +2,7 @@
 Run all test cases in `cst/cases.txt` (on `cargo test`)
 */
 
-use tlp::syntax::cst::{
-    self,
-    data::{SyntaxElement, SyntaxNode},
-};
+use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
 use crate::syntax::utils::{self, Test, TestError};
 
@@ -45,7 +42,7 @@ fn display(cst: &SyntaxNode) -> String {
 }
 
 fn run_test(test: Test) -> Result<(), TestError> {
-    let (cst, errs) = cst::parse::from_str(&test.code);
+    let (cst, errs) = cst::parse_str(&test.code);
 
     if !errs.is_empty() {
         let s = errs

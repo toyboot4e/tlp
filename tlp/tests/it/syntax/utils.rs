@@ -2,9 +2,9 @@
 Common utilities for tests
 */
 
-use std::fmt::{self, Write};
+use std::fmt::{self};
 
-use tlp::syntax::cst::{self, data::SyntaxElement, parse::ParseError};
+use tlp::syntax::cst::{self, ParseError, SyntaxElement};
 
 #[derive(Debug, Clone)]
 pub struct Test {

@@ -1,7 +1,7 @@
 use tlp::syntax::{
     cst::{
-        data::SyntaxKind,
         lex::{self, Token},
+        SyntaxKind,
     },
     span::ByteSpan,
 };

@@ -5,7 +5,7 @@ Lexer or otkenizer
 use thiserror::Error;
 
 use crate::syntax::{
-    cst::data::SyntaxKind,
+    cst::SyntaxKind,
     span::{ByteSpan, TextPos},
 };
 

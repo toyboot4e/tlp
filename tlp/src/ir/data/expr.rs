@@ -8,7 +8,7 @@ use la_arena::Idx;
 
 use crate::{
     ir::data::decl::Name,
-    syntax::ast::data::{self as ast, AstToken},
+    syntax::ast::{self, AstToken},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

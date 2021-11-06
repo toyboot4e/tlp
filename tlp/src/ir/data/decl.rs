@@ -9,7 +9,7 @@ use smol_str::SmolStr;
 
 use crate::{
     ir::db::vfs::*,
-    syntax::{ast::data as ast, cst::data::SyntaxToken},
+    syntax::{ast, cst::SyntaxToken},
 };
 
 /// Upcast of module item IDs

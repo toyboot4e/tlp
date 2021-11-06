@@ -8,8 +8,8 @@ use thiserror::Error;
 
 use crate::syntax::{
     cst::{
-        data::{SyntaxKind, SyntaxNode},
         lex::{self, LexError, Token},
+        SyntaxKind, SyntaxNode,
     },
     span::{ByteLocation, ByteSpan, TextPos},
 };
@@ -79,7 +79,7 @@ impl fmt::Display for ParseErrorWithLocation {
 
 /// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
 /// grammer.
-pub fn from_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
+pub fn parse_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
     let (tks, lex_errs) = lex::from_str(src);
 
     let (tree, mut errs) = self::from_tks(src, &tks);

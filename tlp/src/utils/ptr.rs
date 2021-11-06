@@ -9,8 +9,8 @@ use std::{
 };
 
 use crate::syntax::{
-    ast::data::AstNode,
-    cst::data::{SyntaxKind, SyntaxNode, TextRange},
+    ast::AstNode,
+    cst::{SyntaxKind, SyntaxNode, TextRange},
 };
 
 /// A pointer to a syntax node inside a file. It can be used to remember a
