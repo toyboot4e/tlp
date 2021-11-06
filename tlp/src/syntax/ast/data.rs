@@ -1,3 +1,5 @@
+//! TODO: Consider if we can remove `SyntaxElement`
+
 use crate::syntax::cst::data::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
 
 const STR_PROC: &'static str = "proc";
@@ -21,6 +23,8 @@ pub trait AstToken: Sized {
 }
 
 /// Semantic element casted from syntax element
+///
+/// RA doesn't have this trait.
 pub trait AstElement: Sized {
     /// Method for "syntax pointers"
     fn can_cast(kind: SyntaxKind) -> bool;
@@ -359,75 +363,47 @@ pub enum LiteralKind {
     Bool(bool),
 }
 
-/// Untyped, not validated number type (integers and floats)
-#[derive(Debug, Clone, PartialEq)]
-pub struct Num {
-    pub(crate) syn: SyntaxToken,
-}
-
-impl AstToken for Num {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        kind == SyntaxKind::Num
-    }
-
-    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-        if syn.kind() == SyntaxKind::Num {
-            Some(Self { syn })
-        } else {
-            None
+macro_rules! def_tk {
+    ($name:ident, $kind:path $(| $kind2:path)*, $doc:expr) => {
+        #[derive(Debug, Clone, PartialEq)]
+        #[doc = $doc]
+        pub struct $name {
+            pub(crate) syn: SyntaxToken,
         }
-    }
 
-    fn syntax(&self) -> &SyntaxToken {
-        &self.syn
-    }
-}
+        impl AstToken for $name {
+            fn can_cast(kind: SyntaxKind) -> bool {
+                matches!(kind, $kind $(| $kind2)*)
+            }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Str {
-    pub(crate) syn: SyntaxToken,
-}
+            fn cast_tk(syn: SyntaxToken) -> Option<Self> {
+                if matches!(syn.kind(), $kind $(| $kind2)*) {
+                    Some(Self { syn })
+                } else {
+                    None
+                }
+            }
 
-impl AstToken for Str {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        kind == SyntaxKind::String
-    }
-
-    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-        if syn.kind() == SyntaxKind::String {
-            Some(Self { syn })
-        } else {
-            None
+            fn syntax(&self) -> &SyntaxToken {
+                &self.syn
+            }
         }
-    }
-
-    fn syntax(&self) -> &SyntaxToken {
-        &self.syn
-    }
+    };
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Bool {
-    pub(crate) syn: SyntaxToken,
-}
+def_tk!(
+    Num,
+    SyntaxKind::Num,
+    "Untyped, not validated number type (integers and floats)"
+);
 
-impl AstToken for Bool {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        matches!(kind, SyntaxKind::True | SyntaxKind::False)
-    }
+def_tk!(
+    Str,
+    SyntaxKind::String,
+    "String, including the surroundings"
+);
 
-    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-        match syn.kind() {
-            SyntaxKind::True => Some(Self { syn }),
-            SyntaxKind::False => Some(Self { syn }),
-            _ => None,
-        }
-    }
-
-    fn syntax(&self) -> &SyntaxToken {
-        &self.syn
-    }
-}
+def_tk!(Bool, SyntaxKind::True | SyntaxKind::False, "true | false");
 
 impl Bool {
     pub fn truthy(&self) -> bool {
