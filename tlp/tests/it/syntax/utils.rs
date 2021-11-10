@@ -38,7 +38,7 @@ impl fmt::Display for TestError {
 pub fn collect_tests(src: &str) -> Vec<Test> {
     let mut chunks = {
         // 40 hyphens
-        let delim = "----------------------------------------";
+        let delim = r#"\n----------------------------------------\n"#;
         src.split(delim)
     };
 
@@ -52,7 +52,8 @@ pub fn collect_tests(src: &str) -> Vec<Test> {
         // TODO: use slice
         let mut header = header
             .lines()
-            .skip_while(|ln| ln.starts_with("//") || is_ws(ln));
+            .filter(|ln| ln.starts_with("//"))
+            .skip_while(|ln| is_ws(ln));
 
         let title = header.next().unwrap();
         let code = header.collect::<Vec<&str>>().join("\n");
