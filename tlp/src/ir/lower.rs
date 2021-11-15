@@ -45,8 +45,8 @@ impl ItemTreeCollect {
 
     fn collect(&mut self, forms: impl Iterator<Item = ast::Form>) {
         for form in forms {
-            match form {
-                ast::Form::DefProc(ast_proc) => {
+            match form.kind() {
+                ast::FormKind::DefProc(ast_proc) => {
                     let hir_proc = self.lower_proc(ast_proc);
                     self.tree.procs.alloc(hir_proc);
                     continue;
@@ -91,7 +91,10 @@ impl ModCollector {
         let mut scope = ItemScope::default();
 
         for (id, proc) in item_tree.procs().iter() {
-            let name = proc.name.clone();
+            let name = match &proc.name {
+                Some(name) => name.clone(),
+                None => continue,
+            };
 
             let id = db.intern_proc(Loc {
                 tree: self.tree_id,
@@ -114,7 +117,10 @@ pub(crate) fn proc_data_query(
     let proc = &tree[proc_loc.item];
 
     Arc::new(def::ProcData {
-        name: proc.name.clone(),
+        name: proc
+            .name
+            .clone()
+            .unwrap_or_else(|| decl::Name::from_str("<no-name-proc>")),
     })
 }
 
@@ -159,30 +165,30 @@ impl<'a> LowerExpr<'a> {
     fn lower_proc_body(&mut self, proc: ast::DefProc) {
         // TODO: Consider block modifier (e.g. coroutines)
 
-        for form in proc.body_forms() {
-            self.lower_expr(form);
+        if let Some(body) = proc.body() {
+            for form in body.forms() {
+                self.lower_form(form);
+            }
         }
     }
 
     /// Allocates an expression making up the AST-HIR map. The separation of the source text from
     /// the HIR is helpful to not recompute on syntax changes that do not affect the HIR.
-    fn lower_expr(&mut self, form: ast::Form) -> Idx<Expr> {
+    fn lower_form(&mut self, form: ast::Form) -> Idx<Expr> {
         // TODO: cast AST node to a syntax pointer in order to make up the AST-HIR map
-        match form {
-            ast::Form::DefProc(_proc) => todo!("nested procedure"),
-            ast::Form::Call(_call) => {
+        match form.kind() {
+            ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
+            ast::FormKind::Call(_call) => {
                 todo!("function call");
             }
-            ast::Form::Atom(atom) => match atom {
-                ast::Atom::Literal(lit) => match lit {
-                    ast::Literal::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
-                    ast::Literal::Str(_str) => {
-                        todo!()
-                    }
-                    ast::Literal::Bool(_bool) => {
-                        todo!()
-                    }
-                },
+            ast::FormKind::Literal(lit) => match lit.kind() {
+                ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
+                ast::LiteralKind::Str(_str) => {
+                    todo!()
+                }
+                ast::LiteralKind::True(_) | ast::LiteralKind::False(_) => {
+                    todo!()
+                }
             },
         }
     }

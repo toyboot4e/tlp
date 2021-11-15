@@ -62,7 +62,7 @@ pub enum SyntaxKind {
     /// `)`
     RParen,
     /// String token, including the enclosures
-    String,
+    Str,
     /// `:`
     Colon,
     /// `.`
@@ -81,14 +81,20 @@ pub enum SyntaxKind {
     Comment,
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
+    /// Literal node
+    Literal,
     /// Path node
     Path,
     /// Call node
     Call,
     /// DefProc node
     DefProc,
+    /// DefProc proc name node
+    ProcName,
     /// Procedure parameter list
     Params,
+    /// A single procedure parameter
+    Param,
     /// Procedure body node
     Body,
     // ----------------------------------------

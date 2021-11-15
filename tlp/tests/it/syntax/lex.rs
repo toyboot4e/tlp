@@ -125,7 +125,7 @@ fn string() {
                 sp: ByteSpan { lo: 0, hi: 1 },
             },
             Token {
-                kind: SyntaxKind::String,
+                kind: SyntaxKind::Str,
                 sp: ByteSpan { lo: 1, hi: 7 },
             },
             Token {

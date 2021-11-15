@@ -272,7 +272,7 @@ impl<'s> Lexer<'s> {
             // No early return; allow non-terminated string at EoF
         }
 
-        Some(self.consume_span_as(SyntaxKind::String))
+        Some(self.consume_span_as(SyntaxKind::Str))
     }
 
     /// [^<ws>]*

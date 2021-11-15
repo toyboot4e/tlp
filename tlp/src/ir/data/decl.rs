@@ -7,10 +7,7 @@ use std::ops;
 use la_arena::{Arena, Idx};
 use smol_str::SmolStr;
 
-use crate::{
-    ir::db::vfs::*,
-    syntax::{ast, cst::SyntaxToken},
-};
+use crate::{ir::db::vfs::*, syntax::ast};
 
 /// Upcast of module item IDs
 pub enum ItemDecl {
@@ -55,12 +52,6 @@ pub struct Name {
 impl Name {
     pub fn from_str(s: &str) -> Self {
         Self { data: s.into() }
-    }
-
-    pub fn from_tk(syn: SyntaxToken) -> Self {
-        Self {
-            data: SmolStr::from(syn.text()),
-        }
     }
 
     pub fn as_str(&self) -> &str {
@@ -115,7 +106,9 @@ impl ProcParams {
     pub fn from_ast(ast: ast::Params) -> Self {
         let mut params = Vec::new();
 
-        for tk in ast.param_tks() {
+        for param in ast.param_nodes() {
+            // assuming that parameter = identifier
+            let tk = param.token();
             let text = tk.text();
             params.push(Param {
                 name: Name::from_str(text),
@@ -129,7 +122,7 @@ impl ProcParams {
 /// Procedure definition
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DefProc {
-    pub(crate) name: Name,
+    pub(crate) name: Option<Name>,
     pub(crate) params: ProcParams,
     // pub vis: Visibility,
     // pub ret_ty: TypeRefId,
@@ -138,7 +131,7 @@ pub struct DefProc {
 
 impl DefProc {
     pub fn from_ast(ast: ast::DefProc) -> Self {
-        let name = Name::from_tk(ast.name_tk());
+        let name = ast.name().map(|name| Name::from_str(name.token().text()));
 
         let params = match ast.params() {
             Some(ast) => ProcParams::from_ast(ast),
@@ -148,8 +141,8 @@ impl DefProc {
         Self { name, params, ast }
     }
 
-    pub fn name(&self) -> &Name {
-        &self.name
+    pub fn name(&self) -> Option<&Name> {
+        self.name.as_ref()
     }
 
     pub fn params(&self) -> &ProcParams {

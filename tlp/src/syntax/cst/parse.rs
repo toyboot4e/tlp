@@ -163,6 +163,12 @@ impl ParseState {
         tk
     }
 
+    fn bump_as_node<'pcx>(&mut self, pcx: &'pcx ParseContext, node_kind: SyntaxKind) {
+        self.builder.start_node(node_kind.into());
+        self.bump(pcx);
+        self.builder.finish_node();
+    }
+
     fn bump_kind<'pcx>(&mut self, pcx: &'pcx ParseContext, kind: SyntaxKind) -> &'pcx Token {
         assert_eq!(self.peek(pcx).map(|t| t.kind), Some(kind));
         self.bump(pcx)
@@ -183,6 +189,7 @@ impl ParseState {
 
         loop {
             let bump = self
+                // TODO: use matches!
                 .maybe_bump_kind(pcx, SyntaxKind::Ws)
                 .or_else(|| self.maybe_bump_kind(pcx, SyntaxKind::Comment))
                 .is_some();
@@ -190,15 +197,9 @@ impl ParseState {
             if bump {
                 res = true;
                 continue;
+            } else {
+                break if res { Some(()) } else { None };
             }
-
-            break;
-        }
-
-        if res {
-            Some(())
-        } else {
-            None
         }
     }
 }
@@ -228,7 +229,7 @@ impl ParseState {
         self.bump_kind(pcx, SyntaxKind::LParen);
         self.maybe_bump_ws(pcx);
 
-        let kind = match self.peek(pcx) {
+        let node_kind = match self.peek(pcx) {
             Some(tk) if tk.kind == SyntaxKind::Ident && tk.slice(pcx.src) == "proc" => {
                 self.bump_kind(pcx, SyntaxKind::Ident);
                 SyntaxKind::DefProc
@@ -259,46 +260,102 @@ impl ParseState {
             }
         };
 
-        // Now we know the syntax kind: `DefProc`
-        // TODO: support more special forms
-        self.builder.start_node_at(checkpoint, kind.into());
+        // wrap the `Call` or `DefProc` node
+        self.builder.start_node_at(checkpoint, node_kind.into());
 
-        // DefProc
+        // maybe proc name and parameters
+        if node_kind == SyntaxKind::DefProc {
+            // start `Body` node
+            self._to_proc_param(pcx);
+        }
+
+        // maybe other list items
+        let found_rparen = self._up_to_end_paren(pcx).is_some();
+        if node_kind == SyntaxKind::DefProc {
+            // end `Body` node
+            self.builder.finish_node();
+        }
+
+        if found_rparen {
+            self.bump_kind(pcx, SyntaxKind::RParen);
+        }
+        // end `Call` or `DefProc`
+        self.builder.finish_node();
+    }
+
+    /// Parses params and starts proc body
+    fn _to_proc_param(&mut self, pcx: &ParseContext) {
+        self.maybe_bump_ws(pcx);
+
+        // proc name
+        if let Some(tk) = self.peek(pcx) {
+            if tk.kind == SyntaxKind::Ident {
+                self.builder.start_node(SyntaxKind::ProcName.into());
+                self.maybe_ident(pcx);
+                self.builder.finish_node();
+            }
+        } else {
+            self.builder.start_node(SyntaxKind::Body.into());
+            return;
+        }
+
+        self.maybe_bump_ws(pcx);
+
+        // params
+        if let Some(tk) = self.peek(pcx) {
+            if tk.kind == SyntaxKind::LParen {
+                self._proc_params(pcx);
+                self.maybe_bump_ws(pcx);
+            }
+        }
+
+        self.builder.start_node(SyntaxKind::Body.into());
+    }
+
+    fn _proc_params(&mut self, pcx: &ParseContext) {
+        self.builder.start_node(SyntaxKind::Params.into());
+        self.bump_kind(pcx, SyntaxKind::LParen);
+
         loop {
-            if kind != SyntaxKind::DefProc {
+            self.maybe_bump_ws(pcx);
+
+            if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_some() {
                 break;
             }
-            self.maybe_bump_ws(pcx);
 
-            // proc name
             match self.peek(pcx) {
                 Some(tk) if tk.kind == SyntaxKind::Ident => {
-                    self.maybe_path_or_ident(pcx).unwrap();
-                }
-                _ => {
-                    break;
-                }
-            }
-
-            self.maybe_bump_ws(pcx);
-
-            // params
-            match self.peek(pcx) {
-                Some(tk) if tk.kind == SyntaxKind::LParen => {
-                    self.always_param(pcx);
+                    self.bump_as_node(pcx, SyntaxKind::Param);
+                    continue;
                 }
                 _ => {}
             }
 
-            break;
+            self.errs.push(ParseError::Unexpected {
+                // todo: figure out why it's at this point
+                // todo: use span for error location
+                at: pcx.src.len(),
+                expected: ")".to_string(),
+                found: "eof".to_string(),
+            });
+
+            // consume the syntax
+            self.maybe_sx(pcx);
         }
 
-        // list
+        self.builder.finish_node();
+    }
+
+    /// Sexp* ")"
+    ///
+    /// Advances until it peeks a right paren. Returns if the end of the list was found.
+    fn _up_to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
         loop {
             self.maybe_bump_ws(pcx);
 
-            if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_some() {
-                break;
+            let peek = self.peek(pcx)?;
+            if peek.kind == SyntaxKind::RParen {
+                return Some(());
             }
 
             if self.maybe_sx(pcx).is_none() {
@@ -309,56 +366,18 @@ impl ParseState {
                     expected: ")".to_string(),
                     found: "eof".to_string(),
                 });
-                break;
+                return None;
             }
-        }
-
-        self.builder.finish_node();
-    }
-
-    fn always_param(&mut self, pcx: &ParseContext) {
-        self.builder.start_node(SyntaxKind::Params.into());
-
-        self.bump_kind(pcx, SyntaxKind::LParen);
-        // TODO: refactor duplicate loops
-        loop {
-            self.maybe_bump_ws(pcx);
-
-            if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_some() {
-                break;
-            }
-
-            if self.maybe_sx(pcx).is_none() {
-                self.errs.push(ParseError::Unexpected {
-                    // todo: figure out why it's at this point
-                    // todo: use span for error location
-                    at: pcx.src.len(),
-                    expected: ")".to_string(),
-                    found: "eof".to_string(),
-                });
-                break;
-            }
-        }
-
-        self.builder.finish_node();
-    }
-
-    fn maybe_symbol(&mut self, pcx: &ParseContext) -> Option<()> {
-        if self.maybe_path_or_ident(pcx).is_some() || self.maybe_lit(pcx).is_some() {
-            Some(())
-        } else {
-            None
         }
     }
 
     /// symbol → atom
-    ///
-    /// atom → ident | lit
     fn try_symbol(&mut self, pcx: &ParseContext) -> bool {
         if self.maybe_symbol(pcx).is_some() {
             return true;
         }
 
+        // emit error
         match self.peek(pcx) {
             Some(tk) => {
                 self.errs.push(ParseError::Unexpected {
@@ -367,7 +386,7 @@ impl ParseState {
                     found: format!("{:?}", tk),
                 });
 
-                // NOTE: Discard this symbol so that we won't enter infinite loop
+                // Discard this token so that we won't enter infinite loop
                 self.tsp.hi += 1;
                 self.tsp.lo = self.tsp.hi;
             }
@@ -381,6 +400,14 @@ impl ParseState {
         };
 
         return false;
+    }
+
+    fn maybe_symbol(&mut self, pcx: &ParseContext) -> Option<()> {
+        if self.maybe_path_or_ident(pcx).is_some() || self.maybe_atom(pcx).is_some() {
+            Some(())
+        } else {
+            None
+        }
     }
 
     /// path → ident ( (:|.)+ ident )*
@@ -436,6 +463,15 @@ impl ParseState {
         self.builder.finish_node();
         return Some(());
     }
+
+    /// atom → liteal
+    fn maybe_atom(&mut self, pcx: &ParseContext) -> Option<()> {
+        if let Some(()) = self.maybe_lit(pcx) {
+            return Some(());
+        }
+
+        None
+    }
 }
 
 /// Lower-level syntactic items
@@ -444,27 +480,42 @@ impl ParseState {
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)
     }
 
-    /// lit → num | str
+    /// literal → num | str
     fn maybe_lit(&mut self, pcx: &ParseContext) -> Option<()> {
-        if self.maybe_bump_kind(pcx, SyntaxKind::Num).is_some() {
-            return Some(());
-        }
+        self.maybe_bump_ws(pcx);
 
-        if self.maybe_str(pcx).is_some() {
-            return Some(());
-        }
+        let checkpoint = self.builder.checkpoint();
 
-        None
+        let wrap = loop {
+            if self.maybe_bump_kind(pcx, SyntaxKind::Num).is_some() {
+                break true;
+            }
+
+            if self.maybe_str(pcx).is_some() {
+                break true;
+            }
+
+            break false;
+        };
+
+        if wrap {
+            self.builder
+                .start_node_at(checkpoint, SyntaxKind::Literal.into());
+            self.builder.finish_node();
+            Some(())
+        } else {
+            None
+        }
     }
 
     fn maybe_str(&mut self, pcx: &ParseContext) -> Option<()> {
         let top = self.peek(pcx)?;
 
-        if top.kind != SyntaxKind::String {
+        if top.kind != SyntaxKind::Str {
             return None;
         }
 
-        self.bump_kind(pcx, SyntaxKind::String);
+        self.bump_kind(pcx, SyntaxKind::Str);
 
         Some(())
     }

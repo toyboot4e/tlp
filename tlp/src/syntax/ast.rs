@@ -57,6 +57,141 @@ pub trait AstElement: Sized {
     fn syntax(&self) -> SyntaxElement;
 }
 
+macro_rules! def_node {
+    ($name:ident, $pred:expr, $doc:expr) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[doc = $doc]
+        pub struct $name {
+            pub(crate) syn: SyntaxNode,
+        }
+
+        impl AstNode for $name {
+            fn can_cast(kind: SyntaxKind) -> bool {
+                ($pred)(kind)
+            }
+
+            fn cast_node(syn: SyntaxNode) -> Option<Self> {
+                if Self::can_cast(syn.kind()) {
+                    Some(Self { syn })
+                } else {
+                    None
+                }
+            }
+
+            fn syntax(&self) -> &SyntaxNode {
+                &self.syn
+            }
+        }
+    };
+}
+
+macro_rules! def_tk {
+    ($name:ident, $kind:path $(| $kind2:path)*, $doc:expr) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[doc = $doc]
+        pub struct $name {
+            pub(crate) syn: SyntaxToken,
+        }
+
+        impl AstToken for $name {
+            fn can_cast(kind: SyntaxKind) -> bool {
+                matches!(kind, $kind $(| $kind2)*)
+            }
+
+            fn cast_tk(syn: SyntaxToken) -> Option<Self> {
+                if matches!(syn.kind(), $kind $(| $kind2)*) {
+                    Some(Self { syn })
+                } else {
+                    None
+                }
+            }
+
+            fn syntax(&self) -> &SyntaxToken {
+                &self.syn
+            }
+        }
+
+        impl $name {
+            pub fn text(&self) -> &str {
+                self.syn.text()
+            }
+        }
+    };
+}
+
+macro_rules! transparent_node_wrapper {
+    ($ty:ident, $kind:ident, $($var:ident)|*, $pred:expr, $doc:expr, $kind_doc:expr $(,)?) => {
+        def_node!($ty, $pred, $doc);
+
+        impl $ty {
+            pub fn kind(&self) -> $kind {
+                let node = self.syn.clone();
+                None
+                    $(
+                        .or_else(|| $var::cast_node(node.clone()).map(|v| $kind::$var(v)))
+                    )*
+                    .unwrap_or_else(|| unreachable!("Can't be casted as a Form: {:?}", node))
+            }
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        #[doc = $kind_doc]
+        pub enum $kind {
+            $($var($var),)*
+        }
+
+
+        $(
+            impl From<$var> for $kind {
+                fn from(v: $var) -> Self {
+                    Self::$var(v)
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! token_wrapper {
+    ($ty:ident, $ty_kind:ident, $pred:expr, $($var:ident)|*, $doc:expr, $kind_doc:expr $(,)?) => {
+        def_node!($ty, $pred, $doc);
+
+        impl $ty {
+            pub fn token(&self) -> SyntaxToken {
+                self.syn
+                    .children_with_tokens()
+                    // .filter(|elem| !elem.kind().is_trivia())
+                    .filter_map(|e| e.into_token())
+                    .next()
+                    .unwrap()
+            }
+
+            pub fn kind(&self) -> $ty_kind {
+                let token = self.token();
+                None
+                    $(
+                        .or_else(|| $var::cast_tk(token.clone()).map(|v| $ty_kind::$var(v)))
+                    )*
+                    .unwrap()
+            }
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        #[doc = $kind_doc]
+        pub enum $ty_kind {
+            $($var($var),)*
+        }
+
+
+        $(
+            impl From<$var> for $ty_kind {
+                fn from(v: $var) -> Self {
+                    Self::$var(v)
+                }
+            }
+        )*
+    };
+}
+
 /// AST of a file
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Document {
@@ -73,50 +208,21 @@ impl Document {
     }
 
     pub fn item_nodes(&self) -> impl Iterator<Item = Form> {
-        self.syn.children_with_tokens().filter_map(Form::cast_elem)
+        self.syn.children().filter_map(Form::cast_node)
     }
 }
 
-/// Any kind of S-expression, which forms the program
-///
-/// Call | DefProc | Atom
-#[derive(Debug, Clone, PartialEq)]
-pub enum Form {
-    DefProc(DefProc),
-    Call(Call),
-    Atom(Atom),
-}
-
-impl AstElement for Form {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        DefProc::can_cast(kind) || Call::can_cast(kind) || Atom::can_cast(kind)
-    }
-
-    fn cast_elem(syn: SyntaxElement) -> Option<Self> {
-        if let Some(node) = syn.clone().into_node() {
-            if let Some(proc) = DefProc::cast_node(node.clone()) {
-                return Some(Self::DefProc(proc));
-            } else if let Some(call) = Call::cast_node(node.clone()) {
-                return Some(Self::Call(call));
-            }
-        }
-
-        if let Some(atom) = Atom::cast_elem(syn.clone()) {
-            Some(Self::Atom(atom))
-        } else {
-            None
-        }
-    }
-
-    fn syntax(&self) -> SyntaxElement {
-        match self {
-            // TODO: maybe don't create the node
-            Self::Call(x) => SyntaxElement::Node(x.syntax().clone()),
-            Self::DefProc(x) => SyntaxElement::Node(x.syntax().clone()),
-            Self::Atom(x) => x.syntax(),
-        }
-    }
-}
+transparent_node_wrapper!(
+    Form,
+    FormKind,
+    DefProc | Call | Literal,
+    |kind| matches!(
+        kind,
+        SyntaxKind::DefProc | SyntaxKind::Call | SyntaxKind::Literal
+    ),
+    r#"Transparent form node"#,
+    r#"View to the [`Form`]"#,
+);
 
 /// Function call
 #[derive(Debug, Clone, PartialEq)]
@@ -152,6 +258,7 @@ impl AstNode for Call {
 
 impl Call {
     pub fn name_tk(&self) -> SyntaxToken {
+        // TODO: maybe separate callee syntax kind
         match self
             .syn
             .children_with_tokens()
@@ -166,53 +273,31 @@ impl Call {
     }
 
     pub fn arg_forms(&self) -> impl Iterator<Item = Form> {
-        self.syn
-            .children_with_tokens()
-            .filter(|elem| elem.kind() != SyntaxKind::Ws)
-            .filter_map(Form::cast_elem)
+        self.syn.children().filter_map(Form::cast_node)
     }
 }
 
-/// (proc name (params?) (block)..)
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct DefProc {
-    pub(crate) syn: SyntaxNode,
-}
+def_node!(
+    DefProc,
+    |kind| matches!(kind, SyntaxKind::DefProc),
+    "(proc name (params?) (block)..)"
+);
 
-impl AstNode for DefProc {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        matches!(kind, SyntaxKind::DefProc)
-    }
+def_node!(
+    Body,
+    |kind| matches!(kind, SyntaxKind::Body),
+    "Procedure body"
+);
 
-    fn syntax(&self) -> &SyntaxNode {
-        &self.syn
-    }
-
-    fn cast_node(syn: SyntaxNode) -> Option<Self> {
-        let mut c = syn.children_with_tokens();
-
-        // (
-        if c.next()?.kind() != SyntaxKind::LParen {
-            return None;
-        }
-
-        let mut c = c.skip_while(|e| e.kind() == SyntaxKind::Ws);
-
-        // proc
-        match c.next()? {
-            SyntaxElement::Node(_n) => return None,
-            SyntaxElement::Token(tk) => {
-                if tk.kind() != SyntaxKind::Ident || tk.text() != STR_PROC {
-                    return None;
-                }
-            }
-        }
-
-        Some(Self { syn })
+impl Body {
+    pub fn forms(&self) -> impl Iterator<Item = Form> {
+        self.syn.children().filter_map(Form::cast_node)
     }
 }
 
 impl DefProc {
+    // TODO: add defproc token
+    /// `DefProc` token
     pub fn proc_tk(&self) -> SyntaxToken {
         self.syn
             .children_with_tokens()
@@ -221,188 +306,81 @@ impl DefProc {
             .unwrap_or_else(|| unreachable!())
     }
 
-    pub fn name_tk(&self) -> SyntaxToken {
+    pub fn name(&self) -> Option<ProcName> {
         let mut c = self
             .syn
-            .children_with_tokens()
-            .filter(|elem| elem.kind() != SyntaxKind::Ws);
+            .children()
+            .filter(|node| node.kind() != SyntaxKind::Ws);
 
-        assert_eq!(c.next().unwrap().kind(), SyntaxKind::LParen);
-
-        match c.next().unwrap() {
-            SyntaxElement::Token(tk) => {
-                assert_eq!(tk.text(), "proc");
-            }
-            SyntaxElement::Node(_n) => panic!("Not (proc ..) !"),
-        };
-
-        match c.next() {
-            Some(elem) if elem.kind() == SyntaxKind::Ident => elem.clone().into_token().unwrap(),
-            Some(elem) => unreachable!("Not identifier? {}", elem),
-            None => unreachable!("No token?"),
-        }
+        c.next().and_then(ProcName::cast_node)
     }
 
     pub fn params(&self) -> Option<Params> {
         self.syn
-            .first_child()
+            .children()
             .filter(|node| node.kind() == SyntaxKind::Params)
+            .next()
             .map(|node| Params { syn: node.clone() })
     }
 
-    pub fn body_forms(&self) -> impl Iterator<Item = Form> {
-        let mut nodes = self
-            .syn
+    pub fn body(&self) -> Option<Body> {
+        self.syn.children().filter_map(Body::cast_node).next()
+    }
+}
+
+def_node!(
+    ProcName,
+    |kind| matches!(kind, SyntaxKind::ProcName),
+    "Procedure name"
+);
+
+impl ProcName {
+    pub fn token(&self) -> SyntaxToken {
+        self.syn
             .children_with_tokens()
-            .filter(|elem| elem.kind() != SyntaxKind::Ws);
-
-        // skip until parameter
-        loop {
-            match nodes.next().unwrap() {
-                SyntaxElement::Token(t) if t.text() == "proc" => break,
-                _ => {}
-            }
-        }
-
-        nodes.filter_map(Form::cast_elem)
+            .next()
+            .unwrap()
+            .into_token()
+            .unwrap()
     }
 }
 
-/// A function parameter
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Param {
-    pub(crate) syn: SyntaxToken,
-}
+def_node!(
+    Params,
+    |kind| matches!(kind, SyntaxKind::Params),
+    "Procedure parameters"
+);
 
-impl AstToken for Param {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        matches!(kind, SyntaxKind::Params)
-    }
+def_node!(
+    Param,
+    |kind| matches!(kind, SyntaxKind::Param),
+    "A single procedure parameter"
+);
 
-    fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-        if syn.kind() == SyntaxKind::Ident {
-            Some(Self { syn })
-        } else {
-            None
-        }
-    }
-
-    fn syntax(&self) -> &SyntaxToken {
-        &self.syn
+impl Params {
+    pub fn param_nodes(&self) -> impl Iterator<Item = Param> {
+        self.syn.children().filter_map(Param::cast_node)
     }
 }
 
 impl Param {
-    pub fn text(&self) -> &str {
-        self.syn.text()
-    }
-}
-
-/// Function parameters
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Params {
-    pub(crate) syn: SyntaxNode,
-}
-
-impl Params {
-    pub fn param_tks(&self) -> impl Iterator<Item = Param> {
+    pub fn token(&self) -> SyntaxToken {
         self.syn
             .children_with_tokens()
             .filter_map(|elem| elem.into_token())
-            .filter_map(Param::cast_tk)
-    }
-
-    /// Number of arguments
-    pub fn arity(&self) -> usize {
-        self.param_tks().count()
+            .find(|tk| tk.kind() == SyntaxKind::Ident)
+            .unwrap()
     }
 }
 
-/// Atom (any non-list)
-#[derive(Debug, Clone, PartialEq)]
-pub enum Atom {
-    Literal(Literal),
-}
-
-impl AstElement for Atom {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        Literal::can_cast(kind)
-    }
-
-    fn cast_elem(syn: SyntaxElement) -> Option<Self> {
-        match syn {
-            SyntaxElement::Token(tk) => {
-                if let Some(x) = Literal::cast_tk(tk.clone()) {
-                    return Some(Self::Literal(x));
-                }
-            }
-            _ => {}
-        }
-
-        None
-    }
-
-    fn syntax(&self) -> SyntaxElement {
-        match self {
-            Self::Literal(x) => SyntaxElement::Token(x.syntax().clone()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Literal {
-    Num(Num),
-    Str(Str),
-    Bool(Bool),
-}
-
-impl AstToken for Literal {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        Num::can_cast(kind) || Str::can_cast(kind) || Bool::can_cast(kind)
-    }
-
-    fn cast_tk(tk: SyntaxToken) -> Option<Self> {
-        None.or_else(|| Num::cast_tk(tk.clone()).map(Self::Num))
-            .or_else(|| Str::cast_tk(tk.clone()).map(Self::Str))
-            .or_else(|| Bool::cast_tk(tk.clone()).map(Self::Bool))
-    }
-
-    fn syntax(&self) -> &SyntaxToken {
-        match self {
-            Self::Num(x) => x.syntax(),
-            Self::Str(x) => x.syntax(),
-            Self::Bool(x) => x.syntax(),
-        }
-    }
-}
-
-macro_rules! def_tk {
-    ($name:ident, $kind:path $(| $kind2:path)*, $doc:expr) => {
-        #[derive(Debug, Clone, PartialEq)]
-        #[doc = $doc]
-        pub struct $name {
-            pub(crate) syn: SyntaxToken,
-        }
-
-        impl AstToken for $name {
-            fn can_cast(kind: SyntaxKind) -> bool {
-                matches!(kind, $kind $(| $kind2)*)
-            }
-
-            fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-                if matches!(syn.kind(), $kind $(| $kind2)*) {
-                    Some(Self { syn })
-                } else {
-                    None
-                }
-            }
-
-            fn syntax(&self) -> &SyntaxToken {
-                &self.syn
-            }
-        }
-    };
-}
+token_wrapper!(
+    Literal,
+    LiteralKind,
+    |kind| matches!(kind, SyntaxKind::Literal),
+    Num | Str | True | False,
+    "Literal node",
+    "View to the [`Literal`] node",
+);
 
 def_tk!(
     Num,
@@ -410,20 +388,19 @@ def_tk!(
     "Untyped, not validated number type (integers and floats)"
 );
 
-def_tk!(
-    Str,
-    SyntaxKind::String,
-    "String, including the surroundings"
-);
+def_tk!(Str, SyntaxKind::Str, "String, including the surroundings");
 
-def_tk!(Bool, SyntaxKind::True | SyntaxKind::False, "true | false");
+def_tk!(True, SyntaxKind::True, "true");
+def_tk!(False, SyntaxKind::False, "true");
 
-impl Bool {
-    pub fn truthy(&self) -> bool {
-        match self.syn.text() {
-            "true" => true,
-            "false" => false,
-            _ => unreachable!("bool token has to be true or false"),
-        }
-    }
-}
+// def_tk!(Bool, SyntaxKind::True | SyntaxKind::False, "true | false");
+//
+// impl Bool {
+//     pub fn truthy(&self) -> bool {
+//         match self.syn.text() {
+//             "true" => true,
+//             "false" => false,
+//             _ => unreachable!("bool token has to be true or false"),
+//         }
+//     }
+// }

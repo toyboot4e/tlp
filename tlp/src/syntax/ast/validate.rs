@@ -86,13 +86,13 @@ impl Validate for Document {
 
 impl Validate for Form {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        match self {
-            Self::DefProc(proc) => {
+        match self.kind() {
+            FormKind::DefProc(proc) => {
                 proc.validate(errs);
             }
-            Self::Call(_call) => {}
-            Self::Atom(atom) => {
-                atom.validate(errs);
+            FormKind::Call(_call) => {}
+            FormKind::Literal(lit) => {
+                lit.validate(errs);
             }
         }
     }
@@ -154,7 +154,7 @@ impl Validate for Params {
     }
 }
 
-impl Validate for Atom {
+impl Validate for Literal {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
         //
     }

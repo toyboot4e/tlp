@@ -49,7 +49,7 @@ fn run_test(test: Test) -> Result<(), TestError> {
             .iter()
             .map(|e| format!("{}", e.with_loc(&test.code)))
             .collect::<Vec<_>>()
-            .join(", ");
+            .join("\n");
         panic!("{}\nsource: {}", s, test.code);
     }
 
