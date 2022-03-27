@@ -27,7 +27,7 @@ pub fn compile(doc: Document) -> (Chunk, Vec<CompileError>) {
     let mut errs = vec![];
 
     for form in doc.item_nodes() {
-        if let Form::Call(call) = form {
+        if let FormKind::Call(call) = form.kind() {
             //
         }
 

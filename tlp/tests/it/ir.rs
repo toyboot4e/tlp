@@ -92,7 +92,7 @@ fn main_literal() {
     let file = vfs.intern(path);
 
     // => 12
-    let src = r#"(proc main () 12)"#;
+    let src = r#"(proc main (a b) 12)"#;
     db.set_input(file.clone(), Arc::new(String::from(src)));
 
     let krate = file.clone();
@@ -112,6 +112,7 @@ fn main_literal() {
 
     // 4. Body
     let body = db.proc_body(proc_id);
+
     assert_eq!(
         body.exprs.iter().next().unwrap().1,
         &Expr::Literal(Literal::Uint(12, None))
