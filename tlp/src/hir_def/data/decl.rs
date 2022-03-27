@@ -7,7 +7,7 @@ use std::ops;
 use la_arena::{Arena, Idx};
 use smol_str::SmolStr;
 
-use crate::{ir::db::vfs::*, syntax::ast};
+use crate::{hir_def::db::vfs::*, syntax::ast};
 
 /// Upcast of module item IDs
 pub enum ItemDecl {

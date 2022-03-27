@@ -4,7 +4,7 @@ Tests for toylisp intermediate representations
 
 use std::sync::Arc;
 
-use tlp::ir::{
+use tlp::hir_def::{
     data::{decl, expr::*},
     db::{vfs::*, *},
 };

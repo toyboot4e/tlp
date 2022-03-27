@@ -10,7 +10,7 @@ pub mod vfs;
 use std::sync::Arc;
 
 use crate::{
-    ir::{
+    hir_def::{
         data::{
             body::Body,
             decl::{self, ItemTree},
@@ -70,14 +70,14 @@ pub trait Intern: salsa::Database {
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
     /// Collects declarations in a module. This contains unresolved imports
-    #[salsa::invoke(crate::ir::lower::item_tree_query)]
+    #[salsa::invoke(crate::hir_def::lower::item_tree_query)]
     fn file_item_tree(&self, file: FileId) -> Arc<ItemTree>;
 
     // TODO: duplicate item diagnostics
 
     /// Collects module items and makes up a tree. All imports in the underlying `ItemTree` are
     /// resolved in `ItemScope`.
-    #[salsa::invoke(crate::ir::lower::def_map_query)]
+    #[salsa::invoke(crate::hir_def::lower::def_map_query)]
     fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use la_arena::{Arena, Idx};
 
 use crate::{
-    ir::{
+    hir_def::{
         data::{
             body::*,
             decl::{self, ItemTree},

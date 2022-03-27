@@ -4,7 +4,7 @@ HIR item definitions, views to `ItemTree` items
 
 use la_arena::Idx;
 
-use crate::ir::data::decl::{Name, Visibility};
+use crate::hir_def::data::decl::{Name, Visibility};
 
 use super::res::ModuleData;
 

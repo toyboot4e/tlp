@@ -16,7 +16,7 @@ use std::{marker::PhantomData, sync::Arc};
 use derivative::Derivative;
 use la_arena::Idx;
 
-use crate::ir::{
+use crate::hir_def::{
     data::decl,
     db::{self, vfs::FileId, Intern},
 };

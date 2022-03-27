@@ -7,7 +7,7 @@ use std::sync::Arc;
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
 
-use crate::ir::{
+use crate::hir_def::{
     data::decl::{self, Name, Visibility},
     db::{
         ids::{AnyDefId, DefId, Id, Loc},
