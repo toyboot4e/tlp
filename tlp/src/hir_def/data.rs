@@ -4,6 +4,7 @@ IR data types
 
 // item tree and def map
 pub mod decl;
+pub mod path;
 pub mod res;
 
 // hir item data

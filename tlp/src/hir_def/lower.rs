@@ -1,3 +1,5 @@
+//! Lowers AST into ID-based representation
+
 use std::sync::Arc;
 
 use la_arena::{Arena, Idx};
