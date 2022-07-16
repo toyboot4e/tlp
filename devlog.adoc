@@ -26,7 +26,12 @@ I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs packag
 
 == Devlog (initial approach)
 
-This approach was soon abandoned. Compilation passes: source string → AST → bytecode.
+Compilation passes: source string → AST → bytecode.
+
+NOTE: This approach was soon abandoned.
+
+[%collapsible]
+========
 
 === Lexer (tokenizer)
 
@@ -53,6 +58,8 @@ I parsed `Vec<Token>` into a hierarchy of tokens. I'm not sure if it's good idea
 I added a simple VM which can calculate arithmetics. It's a stack-based VM as one in the book ({cr}).
 +
 I also added a simple compiler, which converts AST to bytecode. Now `(/ (- 64.0 32.0) 2)` evaluates to `16.0`.
+
+========
 
 == Devlog
 

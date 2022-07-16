@@ -2,9 +2,7 @@
 
 use la_arena::Idx;
 
-use crate::hir_def::data::decl::Name;
-
-use super::res::ModuleData;
+use crate::hir_def::data::{decl::Name, res::ModuleData};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId {
@@ -21,21 +19,13 @@ pub struct BlockLoc {
     module: ModuleId,
 }
 
+/// Path to any item
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemPath {
     segments: Vec<Name>,
 }
 
-/// Unresolved path to a type, often referred to as `Id<TypePath>`
-///
-/// In RA, it's known as `TypeRef`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TypePath {
-    repr: ItemPath,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Pattern {
-    Ident,
-    Path,
+    Path(ItemPath),
 }

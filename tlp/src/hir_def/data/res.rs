@@ -1,6 +1,5 @@
-/*!
-Module item definitions. Import are resolved into [`ItemScope`] and top-level macros are expanded
-*/
+//! Module item definitions. Import are resolved into [`ItemScope`] and top-level macros are
+//! expanded.
 
 use std::sync::Arc;
 
@@ -10,7 +9,7 @@ use rustc_hash::FxHashMap;
 use crate::hir_def::{
     data::decl::{self, Name, Visibility},
     db::{
-        ids::{AnyDefId, DefId, Id, Loc},
+        ids::{Id, Loc},
         vfs::FileId,
     },
 };

@@ -159,7 +159,8 @@ impl<'a> LowerExpr<'a> {
 
     fn lower_proc_params(&mut self, proc: ast::DefProc) {
         if proc.params().is_some() {
-            // lower self parameter
+            // TODO: lower self parameter
+
             // lower other parameters
         }
     }
