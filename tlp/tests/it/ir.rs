@@ -5,8 +5,8 @@ Tests for toylisp intermediate representations
 use std::sync::Arc;
 
 use tlp::hir_def::{
-    data::{decl, expr::*},
     db::{vfs::*, *},
+    item::{self, expr::*},
 };
 
 // #[test]
@@ -55,7 +55,7 @@ use tlp::hir_def::{
 //     let scope = module.scope();
 //
 //     {
-//         let names = ["f", "g", "h", "atom"].map(|s| decl::Name::from_str(s));
+//         let names = ["f", "g", "h", "atom"].map(|s| item::Name::from_str(s));
 //         let mut i = 0;
 //
 //         for name in &names {
@@ -73,7 +73,7 @@ use tlp::hir_def::{
 //     }
 //
 //     // 3-1. HIR definition data
-//     let name = decl::Name::from_str("atom");
+//     let name = item::Name::from_str("atom");
 //     let proc_id = scope.lookup_proc(&name).unwrap();
 //
 //     let proc_data = db.proc_data(proc_id);
@@ -103,14 +103,16 @@ fn main_literal() {
     let scope = module.scope();
 
     // 3. HIR definition data
-    let name = decl::Name::from_str("main");
+    let name = item::Name::from_str("main");
 
     let proc_id = scope.lookup_proc(&name).unwrap();
     let proc_data = db.proc_data(proc_id);
 
     assert_eq!(proc_data.name, name);
 
-    // 4. Body
+    // 4. Parameters
+
+    // 5. Body
     let body = db.proc_body(proc_id);
 
     assert_eq!(
