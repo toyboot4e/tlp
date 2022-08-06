@@ -17,10 +17,7 @@ use crate::{
     syntax::ast,
 };
 
-pub(crate) fn proc_data_query(
-    db: &dyn db::Def,
-    proc_id: Id<Loc<decl::DefProc>>,
-) -> Arc<def::ProcData> {
+pub fn proc_data_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData> {
     let proc_loc = proc_id.lookup(db);
     let tree = proc_loc.tree.item_tree(db);
     let proc = &tree[proc_loc.item];
@@ -33,7 +30,7 @@ pub(crate) fn proc_data_query(
     })
 }
 
-pub(crate) fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
+pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
     // collect parameters as pattern IDs
 
     // body = block expr

@@ -1,4 +1,6 @@
-//! Module item declarations. Imports are just listed and not resolved
+//! Lowerd representation of module item declarations (surface)
+//!
+//! Macros are not expanded and imports not are resolved.
 
 use std::ops;
 
@@ -8,26 +10,26 @@ use smol_str::SmolStr;
 use crate::{hir_def::db::vfs::*, syntax::ast};
 
 /// Upcast of module item IDs
-pub enum ItemDecl {
+pub enum ItemDeclId {
     Proc(DefProc),
 }
 
-/// Simplified AST that only contains top-level items in a module
+/// Top-level module item declarations
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemTree {
+pub struct ItemDeclTree {
     pub(crate) file: FileId,
     pub(crate) procs: Arena<DefProc>,
     // pub(crate) imports: Vec<Import>,
 }
 
-impl ops::Index<Idx<DefProc>> for ItemTree {
+impl ops::Index<Idx<DefProc>> for ItemDeclTree {
     type Output = DefProc;
     fn index(&self, ix: Idx<DefProc>) -> &Self::Output {
         &self.procs[ix]
     }
 }
 
-impl ItemTree {
+impl ItemDeclTree {
     pub fn new(file: FileId) -> Self {
         Self {
             file,
@@ -40,6 +42,7 @@ impl ItemTree {
     }
 }
 
+/// Declared item's name
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Name {
     // TODO: consider preferring salsa?
@@ -64,6 +67,7 @@ pub enum Visibility {
     Public,
 }
 
+/// Function parameter
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Param {
     name: Name,

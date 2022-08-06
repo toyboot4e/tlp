@@ -1,5 +1,7 @@
-//! Lowers AST into interned, ID-based representation
+//! Converts ASTs into an interned, ID-based representation
 
-pub mod data;
-pub mod items;
-pub mod modules;
+mod data;
+mod items;
+mod modules;
+
+pub use self::{data::*, items::*, modules::*};

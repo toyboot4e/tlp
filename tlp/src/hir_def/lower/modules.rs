@@ -2,26 +2,20 @@
 
 use std::sync::Arc;
 
-use la_arena::{Arena, Idx};
+use la_arena::Arena;
 
-use crate::{
-    hir_def::{
-        db::{
-            self,
-            ids::{Id, Loc, TreeId},
-            vfs::*,
-        },
-        decl::{self, ItemTree, Visibility},
-        def,
-        def::*,
-        item::expr::Expr,
-        CrateDefMap, ItemScope, ModuleData,
+use crate::hir_def::{
+    db::{
+        self,
+        ids::{Loc, TreeId},
+        vfs::*,
     },
-    syntax::ast,
+    decl::Visibility,
+    CrateDefMap, ItemScope, ModuleData,
 };
 
 /// Collects tree of modules with `ItemScope`
-pub(crate) fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap> {
+pub fn def_map_query(db: &dyn db::Def, krate: FileId) -> Arc<CrateDefMap> {
     let mut modules = Arena::<ModuleData>::new();
 
     let root_item_tree = db.file_item_tree(krate.clone());

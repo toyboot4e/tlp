@@ -15,8 +15,7 @@ pub mod db;
 pub mod decl;
 pub mod def;
 pub mod item;
-
-mod lower;
+pub mod lower;
 
 use std::sync::Arc;
 
@@ -85,7 +84,7 @@ impl ModuleData {
 
 /// Name-resolved top-level module items
 ///
-/// Built upon `ItemTree`. Every ID is upcasted to [`DefId`].
+/// Built upon `ItemTree`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ItemScope {
     procs: FxHashMap<Name, Id<Loc<decl::DefProc>>>,

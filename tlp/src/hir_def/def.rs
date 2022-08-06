@@ -1,4 +1,6 @@
-//! Views to `ItemTree` items
+//! Lowerd representation of module item definitions (insights)
+//!
+//! Macros are expanded and imports are resolved.
 
 use la_arena::Arena;
 

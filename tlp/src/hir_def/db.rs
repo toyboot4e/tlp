@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        decl::{self, ItemTree},
+        decl::{self, ItemDeclTree},
         def::{self, Body},
         lower, CrateDefMap,
     },
@@ -64,23 +64,22 @@ pub trait Intern: salsa::Database {
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
     /// Collects declarations in a module. This contains unresolved imports
-    #[salsa::invoke(lower::items::item_tree_query)]
-    fn file_item_tree(&self, file: FileId) -> Arc<ItemTree>;
+    #[salsa::invoke(lower::item_tree_query)]
+    fn file_item_tree(&self, file: FileId) -> Arc<ItemDeclTree>;
 
     // TODO: duplicate item diagnostics
 
-    /// Collects module items and makes up a tree. All imports in the underlying `ItemTree` are
-    /// resolved in `ItemScope`.
-    #[salsa::invoke(lower::modules::def_map_query)]
+    /// Collects module items and makes up a tree. All imports in the underlying `ItemDeclTree` are resolved in `ItemScope`.
+    #[salsa::invoke(lower::def_map_query)]
     fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
-    #[salsa::invoke(lower::data::proc_data_query)]
+    #[salsa::invoke(lower::proc_data_query)]
     fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData>;
 
-    #[salsa::invoke(lower::data::proc_body_query)]
+    #[salsa::invoke(lower::proc_body_query)]
     fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
 }
 

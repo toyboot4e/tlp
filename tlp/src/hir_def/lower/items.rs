@@ -5,29 +5,25 @@ use std::sync::Arc;
 use crate::{
     hir_def::{
         db::{self, vfs::*},
-        decl::{self, ItemTree},
-        def,
-        def::*,
-        item::expr::Expr,
-        CrateDefMap, ItemScope, ModuleData,
+        decl::{self, ItemDeclTree},
     },
     syntax::ast,
 };
 
 /// Collects declarations and imports; they're interned, but as-is
-pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemTree> {
+pub fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemDeclTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
 }
 
 struct ItemTreeCollect {
-    tree: ItemTree,
+    tree: ItemDeclTree,
 }
 
 impl ItemTreeCollect {
-    fn run(file: FileId, ast: ast::Document) -> ItemTree {
+    fn run(file: FileId, ast: ast::Document) -> ItemDeclTree {
         let mut me = Self {
-            tree: ItemTree::new(file),
+            tree: ItemDeclTree::new(file),
         };
 
         me.collect(ast.item_nodes());

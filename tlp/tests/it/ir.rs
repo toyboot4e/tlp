@@ -10,6 +10,43 @@ use tlp::hir_def::{
     item::expr::*,
 };
 
+#[test]
+fn main_literal() {
+    let mut db = DB::default();
+    let mut vfs = Vfs::default();
+
+    let path = "my-module.tlp".into();
+    let file = vfs.intern(path);
+
+    let src = r#"(proc main (a b) 12)"#;
+    db.set_input(file.clone(), Arc::new(String::from(src)));
+
+    let krate = file.clone();
+    let def_map = db.crate_def_map(krate.clone());
+
+    let root = def_map.root();
+    let module = def_map.module(root);
+    let scope = module.scope();
+
+    // 3. HIR definition data
+    let name = decl::Name::from_str("main");
+
+    let proc_id = scope.lookup_proc(&name).unwrap();
+    let proc_data = db.proc_data(proc_id);
+
+    assert_eq!(proc_data.name, name);
+
+    // 4. Parameters
+
+    // 5. Body
+    let body = db.proc_body(proc_id);
+
+    assert_eq!(
+        body.exprs.iter().next().unwrap().1,
+        &Expr::Literal(Literal::Uint(12, None))
+    );
+}
+
 // #[test]
 // fn module_tree() {
 //     let mut db = DB::default();
@@ -83,41 +120,3 @@ use tlp::hir_def::{
 //     // 3-2. HIR body
 //     // let body = db.proc_body(proc_id);
 // }
-
-#[test]
-fn main_literal() {
-    let mut db = DB::default();
-    let mut vfs = Vfs::default();
-
-    let path = "my-module.tlp".into();
-    let file = vfs.intern(path);
-
-    // => 12
-    let src = r#"(proc main (a b) 12)"#;
-    db.set_input(file.clone(), Arc::new(String::from(src)));
-
-    let krate = file.clone();
-    let def_map = db.crate_def_map(krate.clone());
-
-    let root = def_map.root();
-    let module = def_map.module(root);
-    let scope = module.scope();
-
-    // 3. HIR definition data
-    let name = decl::Name::from_str("main");
-
-    let proc_id = scope.lookup_proc(&name).unwrap();
-    let proc_data = db.proc_data(proc_id);
-
-    assert_eq!(proc_data.name, name);
-
-    // 4. Parameters
-
-    // 5. Body
-    let body = db.proc_body(proc_id);
-
-    assert_eq!(
-        body.exprs.iter().next().unwrap().1,
-        &Expr::Literal(Literal::Uint(12, None))
-    );
-}
