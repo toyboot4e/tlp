@@ -2,7 +2,7 @@
 
 use la_arena::Idx;
 
-use crate::hir_def::data::{decl::Name, res::ModuleData};
+use crate::hir_def::{item::Name, res::ModuleData};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId {

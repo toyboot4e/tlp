@@ -1,6 +1,4 @@
-/*!
-Incremental computation powered by [`salsa`]
-*/
+//! Incremental computation powered by [`salsa`]
 
 pub extern crate salsa;
 
@@ -11,13 +9,10 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        data::{
-            body::Body,
-            decl::{self, ItemTree},
-            def,
-            res::CrateDefMap,
-        },
+        def::{self, Body},
+        item::{self, ItemTree},
         lower,
+        res::CrateDefMap,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
@@ -63,7 +58,7 @@ pub trait Parse: Source {
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     #[salsa::interned]
-    fn intern_proc(&self, proc: Loc<decl::DefProc>) -> Id<Loc<decl::DefProc>>;
+    fn intern_proc(&self, proc: Loc<item::DefProc>) -> Id<Loc<item::DefProc>>;
 }
 
 /// Collecter of definitions of items
@@ -84,16 +79,10 @@ pub trait Def: Parse + Intern {
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
     #[salsa::invoke(lower::proc_data_query)]
-    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData>;
+    fn proc_data(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<def::ProcData>;
 
     #[salsa::invoke(lower::proc_body_query)]
-    fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
-}
-
-/// High-level inetrmediate representation
-pub trait Hir: Def {
-    // fn infer(&self, def: DefWithBodyId) -> Arc<InferenceResult>;
-    // fn lower_struct(&self, def: Struct) -> Arc<LowerBatchResult>;
+    fn proc_body(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body>;
 }
 
 fn line_index(db: &dyn Source, file: FileId) -> Arc<LineIndex> {

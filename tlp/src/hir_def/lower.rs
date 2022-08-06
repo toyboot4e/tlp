@@ -6,23 +6,18 @@ use la_arena::{Arena, Idx};
 
 use crate::{
     hir_def::{
-        data::{
-            body::*,
-            decl::{self, ItemTree},
-            def,
-            expr::Expr,
-            res::{CrateDefMap, ItemScope, ModuleData},
-        },
         db::{
             self,
             ids::{Id, Loc, TreeId},
             vfs::*,
         },
+        def,
+        def::*,
+        item::{self, expr::Expr, ItemTree, Visibility},
+        res::{CrateDefMap, ItemScope, ModuleData},
     },
     syntax::ast,
 };
-
-use super::data::decl::Visibility;
 
 /// Collects syntax-reflected form of declarations and imports
 pub(crate) fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemTree> {
@@ -58,8 +53,8 @@ impl ItemTreeCollect {
         }
     }
 
-    fn lower_proc(&mut self, ast: ast::DefProc) -> decl::DefProc {
-        decl::DefProc::from_ast(ast)
+    fn lower_proc(&mut self, ast: ast::DefProc) -> item::DefProc {
+        item::DefProc::from_ast(ast)
     }
 }
 
@@ -112,7 +107,7 @@ impl ModCollector {
 
 pub(crate) fn proc_data_query(
     db: &dyn db::Def,
-    proc_id: Id<Loc<decl::DefProc>>,
+    proc_id: Id<Loc<item::DefProc>>,
 ) -> Arc<def::ProcData> {
     let proc_loc = proc_id.lookup(db);
     let tree = proc_loc.tree.item_tree(db);
@@ -122,11 +117,11 @@ pub(crate) fn proc_data_query(
         name: proc
             .name
             .clone()
-            .unwrap_or_else(|| decl::Name::from_str("<no-name-proc>")),
+            .unwrap_or_else(|| item::Name::from_str("<no-name-proc>")),
     })
 }
 
-pub(crate) fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
+pub(crate) fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body> {
     // collect parameters as pattern IDs
 
     // body = block expr
@@ -149,6 +144,15 @@ struct LowerExpr<'a> {
     // /// AST expr ID → HIR expr ID
     // /// HIR expr ID → AST expr ID
 }
+
+// // TODO: give file ID
+// struct LowerContext {
+//     file_id: FileId,
+// }
+//
+// impl LowerContext {
+//     pub fn
+// }
 
 impl<'a> LowerExpr<'a> {
     pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
@@ -195,6 +199,24 @@ impl<'a> LowerExpr<'a> {
             },
         }
     }
+}
+
+/// # Allocators
+impl<'a> LowerExpr<'a> {
+    // fn alloc_pat(&mut self, pat: Pattern, ptr: PatPtr) -> Id<Pattern> {
+    //     // InFile<T>
+    //     let src = self.expander.to_source(ptr);
+    //     let id = self.make_pat(pat, Ok(src.clone()));
+    //     // InFile<SyntaxPtr<T>> <-> ExprId
+    //     self.source_map.pat_map.insert(src, id);
+    //     id
+    // }
+
+    // fn make_pat(&mut self, pat: Pat, src: Result<PatSource, SyntheticSyntax>) -> PatId {
+    //     let id = self.body.pats.alloc(pat);
+    //     self.source_map.pat_map_back.insert(id, src);
+    //     id
+    // }
 
     /// Allocates an expression making up the AST-HIR map. The separation of the source text from
     /// the HIR is helpful to not recompute on syntax changes that do not affect the HIR.

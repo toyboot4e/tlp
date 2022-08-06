@@ -1,6 +1,7 @@
-/*!
-Module item declarations. Imports are just listed and not resolved
-*/
+//! Module item declarations. Imports are just listed and not resolved
+
+pub mod path;
+pub mod expr;
 
 use std::ops;
 
