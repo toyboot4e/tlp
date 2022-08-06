@@ -262,12 +262,13 @@ impl Call {
         match self
             .syn
             .children_with_tokens()
+            .skip(1) // )
             .filter_map(|elem| elem.into_token())
             .filter(|tk| tk.kind() != SyntaxKind::Ws)
             .next()
         {
             Some(tk) if tk.kind() == SyntaxKind::Ident => tk.clone(),
-            Some(tk) => unreachable!("Not identifier? {}", tk),
+            Some(tk) => unreachable!("Not identifier?: {}", tk),
             None => unreachable!("No token?"),
         }
     }

@@ -28,77 +28,33 @@ pub struct Seq {
 pub struct Call {
     // TODO: resolved form, path?
     pub name: Name,
-    pub params: Vec<Param>,
+    pub args: Vec<Idx<Expr>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Param {
-    /// TODO: lifetime?
-    pub name: rowan::SyntaxText,
-    // pub ast: Ident,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     String(String),
     Char(char),
     Bool(bool),
-    Int(i64, Option<BuiltinInt>),
-    Uint(u64, Option<BuiltinUint>),
-    Float(f64, Option<BuiltinFloat>),
+    Int(i32),
+    Float(EqF32),
 }
 
-impl cmp::Eq for Literal {}
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EqF32(pub f32);
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BuiltinInt {
-    I8,
-    I16,
-    I32,
-    I64,
-}
-
-/// Different unsigned int types.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BuiltinUint {
-    U8,
-    U16,
-    U32,
-    U64,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BuiltinFloat {
-    F32,
-    F64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BuiltinType {
-    Char,
-    Bool,
-    Str,
-    Int(BuiltinInt),
-    Uint(BuiltinUint),
-    Float(BuiltinFloat),
-}
+impl cmp::Eq for EqF32 {}
 
 impl From<ast::Num> for Literal {
     fn from(x: ast::Num) -> Self {
         let text = x.syntax().text();
 
-        // TODO: parse explicit type name
-
-        if let Ok(x) = text.parse::<u64>() {
-            return Self::Uint(x, None);
+        if let Ok(x) = text.parse::<i32>() {
+            return Self::Int(x);
         }
 
-        if let Ok(x) = text.parse::<i64>() {
-            return Self::Int(x, None);
-        }
-
-        if let Ok(x) = text.parse::<f64>() {
-            return Self::Float(x, None);
+        if let Ok(x) = text.parse::<f32>() {
+            return Self::Float(EqF32(x));
         }
 
         todo!("if not a number");

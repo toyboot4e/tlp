@@ -6,12 +6,15 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        body::{expr::Expr, Body},
+        body::{
+            expr::{self, Expr},
+            Body,
+        },
         db::{
             self,
             ids::{Id, Loc},
         },
-        decl,
+        decl::{self, Name},
     },
     syntax::ast,
 };
@@ -53,37 +56,33 @@ struct LowerExpr<'a> {
 
 impl<'a> LowerExpr<'a> {
     pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
-        self.lower_proc_params(proc.clone());
         self.lower_proc_body(proc.clone());
         Arc::new(self.body)
     }
 
-    fn lower_proc_params(&mut self, proc: ast::DefProc) {
-        if proc.params().is_some() {
-            // TODO: lower self parameter
-
-            // lower other parameters
-        }
-    }
-
     fn lower_proc_body(&mut self, proc: ast::DefProc) {
-        // TODO: Consider block modifier (e.g. coroutines)
-
         if let Some(body) = proc.body() {
             for form in body.forms() {
-                self.lower_form(form);
+                let expr = self.lower_form(form);
+                self.body.root.children.push(expr);
             }
         }
     }
 
-    /// Allocates an expression making up the AST-HIR map. The separation of the source text from
-    /// the HIR is helpful to not recompute on syntax changes that do not affect the HIR.
     fn lower_form(&mut self, form: ast::Form) -> Idx<Expr> {
         // TODO: cast AST node to a syntax pointer in order to make up the AST-HIR map
         match form.kind() {
             ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
-            ast::FormKind::Call(_call) => {
-                todo!("function call");
+            ast::FormKind::Call(call) => {
+                let name = Name::from_str(call.name_tk().text());
+
+                let args = call
+                    .arg_forms()
+                    .map(|form| self.lower_form(form))
+                    .collect::<Vec<_>>();
+                let call = expr::Call { name, args };
+
+                self.alloc_expr(expr::Expr::Call(call))
             }
             ast::FormKind::Literal(lit) => match lit.kind() {
                 ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
@@ -115,10 +114,7 @@ impl<'a> LowerExpr<'a> {
     //     id
     // }
 
-    /// Allocates an expression making up the AST-HIR map. The separation of the source text from
-    /// the HIR is helpful to not recompute on syntax changes that do not affect the HIR.
     fn alloc_expr(&mut self, expr: Expr) -> Idx<Expr> {
-        // TODO: make up the AST-HIR map
         self.body.exprs.alloc(expr)
     }
 }
