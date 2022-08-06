@@ -11,8 +11,7 @@ use crate::{
     hir_def::{
         decl::{self, ItemTree},
         def::{self, Body},
-        lower,
-        res::CrateDefMap,
+        lower, CrateDefMap,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,

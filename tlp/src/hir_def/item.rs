@@ -1,4 +1,4 @@
-//! Module item declarations. Imports are just listed and not resolved
+//! Module item components
 
 pub mod expr;
 pub mod path;

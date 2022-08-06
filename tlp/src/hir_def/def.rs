@@ -1,4 +1,4 @@
-//! HIR item definitions; views to `ItemTree` items
+//! Views to `ItemTree` items
 
 use la_arena::Arena;
 

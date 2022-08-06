@@ -15,7 +15,7 @@ use crate::{
         def,
         def::*,
         item::expr::Expr,
-        res::{CrateDefMap, ItemScope, ModuleData},
+        CrateDefMap, ItemScope, ModuleData,
     },
     syntax::ast,
 };

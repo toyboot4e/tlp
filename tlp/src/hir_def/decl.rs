@@ -1,4 +1,4 @@
-//! Module item declarations
+//! Module item declarations. Imports are just listed and not resolved
 
 use std::ops;
 
