@@ -1,12 +1,8 @@
-/*!
-HIR item definitions, views to `ItemTree` items
-*/
+//! Locations and patterns
 
 use la_arena::Idx;
 
-use crate::hir_def::data::decl::{Name, Visibility};
-
-use super::res::ModuleData;
+use crate::hir_def::{decl::Name, ModuleData};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId {
@@ -23,24 +19,13 @@ pub struct BlockLoc {
     module: ModuleId,
 }
 
+/// Path to any item
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemPath {
     segments: Vec<Name>,
 }
 
-/// Unresolved path to a type, often referred to as `Id<TypePath>`
-///
-/// In RA, it's known as `TypeRef`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TypePath {
-    repr: ItemPath,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProcData {
-    pub name: Name,
-    // TODO: where is the variable name..?
-    // pub params: Vec<Id<TypePath>>,
-    // pub ret_ty: Id<TypePath>,
-    // pub vis: Visibility,
+pub enum Pattern {
+    Path(ItemPath),
 }

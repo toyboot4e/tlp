@@ -1,6 +1,6 @@
 # toylisp
 
-To-be Lisp variant for my game development. [devlog](./devlog.adoc)
+A language for my game development: [devlog](./devlog.adoc).
 
-I wonder if I really need/want it though.
+toylisp is no longer a lisp; it's just a language with lots of parentheses.
 

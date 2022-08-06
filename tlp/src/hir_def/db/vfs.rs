@@ -1,6 +1,4 @@
-/*!
-Vitual file system, input to the database
-*/
+//! Vitual file system, input to the database
 
 use std::hash::BuildHasherDefault;
 

@@ -17,8 +17,8 @@ use derivative::Derivative;
 use la_arena::Idx;
 
 use crate::hir_def::{
-    data::decl,
     db::{self, vfs::FileId, Intern},
+    decl,
 };
 
 macro_rules! new_ids {
@@ -68,7 +68,7 @@ impl TreeId {
         Self { file }
     }
 
-    pub fn item_tree(&self, db: &dyn db::Def) -> Arc<decl::ItemTree> {
+    pub fn item_tree(&self, db: &dyn db::Def) -> Arc<decl::ItemDeclTree> {
         db.file_item_tree(self.file)
     }
 }

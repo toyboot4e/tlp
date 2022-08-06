@@ -1,6 +1,4 @@
-/*!
-Incremental computation powered by [`salsa`]
-*/
+//! Incremental computation powered by [`salsa`]
 
 pub extern crate salsa;
 
@@ -11,20 +9,16 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        data::{
-            body::Body,
-            decl::{self, ItemTree},
-            def,
-            res::CrateDefMap,
-        },
-        lower,
+        body::Body,
+        decl::{self, ItemDeclTree},
+        lower, CrateDefMap,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
 use self::{
-    ids::{DefId, Id, Loc},
+    ids::{Id, Loc},
     vfs::FileId,
 };
 
@@ -70,30 +64,21 @@ pub trait Intern: salsa::Database {
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
     /// Collects declarations in a module. This contains unresolved imports
-    #[salsa::invoke(crate::hir_def::lower::item_tree_query)]
-    fn file_item_tree(&self, file: FileId) -> Arc<ItemTree>;
+    #[salsa::invoke(lower::item_decl_tree_query)]
+    fn file_item_tree(&self, file: FileId) -> Arc<ItemDeclTree>;
 
-    // TODO: duplicate item diagnostics
-
-    /// Collects module items and makes up a tree. All imports in the underlying `ItemTree` are
-    /// resolved in `ItemScope`.
-    #[salsa::invoke(crate::hir_def::lower::def_map_query)]
+    /// Collects module items and makes up a tree. All imports in the underlying `ItemDeclTree` are resolved in `ItemScope`.
+    #[salsa::invoke(lower::def_map_query)]
     fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
     #[salsa::invoke(lower::proc_data_query)]
-    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData>;
+    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<decl::DefProc>;
 
     #[salsa::invoke(lower::proc_body_query)]
     fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
-}
-
-/// High-level inetrmediate representation
-pub trait Hir: Def {
-    // fn infer(&self, def: DefWithBodyId) -> Arc<InferenceResult>;
-    // fn lower_struct(&self, def: Struct) -> Arc<LowerBatchResult>;
 }
 
 fn line_index(db: &dyn Source, file: FileId) -> Arc<LineIndex> {

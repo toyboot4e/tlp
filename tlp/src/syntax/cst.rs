@@ -81,6 +81,7 @@ pub enum SyntaxKind {
     Comment,
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
+    // ----------------------------------------
     /// Literal node
     Literal,
     /// Path node
