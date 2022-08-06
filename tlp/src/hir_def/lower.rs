@@ -11,9 +11,10 @@ use crate::{
             ids::{Id, Loc, TreeId},
             vfs::*,
         },
+        decl::{self, ItemTree, Visibility},
         def,
         def::*,
-        item::{self, expr::Expr, ItemTree, Visibility},
+        item::expr::Expr,
         res::{CrateDefMap, ItemScope, ModuleData},
     },
     syntax::ast,
@@ -53,8 +54,8 @@ impl ItemTreeCollect {
         }
     }
 
-    fn lower_proc(&mut self, ast: ast::DefProc) -> item::DefProc {
-        item::DefProc::from_ast(ast)
+    fn lower_proc(&mut self, ast: ast::DefProc) -> decl::DefProc {
+        decl::DefProc::from_ast(ast)
     }
 }
 
@@ -107,7 +108,7 @@ impl ModCollector {
 
 pub(crate) fn proc_data_query(
     db: &dyn db::Def,
-    proc_id: Id<Loc<item::DefProc>>,
+    proc_id: Id<Loc<decl::DefProc>>,
 ) -> Arc<def::ProcData> {
     let proc_loc = proc_id.lookup(db);
     let tree = proc_loc.tree.item_tree(db);
@@ -117,11 +118,11 @@ pub(crate) fn proc_data_query(
         name: proc
             .name
             .clone()
-            .unwrap_or_else(|| item::Name::from_str("<no-name-proc>")),
+            .unwrap_or_else(|| decl::Name::from_str("<no-name-proc>")),
     })
 }
 
-pub(crate) fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body> {
+pub(crate) fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
     // collect parameters as pattern IDs
 
     // body = block expr

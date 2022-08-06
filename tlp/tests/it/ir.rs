@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use tlp::hir_def::{
     db::{vfs::*, *},
-    item::{self, expr::*},
+    decl,
+    item::expr::*,
 };
 
 // #[test]
@@ -103,7 +104,7 @@ fn main_literal() {
     let scope = module.scope();
 
     // 3. HIR definition data
-    let name = item::Name::from_str("main");
+    let name = decl::Name::from_str("main");
 
     let proc_id = scope.lookup_proc(&name).unwrap();
     let proc_data = db.proc_data(proc_id);

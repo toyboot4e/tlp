@@ -18,7 +18,7 @@ use la_arena::Idx;
 
 use crate::hir_def::{
     db::{self, vfs::FileId, Intern},
-    item,
+    decl,
 };
 
 macro_rules! new_ids {
@@ -68,7 +68,7 @@ impl TreeId {
         Self { file }
     }
 
-    pub fn item_tree(&self, db: &dyn db::Def) -> Arc<item::ItemTree> {
+    pub fn item_tree(&self, db: &dyn db::Def) -> Arc<decl::ItemTree> {
         db.file_item_tree(self.file)
     }
 }
@@ -138,7 +138,7 @@ impl<T> Copy for DefId<T> {}
 #[derive(Derivative, Copy)]
 #[derivative(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum AnyDefId {
-    Proc(DefId<item::DefProc>),
+    Proc(DefId<decl::DefProc>),
 }
 
 macro_rules! impl_from {
@@ -151,15 +151,15 @@ macro_rules! impl_from {
     };
 }
 
-impl_from!(DefId<item::DefProc>, Proc);
+impl_from!(DefId<decl::DefProc>, Proc);
 
-impl Id<Loc<item::DefProc>> {
+impl Id<Loc<decl::DefProc>> {
     // NOTE: Use `Def` database, not `Intern` database as parameter. This is because Rust doesn't
     // have upcasting coercion (yet).
-    pub fn lookup(&self, db: &dyn db::Def) -> Loc<item::DefProc> {
+    pub fn lookup(&self, db: &dyn db::Def) -> Loc<decl::DefProc> {
         db.lookup_intern_proc(*self)
     }
 }
 
 // mistake: data → ID
-//     ProcId item::DefProc, proc "Newtype of interned ID for procedure",
+//     ProcId decl::DefProc, proc "Newtype of interned ID for procedure",

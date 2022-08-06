@@ -8,8 +8,13 @@
 //!
 //! # TODO
 //!
-//! * Source map pattern (AstID → AST), and the opposite?
+//! * Source map pattern (AST ID → AST)
+//! * Source map pattern (AST → AST ID)
 
-pub mod data;
+pub mod item;
+pub mod def;
+pub mod decl;
 pub mod db;
+pub mod res;
+
 mod lower;

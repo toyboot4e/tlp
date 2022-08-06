@@ -2,7 +2,10 @@
 
 use la_arena::Arena;
 
-use crate::hir_def::item::{expr::Expr, path::Pattern, Name};
+use crate::hir_def::{
+    decl::Name,
+    item::{expr::Expr, path::Pattern},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProcData {

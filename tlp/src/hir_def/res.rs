@@ -11,7 +11,7 @@ use crate::hir_def::{
         ids::{Id, Loc},
         vfs::FileId,
     },
-    item::{self, Name, Visibility},
+    decl::{self, Name, Visibility},
 };
 
 pub type ModuleId = Idx<ModuleData>;
@@ -65,20 +65,20 @@ impl ModuleData {
 /// Every ID in `ItemScope` is upcasted to [`DefId`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ItemScope {
-    procs: FxHashMap<Name, Id<Loc<item::DefProc>>>,
+    procs: FxHashMap<Name, Id<Loc<decl::DefProc>>>,
     // values:
     // delcs
 }
 
 impl ItemScope {
-    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<Loc<item::DefProc>>) {
+    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<Loc<decl::DefProc>>) {
         // TOOD: consider upcasting or not
         // let id = DefId { loc_id: proc };
         // self.procs.insert(name, AnyDefId::from(id));
         self.procs.insert(name, proc);
     }
 
-    pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<item::DefProc>>> {
+    pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<decl::DefProc>>> {
         self.procs.get(name).cloned()
     }
 }
