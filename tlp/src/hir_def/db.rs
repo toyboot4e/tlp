@@ -64,23 +64,23 @@ pub trait Intern: salsa::Database {
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
     /// Collects declarations in a module. This contains unresolved imports
-    #[salsa::invoke(crate::hir_def::lower::item_tree_query)]
+    #[salsa::invoke(lower::items::item_tree_query)]
     fn file_item_tree(&self, file: FileId) -> Arc<ItemTree>;
 
     // TODO: duplicate item diagnostics
 
     /// Collects module items and makes up a tree. All imports in the underlying `ItemTree` are
     /// resolved in `ItemScope`.
-    #[salsa::invoke(crate::hir_def::lower::def_map_query)]
+    #[salsa::invoke(lower::modules::def_map_query)]
     fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
-    #[salsa::invoke(lower::proc_data_query)]
+    #[salsa::invoke(lower::data::proc_data_query)]
     fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData>;
 
-    #[salsa::invoke(lower::proc_body_query)]
+    #[salsa::invoke(lower::data::proc_body_query)]
     fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
 }
 

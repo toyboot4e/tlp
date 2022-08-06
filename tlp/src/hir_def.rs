@@ -37,8 +37,9 @@ use self::{
 /// ID of [`ModuleData`]
 pub type ModuleId = Idx<ModuleData>;
 
-/// Result of name resolution
+/// Name-resolved crate data
 ///
+/// # Components
 /// - name-declaration map
 /// - item scopes
 #[derive(Debug, Clone, PartialEq, Eq)]
