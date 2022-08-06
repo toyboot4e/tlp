@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Collects declarations and imports; they're interned, but as-is
-pub fn item_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemDeclTree> {
+pub fn item_decl_tree_query(db: &dyn db::Def, file: FileId) -> Arc<ItemDeclTree> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemTreeCollect::run(file, ast))
 }

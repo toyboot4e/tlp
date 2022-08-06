@@ -1,4 +1,4 @@
-//! Lowerd representation of module item declarations (surface)
+//! Lowerd representation of module item declaration syntaxes
 //!
 //! Macros are not expanded and imports not are resolved.
 
@@ -70,54 +70,13 @@ pub enum Visibility {
 /// Function parameter
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Param {
-    name: Name,
+    pub(crate) name: Name,
     // ty: Type,
 }
 
 impl Param {
     pub fn name(&self) -> &Name {
         &self.name
-    }
-}
-
-/// Function parameters
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ProcParams {
-    params: Vec<Param>,
-    // ast: ast::Params,
-}
-
-impl std::ops::Index<usize> for ProcParams {
-    type Output = Param;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.params[index]
-    }
-}
-
-impl ProcParams {
-    pub fn len(&self) -> usize {
-        self.params.len()
-    }
-}
-
-impl ProcParams {
-    pub fn none() -> Self {
-        Self { params: Vec::new() }
-    }
-
-    pub fn from_ast(ast: ast::Params) -> Self {
-        let mut params = Vec::new();
-
-        for param in ast.param_nodes() {
-            // assuming that parameter = identifier
-            let tk = param.token();
-            let text = tk.text();
-            params.push(Param {
-                name: Name::from_str(text),
-            });
-        }
-
-        Self { params }
     }
 }
 
@@ -152,11 +111,47 @@ impl DefProc {
     }
 }
 
-// DefStruct
+/// Function parameters
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProcParams {
+    params: Vec<Param>,
+    // ast: ast::Params,
+}
 
-// /// Recursive lex scope
-// #[derive(Debug, Clone)]
-// pub struct LexScope {
-//     pub exprs: Vec<Expr>,
-//     pub depth: usize,
-// }
+impl std::ops::Index<usize> for ProcParams {
+    type Output = Param;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.params[index]
+    }
+}
+
+impl ProcParams {
+    pub fn len(&self) -> usize {
+        self.params.len()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &'_ Param> {
+        self.params.iter()
+    }
+}
+
+impl ProcParams {
+    pub fn none() -> Self {
+        Self { params: Vec::new() }
+    }
+
+    pub fn from_ast(ast: ast::Params) -> Self {
+        let mut params = Vec::new();
+
+        for param in ast.param_nodes() {
+            // assuming that parameter = identifier
+            let tk = param.token();
+            let text = tk.text();
+            params.push(Param {
+                name: Name::from_str(text),
+            });
+        }
+
+        Self { params }
+    }
+}

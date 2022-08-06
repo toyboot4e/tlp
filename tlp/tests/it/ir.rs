@@ -5,9 +5,9 @@ Tests for toylisp intermediate representations
 use std::sync::Arc;
 
 use tlp::hir_def::{
-    db::{vfs::*, *},
-    decl,
     body::expr::*,
+    db::{vfs::*, *},
+    decl::{self, Name},
 };
 
 #[test]
@@ -34,9 +34,15 @@ fn main_literal() {
     let proc_id = scope.lookup_proc(&name).unwrap();
     let proc_data = db.proc_data(proc_id);
 
-    assert_eq!(proc_data.name, name);
+    assert_eq!(proc_data.name(), Some(&name));
 
     // 4. Parameters
+    let params = proc_data
+        .params()
+        .iter()
+        .map(|p| p.name())
+        .collect::<Vec<_>>();
+    assert_eq!(params, [&Name::from_str("a"), &Name::from_str("b")]);
 
     // 5. Body
     let body = db.proc_body(proc_id);

@@ -11,7 +11,7 @@ use crate::{
     hir_def::{
         body::Body,
         decl::{self, ItemDeclTree},
-        lower, scope, CrateDefMap,
+        lower, CrateDefMap,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
@@ -64,7 +64,7 @@ pub trait Intern: salsa::Database {
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
     /// Collects declarations in a module. This contains unresolved imports
-    #[salsa::invoke(lower::item_tree_query)]
+    #[salsa::invoke(lower::item_decl_tree_query)]
     fn file_item_tree(&self, file: FileId) -> Arc<ItemDeclTree>;
 
     /// Collects module items and makes up a tree. All imports in the underlying `ItemDeclTree` are resolved in `ItemScope`.
@@ -75,7 +75,7 @@ pub trait Def: Parse + Intern {
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
     #[salsa::invoke(lower::proc_data_query)]
-    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<scope::ProcData>;
+    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<decl::DefProc>;
 
     #[salsa::invoke(lower::proc_body_query)]
     fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;

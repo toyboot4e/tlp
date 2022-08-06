@@ -1,22 +1,10 @@
-//! Intermadiate representations between AST and bytecode
-//!
-//! # Data flow
-//!
-//! * macro expansion: ?
-//! * name resolution: AST → ItemTree → ?
-//! * type inference: ?
-//!
-//! # TODO
-//!
-//! * Source map pattern (AST ID → AST)
-//! * Source map pattern (AST → AST ID)
+//! Intermadiate representation between AST and bytecode
 
 pub mod body;
 pub mod db;
 pub mod decl;
 pub mod lower;
 pub mod path;
-pub mod scope;
 
 use std::sync::Arc;
 

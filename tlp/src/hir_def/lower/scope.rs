@@ -11,22 +11,19 @@ use crate::{
             self,
             ids::{Id, Loc},
         },
-        decl, scope,
+        decl,
     },
     syntax::ast,
 };
 
-pub fn proc_data_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<scope::ProcData> {
+pub fn proc_data_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<decl::DefProc> {
     let proc_loc = proc_id.lookup(db);
     let tree = proc_loc.tree.item_tree(db);
     let proc = &tree[proc_loc.item];
 
-    Arc::new(scope::ProcData {
-        name: proc
-            .name
-            .clone()
-            .unwrap_or_else(|| decl::Name::from_str("<no-name-proc>")),
-    })
+    // NOTE: In RA, Function is mapepd to FunctionData applying cfg flags.
+    // Here we just clone the syntax:
+    Arc::new(proc.clone())
 }
 
 pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
@@ -49,18 +46,10 @@ struct LowerExpr<'a> {
     db: &'a dyn db::Def,
     /// The HIR procedure body we're building up
     body: Body,
+    // TODO: track source map:
     // /// AST expr ID → HIR expr ID
     // /// HIR expr ID → AST expr ID
 }
-
-// // TODO: give file ID
-// struct LowerContext {
-//     file_id: FileId,
-// }
-//
-// impl LowerContext {
-//     pub fn
-// }
 
 impl<'a> LowerExpr<'a> {
     pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
