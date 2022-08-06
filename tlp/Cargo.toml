@@ -7,11 +7,11 @@ edition = "2018"
 # std++
 env_logger = "0.9.0"
 log = "0.4.17"
-thiserror = "1.0.31"
+thiserror = "1.0.32"
 camino = "1.0.9"
 
 # framework
-rowan = "0.15.6"
+rowan = "0.15.8"
 salsa = "0.16.1"
 
 # data structures and algorithms
@@ -19,7 +19,7 @@ rustc-hash = "1.1.0"
 indexmap = "1.9.1"
 
 # meta programming
-paste = "1.0.7"
+paste = "1.0.8"
 derivative = "2.2.0"
 
 # optimization
