@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tlp::hir_def::{
     db::{vfs::*, *},
     decl,
-    item::expr::*,
+    body::expr::*,
 };
 
 #[test]

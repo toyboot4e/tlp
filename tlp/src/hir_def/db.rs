@@ -9,16 +9,16 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
+        body::Body,
         decl::{self, ItemDeclTree},
-        def::{self, Body},
-        lower, CrateDefMap,
+        lower, scope, CrateDefMap,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
 use self::{
-    ids::{DefId, Id, Loc},
+    ids::{Id, Loc},
     vfs::FileId,
 };
 
@@ -67,8 +67,6 @@ pub trait Def: Parse + Intern {
     #[salsa::invoke(lower::item_tree_query)]
     fn file_item_tree(&self, file: FileId) -> Arc<ItemDeclTree>;
 
-    // TODO: duplicate item diagnostics
-
     /// Collects module items and makes up a tree. All imports in the underlying `ItemDeclTree` are resolved in `ItemScope`.
     #[salsa::invoke(lower::def_map_query)]
     fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
@@ -77,7 +75,7 @@ pub trait Def: Parse + Intern {
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
     #[salsa::invoke(lower::proc_data_query)]
-    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<def::ProcData>;
+    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<scope::ProcData>;
 
     #[salsa::invoke(lower::proc_body_query)]
     fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;

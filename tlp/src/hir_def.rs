@@ -11,11 +11,12 @@
 //! * Source map pattern (AST ID → AST)
 //! * Source map pattern (AST → AST ID)
 
+pub mod body;
 pub mod db;
 pub mod decl;
-pub mod def;
-pub mod item;
 pub mod lower;
+pub mod path;
+pub mod scope;
 
 use std::sync::Arc;
 
@@ -37,10 +38,6 @@ use self::{
 pub type ModuleId = Idx<ModuleData>;
 
 /// Name-resolved crate data
-///
-/// # Components
-/// - name-declaration map
-/// - item scopes
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateDefMap {
     pub(crate) root: ModuleId,
