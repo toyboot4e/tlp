@@ -8,18 +8,14 @@ pub mod vfs;
 use std::sync::Arc;
 
 use crate::{
-    hir_def::{
-        body::Body,
-        decl::{self, ItemDeclTree},
-        lower, CrateDefMap,
-    },
+    hir_def::{body::Body, item, lower, CrateDefMap, FileItemList},
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
 use self::{
     ids::{Id, Loc},
-    vfs::FileId,
+    vfs::VfsFileId,
 };
 
 /// [`salsa`] database for the `queries`
@@ -38,9 +34,9 @@ impl salsa::Database for DB {}
 #[salsa::query_group(SourceDB)]
 pub trait Source: salsa::Database {
     #[salsa::input]
-    fn input(&self, file: FileId) -> Arc<String>;
+    fn input(&self, file: VfsFileId) -> Arc<String>;
 
-    fn line_index(&self, file: FileId) -> Arc<LineIndex>;
+    fn line_index(&self, file: VfsFileId) -> Arc<LineIndex>;
 
     // #[salsa::input]
     // fn source_files(&self, krate: CrateLoc) -> ARc<Vec<Utf8PathBuf>>;
@@ -50,43 +46,46 @@ pub trait Source: salsa::Database {
 #[salsa::query_group(ParseDB)]
 pub trait Parse: Source {
     /// Parses the file into AST and returns AST and parse errors
-    fn parse(&self, file: FileId) -> Arc<ParseResult>;
+    fn parse(&self, file: VfsFileId) -> Arc<ParseResult>;
 }
 
 /// Interner of locations (`Loc<T>` → `Id<Loc<T>>` and vice versa)
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     #[salsa::interned]
-    fn intern_proc(&self, proc: Loc<decl::DefProc>) -> Id<Loc<decl::DefProc>>;
+    fn intern_proc(&self, proc: Loc<item::DefProc>) -> Id<Loc<item::DefProc>>;
 }
 
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
-    /// Collects declarations in a module. This contains unresolved imports
-    #[salsa::invoke(lower::item_decl_tree_query)]
-    fn file_item_tree(&self, file: FileId) -> Arc<ItemDeclTree>;
+    // --------------------------------------------------------------------------------
+    // Item
+    // --------------------------------------------------------------------------------
 
-    /// Collects module items and makes up a tree. All imports in the underlying `ItemDeclTree` are resolved in `ItemScope`.
-    #[salsa::invoke(lower::def_map_query)]
-    fn crate_def_map(&self, krate: FileId) -> Arc<CrateDefMap>;
+    #[salsa::invoke(lower::crate_def_map_query)]
+    fn crate_def_map(&self, krate: VfsFileId) -> Arc<CrateDefMap>;
+
+    #[salsa::invoke(lower::file_item_list_query)]
+    fn file_item_list(&self, file: VfsFileId) -> Arc<FileItemList>;
+
+    // --------------------------------------------------------------------------------
+    // Body
+    // --------------------------------------------------------------------------------
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_def_map(&self, block: BlockId) -> Option<Arc<DefMap>>;
 
-    #[salsa::invoke(lower::proc_data_query)]
-    fn proc_data(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<decl::DefProc>;
-
     #[salsa::invoke(lower::proc_body_query)]
-    fn proc_body(&self, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body>;
+    fn proc_body(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body>;
 }
 
-fn line_index(db: &dyn Source, file: FileId) -> Arc<LineIndex> {
+fn line_index(db: &dyn Source, file: VfsFileId) -> Arc<LineIndex> {
     let input = db.input(file);
     Arc::new(LineIndex::new(&input))
 }
 
-fn parse(db: &dyn Parse, file: FileId) -> Arc<ParseResult> {
+fn parse(db: &dyn Parse, file: VfsFileId) -> Arc<ParseResult> {
     let src = db.input(file);
     let res = ast::parse(&src);
     Arc::new(res)

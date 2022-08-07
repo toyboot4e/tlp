@@ -14,28 +14,18 @@ use crate::{
             self,
             ids::{Id, Loc},
         },
-        decl::{self, Name},
+        item::{self, Name},
     },
     syntax::ast,
 };
 
-pub fn proc_data_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<decl::DefProc> {
-    let proc_loc = proc_id.lookup(db);
-    let tree = proc_loc.tree.item_tree(db);
-    let proc = &tree[proc_loc.item];
-
-    // NOTE: In RA, Function is mapepd to FunctionData applying cfg flags.
-    // Here we just clone the syntax:
-    Arc::new(proc.clone())
-}
-
-pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<decl::DefProc>>) -> Arc<Body> {
+pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body> {
     // collect parameters as pattern IDs
 
     // body = block expr
     let proc_loc = db.lookup_intern_proc(proc_id);
-    let tree = proc_loc.tree.item_tree(db);
-    let proc = &tree[proc_loc.item];
+    let tree = db.file_item_list(proc_loc.file);
+    let proc = &tree[proc_loc.idx];
 
     LowerExpr {
         db,

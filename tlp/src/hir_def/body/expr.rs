@@ -7,7 +7,7 @@ use std::cmp;
 use la_arena::Idx;
 
 use crate::{
-    hir_def::decl::Name,
+    hir_def::item::Name,
     syntax::ast::{self, AstToken},
 };
 

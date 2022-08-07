@@ -2,14 +2,14 @@
 
 use la_arena::Idx;
 
-use crate::hir_def::{decl::Name, ModuleData};
+use crate::hir_def::{item::Name, FileDefMap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId {
     // krate: CrateId,
     // block: Option<BlockId>,
     /// The module's ID in its originating `DefMap`.
-    idx: Idx<ModuleData>,
+    idx: Idx<FileDefMap>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,13 +19,8 @@ pub struct BlockLoc {
     module: ModuleId,
 }
 
-/// Path to any item
+/// Path to an item
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemPath {
     segments: Vec<Name>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Pattern {
-    Path(ItemPath),
 }

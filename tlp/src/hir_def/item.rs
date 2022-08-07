@@ -2,44 +2,13 @@
 //!
 //! Macros are not expanded and imports not are resolved.
 
-use std::ops;
-
-use la_arena::{Arena, Idx};
 use smol_str::SmolStr;
 
 use crate::{hir_def::db::vfs::*, syntax::ast};
 
 /// Upcast of module item IDs
-pub enum ItemDeclId {
+pub enum ItemId {
     Proc(DefProc),
-}
-
-/// Top-level module item declarations
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemDeclTree {
-    pub(crate) file: FileId,
-    pub(crate) procs: Arena<DefProc>,
-    // pub(crate) imports: Vec<Import>,
-}
-
-impl ops::Index<Idx<DefProc>> for ItemDeclTree {
-    type Output = DefProc;
-    fn index(&self, ix: Idx<DefProc>) -> &Self::Output {
-        &self.procs[ix]
-    }
-}
-
-impl ItemDeclTree {
-    pub fn new(file: FileId) -> Self {
-        Self {
-            file,
-            procs: Default::default(),
-        }
-    }
-
-    pub fn procs(&self) -> &Arena<DefProc> {
-        &self.procs
-    }
 }
 
 /// Declared item's name

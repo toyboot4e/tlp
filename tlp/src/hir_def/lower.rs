@@ -1,7 +1,7 @@
 //! Converts ASTs into an interned, ID-based representation
 
-mod decls;
+mod item;
 mod modules;
 mod scope;
 
-pub use self::{decls::*, modules::*, scope::*};
+pub use self::{item::*, modules::*, scope::*};

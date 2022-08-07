@@ -2,90 +2,122 @@
 
 pub mod body;
 pub mod db;
-pub mod decl;
+pub mod item;
 pub mod lower;
 pub mod path;
-
-use std::sync::Arc;
-
-// Module item definitions. Import are resolved into [`ItemScope`] and top-level macros are
-// expanded.
 
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
 
+use std::{ops, sync::Arc};
+
+use crate::{hir_def::db::vfs::*, syntax::ast};
+
 use self::{
     db::{
         ids::{Id, Loc},
-        vfs::FileId,
+        vfs::VfsFileId,
     },
-    decl::{Name, Visibility},
+    item::{Name, Visibility},
 };
 
-/// ID of [`ModuleData`]
-pub type ModuleId = Idx<ModuleData>;
-
-/// Name-resolved crate data
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateDefMap {
-    pub(crate) root: ModuleId,
-    /// Module data, including the root
-    pub(crate) modules: Arena<ModuleData>,
+    pub(crate) root: FileDataId,
+    /// Sub module files
+    pub(crate) files: Arena<FileDefMap>,
+    // TODO: collect diagnostics
     // pub(crate) diags: Vec<Diagnostic>,
 }
 
 impl CrateDefMap {
-    pub fn new(root: ModuleId) -> Self {
+    pub fn new(root: FileDataId) -> Self {
         Self {
             root,
-            modules: Arena::default(),
+            files: Arena::default(),
         }
     }
 
-    pub fn root(&self) -> ModuleId {
+    pub fn root_file_data_id(&self) -> FileDataId {
         self.root
     }
 
-    pub fn module(&self, module: ModuleId) -> &ModuleData {
-        &self.modules[module]
+    pub fn sub_file(&self, module: FileDataId) -> &FileDefMap {
+        &self.files[module.idx]
     }
 }
 
-/// Name-resolved module data
+/// File items
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ModuleData {
-    pub(crate) file: FileId,
+pub struct FileDefMap {
+    pub(crate) file: VfsFileId,
     pub(crate) vis: Visibility,
-    pub(crate) parent: Option<ModuleId>,
-    pub(crate) children: Vec<ModuleId>,
+    pub(crate) parent: Option<FileDataId>,
+    pub(crate) children: Vec<FileDataId>,
     pub(crate) scope: Arc<ItemScope>,
 }
 
-impl ModuleData {
+impl FileDefMap {
     pub fn scope(&self) -> &ItemScope {
         &self.scope
     }
 }
 
-/// Name-resolved top-level module items
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FileDataId {
+    // krate: CrateId,
+    // block: BlockId,
+    pub(crate) idx: Idx<FileDefMap>,
+}
+
+/// Name-resolved item definitions IDs in a scope (declarations and imports)
 ///
 /// Built upon `ItemTree`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ItemScope {
-    procs: FxHashMap<Name, Id<Loc<decl::DefProc>>>,
+    // declarations
+    procs: FxHashMap<Name, Id<Loc<item::DefProc>>>,
     // values:
     // delcs
 }
 
 impl ItemScope {
-    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<Loc<decl::DefProc>>) {
+    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<Loc<item::DefProc>>) {
         // TOOD: consider upcasting or not
         // let id = DefId { loc_id: proc };
         // self.procs.insert(name, AnyDefId::from(id));
         self.procs.insert(name, proc);
     }
 
-    pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<decl::DefProc>>> {
+    pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<item::DefProc>>> {
         self.procs.get(name).cloned()
+    }
+}
+
+/// Top-level item declarations in a file
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FileItemList {
+    pub(crate) file: VfsFileId,
+    pub(crate) procs: Arena<item::DefProc>,
+    // pub(crate) imports: Vec<Import>,
+}
+
+impl ops::Index<Idx<item::DefProc>> for FileItemList {
+    type Output = item::DefProc;
+    fn index(&self, ix: Idx<item::DefProc>) -> &Self::Output {
+        &self.procs[ix]
+    }
+}
+
+impl FileItemList {
+    pub(crate) fn new(file: VfsFileId) -> Self {
+        Self {
+            file,
+            procs: Default::default(),
+        }
+    }
+
+    pub fn procs(&self) -> &Arena<item::DefProc> {
+        &self.procs
     }
 }

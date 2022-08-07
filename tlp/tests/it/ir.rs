@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tlp::hir_def::{
     body::expr::*,
     db::{vfs::*, *},
-    decl::{self, Name},
+    item::{self, Name},
 };
 
 #[test]
@@ -16,23 +16,28 @@ fn main_literal() {
     let mut vfs = Vfs::default();
 
     let path = "my-module.tlp".into();
-    let file = vfs.intern(path);
+    let vfs_file_id = vfs.intern(path);
 
-    let src = r#"(proc main (a b) 12)"#;
-    db.set_input(file.clone(), Arc::new(String::from(src)));
+    let src = r#"
+(proc main (a b)
+    12
+    (+ 1 2))"#;
+    db.set_input(vfs_file_id.clone(), Arc::new(String::from(src)));
 
-    let krate = file.clone();
+    let krate = vfs_file_id.clone();
     let def_map = db.crate_def_map(krate.clone());
 
-    let root = def_map.root();
-    let module = def_map.module(root);
-    let scope = module.scope();
+    let file_data_id = def_map.root_file_data_id();
+    let file = def_map.sub_file(file_data_id);
+    let scope = file.scope();
 
-    // 3. HIR definition data
-    let name = decl::Name::from_str("main");
+    // 3. name
+    let name = item::Name::from_str("main");
 
     let proc_id = scope.lookup_proc(&name).unwrap();
-    let proc_data = db.proc_data(proc_id);
+    let proc_loc = proc_id.lookup(&db);
+    let tree = db.file_item_list(proc_loc.file);
+    let proc_data = &tree[proc_loc.idx];
 
     assert_eq!(proc_data.name(), Some(&name));
 
@@ -46,83 +51,22 @@ fn main_literal() {
 
     // 5. Body
     let body = db.proc_body(proc_id);
+    let mut exprs = body.root.children.iter().cloned();
 
+    // 12
     assert_eq!(
-        body.exprs.iter().next().unwrap().1,
-        &Expr::Literal(Literal::Uint(12, None))
+        &body.exprs[exprs.next().unwrap()],
+        &Expr::Literal(Literal::Int(12))
     );
-}
 
-// #[test]
-// fn module_tree() {
-//     let mut db = DB::default();
-//     let mut vfs = Vfs::default();
-//
-//     let path = "my-module.tlp".into();
-//     let file = vfs.intern(path);
-//
-//     let src = r#"
-// (proc f (x y z) (+ x y z))
-// (proc g (x y z) (+ x y z))
-// (proc h (x y z) (+ x y z))
-// (proc atom () 10)
-// "#;
-//
-//     db.set_input(file.clone(), Arc::new(String::from(src)));
-//
-//     // 1. ItemTree
-//     let item_tree = db.file_item_tree(file.clone());
-//
-//     let mut procs = item_tree.procs().iter();
-//     let (_ix, proc) = procs.next().expect("no procedure detected!");
-//     let params = proc.params();
-//
-//     assert_eq!(proc.name().unwrap().as_str(), "f");
-//     assert_eq!(params.len(), 3);
-//     assert_eq!(params[0].name().as_str(), "x");
-//     assert_eq!(params[1].name().as_str(), "y");
-//     assert_eq!(params[2].name().as_str(), "z");
-//
-//     let (_ix, proc) = procs.next().unwrap();
-//     assert_eq!(proc.name().unwrap().as_str(), "g");
-//     let (_ix, proc) = procs.next().unwrap();
-//     assert_eq!(proc.name().unwrap().as_str(), "h");
-//     let (_ix, proc) = procs.next().unwrap();
-//     assert_eq!(proc.name().unwrap().as_str(), "atom");
-//
-//     // 2. DefMap
-//     let krate = file.clone();
-//     let def_map = db.crate_def_map(krate.clone());
-//
-//     let root = def_map.root();
-//     let module = def_map.module(root);
-//     let scope = module.scope();
-//
-//     {
-//         let names = ["f", "g", "h", "atom"].map(|s| item::Name::from_str(s));
-//         let mut i = 0;
-//
-//         for name in &names {
-//             i += 1;
-//
-//             let proc_id = scope.lookup_proc(name).unwrap();
-//             let proc_loc = proc_id.lookup(&db);
-//             let proc = &item_tree[proc_loc.item];
-//
-//             assert!(matches!(
-//                 proc.name().unwrap().as_str(),
-//                 "f" | "g" | "h" | "atom"
-//             ));
-//         }
-//     }
-//
-//     // 3-1. HIR definition data
-//     let name = item::Name::from_str("atom");
-//     let proc_id = scope.lookup_proc(&name).unwrap();
-//
-//     let proc_data = db.proc_data(proc_id);
-//     assert_eq!(proc_data.name, name);
-//
-//     // 3-2. HIR body
-//     // let body = db.proc_body(proc_id);
-// }
+    // (+ 1 2)
+    let node = &body.exprs[exprs.next().unwrap()];
+    match node {
+        Expr::Call(call) => {
+            assert_eq!(call.name.as_str(), "+");
+            assert_eq!(&body.exprs[call.args[0]], &Expr::Literal(Literal::Int(1)),);
+            assert_eq!(&body.exprs[call.args[1]], &Expr::Literal(Literal::Int(2)),);
+        }
+        _ => panic!("not a call node: {:?}", node),
+    };
+}

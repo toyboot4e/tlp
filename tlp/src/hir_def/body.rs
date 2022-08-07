@@ -6,16 +6,16 @@ pub mod expr;
 
 use la_arena::{Arena, Idx};
 
-use crate::hir_def::path::Pattern;
+use crate::hir_def::path::ItemPath;
 
 use self::expr::Expr;
 
-/// Lowered code block
+/// Body of an item (procedure, constant, etc.)
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Body {
     pub root: Block,
     pub exprs: Arena<Expr>,
-    pub pats: Arena<Pattern>,
+    pub paths: Arena<ItemPath>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
