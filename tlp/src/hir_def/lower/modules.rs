@@ -11,17 +11,17 @@ use crate::hir_def::{
         vfs::*,
     },
     item::Visibility,
-    CrateDefMap, FileDataId, FileDefMap, ItemScope,
+    CrateData, FileDataId, FileData, ItemScope,
 };
 
 /// Collects tree of modules with `ItemScope`
-pub fn crate_def_map_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateDefMap> {
-    let mut modules = Arena::<FileDefMap>::new();
+pub fn crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateData> {
+    let mut modules = Arena::<FileData>::new();
 
     let root_scope = ModCollector { vfs_file_id: krate }.module_item_scope(db);
 
     let root = FileDataId {
-        idx: modules.alloc(FileDefMap {
+        idx: modules.alloc(FileData {
             file: krate.clone(),
             vis: Visibility::Public,
             parent: None,
@@ -30,7 +30,7 @@ pub fn crate_def_map_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateDefMa
         }),
     };
 
-    Arc::new(CrateDefMap {
+    Arc::new(CrateData {
         root,
         files: modules,
     })

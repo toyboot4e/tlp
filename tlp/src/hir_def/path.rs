@@ -2,14 +2,14 @@
 
 use la_arena::Idx;
 
-use crate::hir_def::{item::Name, FileDefMap};
+use crate::hir_def::{item::Name, FileData};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId {
     // krate: CrateId,
     // block: Option<BlockId>,
     /// The module's ID in its originating `DefMap`.
-    idx: Idx<FileDefMap>,
+    idx: Idx<FileData>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

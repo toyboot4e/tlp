@@ -25,10 +25,10 @@ fn main_literal() {
     db.set_input(vfs_file_id.clone(), Arc::new(String::from(src)));
 
     let krate = vfs_file_id.clone();
-    let def_map = db.crate_def_map(krate.clone());
+    let crate_data = db.crate_data(krate.clone());
 
-    let file_data_id = def_map.root_file_data_id();
-    let file = def_map.sub_file(file_data_id);
+    let file_data_id = crate_data.root_file_data_id();
+    let file = crate_data.sub_file(file_data_id);
     let scope = file.scope();
 
     // 3. name

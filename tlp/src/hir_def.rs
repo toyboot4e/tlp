@@ -22,15 +22,15 @@ use self::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CrateDefMap {
+pub struct CrateData {
     pub(crate) root: FileDataId,
     /// Sub module files
-    pub(crate) files: Arena<FileDefMap>,
+    pub(crate) files: Arena<FileData>,
     // TODO: collect diagnostics
     // pub(crate) diags: Vec<Diagnostic>,
 }
 
-impl CrateDefMap {
+impl CrateData {
     pub fn new(root: FileDataId) -> Self {
         Self {
             root,
@@ -42,14 +42,14 @@ impl CrateDefMap {
         self.root
     }
 
-    pub fn sub_file(&self, module: FileDataId) -> &FileDefMap {
+    pub fn sub_file(&self, module: FileDataId) -> &FileData {
         &self.files[module.idx]
     }
 }
 
 /// File items
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileDefMap {
+pub struct FileData {
     pub(crate) file: VfsFileId,
     pub(crate) vis: Visibility,
     pub(crate) parent: Option<FileDataId>,
@@ -57,7 +57,7 @@ pub struct FileDefMap {
     pub(crate) scope: Arc<ItemScope>,
 }
 
-impl FileDefMap {
+impl FileData {
     pub fn scope(&self) -> &ItemScope {
         &self.scope
     }
@@ -67,7 +67,7 @@ impl FileDefMap {
 pub struct FileDataId {
     // krate: CrateId,
     // block: BlockId,
-    pub(crate) idx: Idx<FileDefMap>,
+    pub(crate) idx: Idx<FileData>,
 }
 
 /// Name-resolved item definitions IDs in a scope (declarations and imports)

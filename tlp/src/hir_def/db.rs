@@ -8,7 +8,7 @@ pub mod vfs;
 use std::sync::Arc;
 
 use crate::{
-    hir_def::{body::Body, item, lower, CrateDefMap, FileItemList},
+    hir_def::{body::Body, item, lower, CrateData, FileItemList},
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
@@ -63,8 +63,8 @@ pub trait Def: Parse + Intern {
     // Item
     // --------------------------------------------------------------------------------
 
-    #[salsa::invoke(lower::crate_def_map_query)]
-    fn crate_def_map(&self, krate: VfsFileId) -> Arc<CrateDefMap>;
+    #[salsa::invoke(lower::crate_data_query)]
+    fn crate_data(&self, krate: VfsFileId) -> Arc<CrateData>;
 
     #[salsa::invoke(lower::file_item_list_query)]
     fn file_item_list(&self, file: VfsFileId) -> Arc<FileItemList>;
