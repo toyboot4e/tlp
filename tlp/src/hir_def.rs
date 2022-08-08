@@ -11,8 +11,6 @@ use rustc_hash::FxHashMap;
 
 use std::{ops, sync::Arc};
 
-use crate::{hir_def::db::vfs::*, syntax::ast};
-
 use self::{
     db::{
         ids::{Id, Loc},
@@ -21,6 +19,7 @@ use self::{
     item::{Name, Visibility},
 };
 
+/// [`FileData`] container
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
     pub(crate) root: FileDataId,
@@ -94,22 +93,21 @@ impl ItemScope {
     }
 }
 
-/// Top-level item declarations in a file
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FileItemList {
+pub struct ItemList {
     pub(crate) file: VfsFileId,
     pub(crate) procs: Arena<item::DefProc>,
     // pub(crate) imports: Vec<Import>,
 }
 
-impl ops::Index<Idx<item::DefProc>> for FileItemList {
+impl ops::Index<Idx<item::DefProc>> for ItemList {
     type Output = item::DefProc;
     fn index(&self, ix: Idx<item::DefProc>) -> &Self::Output {
         &self.procs[ix]
     }
 }
 
-impl FileItemList {
+impl ItemList {
     pub(crate) fn new(file: VfsFileId) -> Self {
         Self {
             file,

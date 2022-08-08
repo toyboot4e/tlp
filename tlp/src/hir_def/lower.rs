@@ -1,7 +1,7 @@
-//! Converts ASTs into an interned, ID-based representation
+//! Creates `hir_def` types from AST
 
+mod body;
 mod item;
 mod modules;
-mod scope;
 
-pub use self::{item::*, modules::*, scope::*};
+pub use self::{body::*, item::*, modules::*};

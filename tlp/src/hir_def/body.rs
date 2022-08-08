@@ -1,4 +1,4 @@
-//! Functgion body
+//! Body of tem definition (procedure or constant)
 
 // not fully resolved (for example function calls)
 
@@ -10,7 +10,7 @@ use crate::hir_def::path::ItemPath;
 
 use self::expr::Expr;
 
-/// Body of an item (procedure, constant, etc.)
+/// Body of tem definition (procedure or constant)
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Body {
     pub root: Block,

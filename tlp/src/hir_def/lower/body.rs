@@ -1,4 +1,4 @@
-//! Lowers ?
+//! Lowers body and code blocks
 
 use std::sync::Arc;
 
@@ -37,9 +37,8 @@ pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc
 /// Proc AST → Proc HIR
 struct LowerExpr<'a> {
     db: &'a dyn db::Def,
-    /// The HIR procedure body we're building up
     body: Body,
-    // TODO: track source map:
+    // TODO: source map:
     // /// AST expr ID → HIR expr ID
     // /// HIR expr ID → AST expr ID
 }
@@ -60,7 +59,6 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_form(&mut self, form: ast::Form) -> Idx<Expr> {
-        // TODO: cast AST node to a syntax pointer in order to make up the AST-HIR map
         match form.kind() {
             ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
             ast::FormKind::Call(call) => {

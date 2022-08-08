@@ -1,10 +1,10 @@
-//! Lowerd representation of module item declaration syntaxes
+//! Item syntax
 //!
 //! Macros are not expanded and imports not are resolved.
 
 use smol_str::SmolStr;
 
-use crate::{hir_def::db::vfs::*, syntax::ast};
+use crate::syntax::ast;
 
 /// Upcast of module item IDs
 pub enum ItemId {

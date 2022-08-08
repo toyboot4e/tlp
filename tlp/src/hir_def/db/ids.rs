@@ -18,7 +18,7 @@ use la_arena::Idx;
 
 use crate::hir_def::{
     db::{self, vfs::VfsFileId, Intern},
-    item, FileItemList,
+    item, ItemList,
 };
 
 macro_rules! new_ids {
