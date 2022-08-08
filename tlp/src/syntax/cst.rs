@@ -96,6 +96,8 @@ pub enum SyntaxKind {
     Param,
     /// Procedure body node
     Body,
+    /// Let
+    Let,
     // ----------------------------------------
     // composite node
     /// Beginning of text

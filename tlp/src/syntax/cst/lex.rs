@@ -198,7 +198,7 @@ impl<'s> Lexer<'s> {
     }
 }
 
-/// Syntaxes (&mut self → Option<Token>)
+/// Grammers (&mut self → Option<Token>)
 impl<'s> Lexer<'s> {
     /// Byte tokens: `():.-`
     fn lex_one_byte(&mut self) -> Option<Token> {

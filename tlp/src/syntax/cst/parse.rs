@@ -224,9 +224,7 @@ impl ParseState {
         Some(())
     }
 
-    /// list → Call | DefProc
-    ///
-    /// TODO: allow unit?
+    /// list → Call | Let | DefProc
     fn always_list(&mut self, pcx: &ParseContext) {
         // We don't know the node kind yet, so let's wrap the tokens later
         let checkpoint = self.builder.checkpoint();
@@ -239,6 +237,10 @@ impl ParseState {
                 self.bump_kind(pcx, SyntaxKind::Ident);
                 SyntaxKind::DefProc
             }
+            Some(tk) if tk.kind == SyntaxKind::Ident && tk.slice(pcx.src) == "let" => {
+                self.bump_kind(pcx, SyntaxKind::Ident);
+                SyntaxKind::Let
+            }
             Some(tk) if tk.kind == SyntaxKind::Ident => {
                 self.bump_kind(pcx, SyntaxKind::Ident);
                 SyntaxKind::Call
@@ -250,7 +252,7 @@ impl ParseState {
                     found: format!("{:?}", tk.kind),
                 });
 
-                // FIXME: recovery on wrong form
+                // TODO: recovery on wrong form
                 return;
             }
             None => {
@@ -260,22 +262,27 @@ impl ParseState {
                     found: "EoF".to_string(),
                 });
 
-                // FIXME: recovery on wrong form
+                // TODO: recovery on wrong form
                 return;
             }
         };
 
-        // wrap the `Call` or `DefProc` node
+        // wrap the `Call`, `Let` or `DefProc` node
         self.builder.start_node_at(checkpoint, node_kind.into());
 
         // maybe proc name and parameters
         if node_kind == SyntaxKind::DefProc {
             // start `Body` node
-            self._to_proc_param(pcx);
+            self.to_proc_param(pcx);
+        }
+
+        if node_kind == SyntaxKind::Let {
+            //
         }
 
         // maybe other list items
-        let found_rparen = self._up_to_end_paren(pcx).is_some();
+        let found_rparen = self.to_end_paren(pcx).is_some();
+
         if node_kind == SyntaxKind::DefProc {
             // end `Body` node
             self.builder.finish_node();
@@ -289,7 +296,7 @@ impl ParseState {
     }
 
     /// Parses params and starts proc body
-    fn _to_proc_param(&mut self, pcx: &ParseContext) {
+    fn to_proc_param(&mut self, pcx: &ParseContext) {
         self.maybe_bump_ws(pcx);
 
         // proc name
@@ -309,7 +316,7 @@ impl ParseState {
         // params
         if let Some(tk) = self.peek(pcx) {
             if tk.kind == SyntaxKind::LParen {
-                self._proc_params(pcx);
+                self.proc_params(pcx);
                 self.maybe_bump_ws(pcx);
             }
         }
@@ -317,7 +324,7 @@ impl ParseState {
         self.builder.start_node(SyntaxKind::Body.into());
     }
 
-    fn _proc_params(&mut self, pcx: &ParseContext) {
+    fn proc_params(&mut self, pcx: &ParseContext) {
         self.builder.start_node(SyntaxKind::Params.into());
         self.bump_kind(pcx, SyntaxKind::LParen);
 
@@ -354,7 +361,7 @@ impl ParseState {
     /// Sexp* ")"
     ///
     /// Advances until it peeks a right paren. Returns if the end of the list was found.
-    fn _up_to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
+    fn to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
         loop {
             self.maybe_bump_ws(pcx);
 
@@ -469,7 +476,7 @@ impl ParseState {
         return Some(());
     }
 
-    /// atom → liteal
+    /// atom → litral
     fn maybe_atom(&mut self, pcx: &ParseContext) -> Option<()> {
         if let Some(()) = self.maybe_lit(pcx) {
             return Some(());
