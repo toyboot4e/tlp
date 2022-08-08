@@ -78,8 +78,9 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub fn push_const(&mut self, value: Value) {
-        self.consts.push(value)
+    pub fn push_const(&mut self, value: Value) -> usize {
+        self.consts.push(value);
+        self.consts.len() - 1
     }
 
     #[inline(always)]
@@ -87,14 +88,14 @@ impl Chunk {
         self.bytes.push(code as u8);
     }
 
-    /// Push constant that is referred to by one-byte index
+    /// Push 1 byte index that refers to a constant
     #[inline(always)]
     pub fn push_ix_u8(&mut self, x: u8) {
         self.bytes.push(OpCode::OpConst8 as u8);
         self.bytes.push(x);
     }
 
-    /// Push constant that is referred to by two-byte index
+    /// Push 2 byte index that refers to a constant
     #[inline(always)]
     pub fn push_ix_u16(&mut self, x: u16) {
         self.bytes.push(OpCode::OpConst16 as u8);
@@ -108,7 +109,7 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vm::{Vm, Result, code::OpCode::*};
+    use crate::vm::{code::OpCode::*, Result, Vm};
 
     /// Tests `-((64.0 - 32.0) / 16.0)` results in `2.0`
     #[test]
@@ -143,3 +144,19 @@ mod tests {
         Ok(())
     }
 }
+
+// /// Read chunk as [`OpCode`] s
+// pub struct ChunkIter<'a> {
+//     chunk: &'a Chunk,
+//     i: usize,
+// }
+//
+// impl<'a> Iterator for ChunkIter<'a> {
+//     type Item = OpCode;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let byte = self.bytes.get(self.i)?;
+//         todo!()
+//     }
+// }
+
+// pub enum OpCodeB { }
