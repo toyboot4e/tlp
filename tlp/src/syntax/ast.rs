@@ -57,14 +57,18 @@ pub trait AstElement: Sized {
 }
 
 macro_rules! def_node {
-    ($name:ident, $pred:expr, $doc:expr) => {
+    (
+        $( #[$meta:meta] )*
+        $ty:ident,
+        $pred:expr $(,)?
+    ) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        #[doc = $doc]
-        pub struct $name {
+        $( #[$meta] )*
+        pub struct $ty {
             pub(crate) syn: SyntaxNode,
         }
 
-        impl AstNode for $name {
+        impl AstNode for $ty {
             fn can_cast(kind: SyntaxKind) -> bool {
                 ($pred)(kind)
             }
@@ -85,14 +89,18 @@ macro_rules! def_node {
 }
 
 macro_rules! def_tk {
-    ($name:ident, $kind:path $(| $kind2:path)*, $doc:expr) => {
+    (
+        $( #[$meta:meta] )*
+        $ty:ident,
+        $kind:path $(| $kind2:path)* $(,)?
+    ) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        #[doc = $doc]
-        pub struct $name {
+        $( #[$meta] )*
+        pub struct $ty {
             pub(crate) syn: SyntaxToken,
         }
 
-        impl AstToken for $name {
+        impl AstToken for $ty {
             fn can_cast(kind: SyntaxKind) -> bool {
                 matches!(kind, $kind $(| $kind2)*)
             }
@@ -110,7 +118,7 @@ macro_rules! def_tk {
             }
         }
 
-        impl $name {
+        impl $ty {
             pub fn text(&self) -> &str {
                 self.syn.text()
             }
@@ -119,8 +127,18 @@ macro_rules! def_tk {
 }
 
 macro_rules! transparent_node_wrapper {
-    ($ty:ident, $kind:ident, $($var:ident)|*, $pred:expr, $doc:expr, $kind_doc:expr $(,)?) => {
-        def_node!($ty, $pred, $doc);
+    (
+        $( #[$meta:meta] )*
+        $ty:ident,
+        $( #[$kind_meta:meta] )*
+        $kind:ident = $( $var:ident )|*,
+        $pred:expr $(,)?
+    ) => {
+        def_node!{
+            $( #[$meta] )*
+            $ty,
+            $pred
+        }
 
         impl $ty {
             pub fn kind(&self) -> $kind {
@@ -134,7 +152,7 @@ macro_rules! transparent_node_wrapper {
         }
 
         #[derive(Debug, Clone, PartialEq)]
-        #[doc = $kind_doc]
+        $( #[$kind_meta] )*
         pub enum $kind {
             $($var($var),)*
         }
@@ -151,8 +169,18 @@ macro_rules! transparent_node_wrapper {
 }
 
 macro_rules! token_wrapper {
-    ($ty:ident, $ty_kind:ident, $pred:expr, $($var:ident)|*, $doc:expr, $kind_doc:expr $(,)?) => {
-        def_node!($ty, $pred, $doc);
+    (
+        $( #[$meta:meta] )*
+        $ty:ident,
+        $( #[$kind_meta:meta] )*
+        $ty_kind:ident = $($var:ident)|*,
+        $pred:expr $(,)?
+    ) => {
+        def_node!{
+            $( #[$meta] )*
+            $ty,
+            $pred,
+        }
 
         impl $ty {
             pub fn token(&self) -> SyntaxToken {
@@ -175,7 +203,7 @@ macro_rules! token_wrapper {
         }
 
         #[derive(Debug, Clone, PartialEq)]
-        #[doc = $kind_doc]
+        $( #[$kind_meta] )*
         pub enum $ty_kind {
             $($var($var),)*
         }
@@ -212,15 +240,14 @@ impl Document {
 }
 
 transparent_node_wrapper!(
+    /// Form node (transparent wrapper around other nodes)
     Form,
-    FormKind,
-    DefProc | Call | Literal,
+    /// "View to the [`Form`]
+    FormKind = DefProc | Call | Literal,
     |kind| matches!(
         kind,
         SyntaxKind::DefProc | SyntaxKind::Call | SyntaxKind::Literal
     ),
-    r#"Transparent form node"#,
-    r#"View to the [`Form`]"#,
 );
 
 /// Function call
@@ -278,15 +305,15 @@ impl Call {
 }
 
 def_node!(
+    /// (proc name (params?) (block)..)
     DefProc,
     |kind| matches!(kind, SyntaxKind::DefProc),
-    "(proc name (params?) (block)..)"
 );
 
 def_node!(
+    /// Procedure body
     Body,
     |kind| matches!(kind, SyntaxKind::Body),
-    "Procedure body"
 );
 
 impl Body {
@@ -329,9 +356,9 @@ impl DefProc {
 }
 
 def_node!(
+    /// Procedure name
     ProcName,
     |kind| matches!(kind, SyntaxKind::ProcName),
-    "Procedure name"
 );
 
 impl ProcName {
@@ -346,15 +373,15 @@ impl ProcName {
 }
 
 def_node!(
+    /// Procedure parameters
     Params,
     |kind| matches!(kind, SyntaxKind::Params),
-    "Procedure parameters"
 );
 
 def_node!(
+    /// A single procedure parameter
     Param,
     |kind| matches!(kind, SyntaxKind::Param),
-    "A single procedure parameter"
 );
 
 impl Params {
@@ -374,24 +401,36 @@ impl Param {
 }
 
 token_wrapper!(
+    /// Literal node
     Literal,
-    LiteralKind,
+    // View to the [`Literal`] node
+    LiteralKind = Num | Str | True | False,
     |kind| matches!(kind, SyntaxKind::Literal),
-    Num | Str | True | False,
-    "Literal node",
-    "View to the [`Literal`] node",
 );
 
-def_tk!(
+def_tk! {
+    /// Untyped, not validated number type (integers and floats)
     Num,
     SyntaxKind::Num,
-    "Untyped, not validated number type (integers and floats)"
-);
+}
 
-def_tk!(Str, SyntaxKind::Str, "String, including the surroundings");
+def_tk! {
+    /// String, including the surroundings
+    Str,
+    SyntaxKind::Str,
+}
 
-def_tk!(True, SyntaxKind::True, "true");
-def_tk!(False, SyntaxKind::False, "true");
+def_tk! {
+    /// true
+    True,
+    SyntaxKind::True,
+}
+
+def_tk! {
+    /// false
+    False,
+    SyntaxKind::False,
+}
 
 // def_tk!(Bool, SyntaxKind::True | SyntaxKind::False, "true | false");
 //
