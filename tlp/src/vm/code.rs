@@ -1,6 +1,4 @@
-/*!
-Bytecode, runtime representation of toylisp program
-*/
+//! Bytecode
 
 /// Instruction to the stack-based virtual machine
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
@@ -80,8 +78,9 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub fn push_const(&mut self, value: Value) {
-        self.consts.push(value)
+    pub fn push_const(&mut self, value: Value) -> usize {
+        self.consts.push(value);
+        self.consts.len() - 1
     }
 
     #[inline(always)]
@@ -89,14 +88,14 @@ impl Chunk {
         self.bytes.push(code as u8);
     }
 
-    /// Push constant that is referred to by one-byte index
+    /// Push 1 byte index that refers to a constant
     #[inline(always)]
     pub fn push_ix_u8(&mut self, x: u8) {
         self.bytes.push(OpCode::OpConst8 as u8);
         self.bytes.push(x);
     }
 
-    /// Push constant that is referred to by two-byte index
+    /// Push 2 byte index that refers to a constant
     #[inline(always)]
     pub fn push_ix_u16(&mut self, x: u16) {
         self.bytes.push(OpCode::OpConst16 as u8);
@@ -110,10 +109,54 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem::size_of;
+    use crate::vm::{code::OpCode::*, Result, Vm};
 
+    /// Tests `-((64.0 - 32.0) / 16.0)` results in `2.0`
     #[test]
-    fn opcode_size() {
-        assert_eq!(1, size_of::<OpCode>());
+    fn arithmetic() -> Result<()> {
+        let chunk = {
+            let mut chunk = Chunk::default();
+
+            // NOTE: use 2^x considering the accuracy of floating values
+            chunk.push_const(64.0);
+            chunk.push_const(32.0);
+            chunk.push_const(16.0);
+
+            chunk.push_ix_u8(0); // 64.0
+            chunk.push_ix_u8(1); // 32.0
+            chunk.push_code(OpSub); // -
+
+            chunk.push_ix_u16(2); // 16.0
+            chunk.push_code(OpDiv); // /
+
+            chunk.push_code(OpNegate); // -
+
+            chunk.push_code(OpReturn);
+
+            chunk
+        };
+
+        let mut vm = Vm::new(chunk);
+
+        vm.run()?;
+        assert_eq!(Some(&-2.0), vm.stack().last());
+
+        Ok(())
     }
 }
+
+// /// Read chunk as [`OpCode`] s
+// pub struct ChunkIter<'a> {
+//     chunk: &'a Chunk,
+//     i: usize,
+// }
+//
+// impl<'a> Iterator for ChunkIter<'a> {
+//     type Item = OpCode;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         let byte = self.bytes.get(self.i)?;
+//         todo!()
+//     }
+// }
+
+// pub enum OpCodeB { }

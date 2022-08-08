@@ -6,7 +6,7 @@ use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
 use crate::syntax::utils::{self, Test, TestError};
 
-fn display(cst: &SyntaxNode) -> String {
+fn cst_display(cst: &SyntaxNode) -> String {
     let mut nest = 0;
 
     let repr = cst
@@ -49,14 +49,14 @@ fn run_test(test: Test) -> Result<(), TestError> {
             .iter()
             .map(|e| format!("{}", e.with_loc(&test.code)))
             .collect::<Vec<_>>()
-            .join(", ");
+            .join("\n");
         panic!("{}\nsource: {}", s, test.code);
     }
 
     // root
     assert_eq!(format!("{:?}", cst), format!("ROOT@0..{}", test.code.len()));
 
-    let cst_string = self::display(&cst);
+    let cst_string = self::cst_display(&cst);
     let expected = test.expected.trim();
 
     if cst_string == expected {

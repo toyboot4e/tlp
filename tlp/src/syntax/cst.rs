@@ -1,11 +1,9 @@
-/*!
-Concrete syntax tree
-
-`cst` is powered by [`rowan`]. It manages lossless structure of text, represented as a tree (node)
-of untyped, homogeneous tokens.
-
-Semanctic information is latter added by casting the CST nodes to AST nodes.
-*/
+//! Concrete syntax tree
+//!
+//! `cst` is powered by [`rowan`]. It manages lossless structure of text, represented as a tree
+//! (node) of untyped, homogeneous tokens.
+//!
+//! Semanctic information is latter added by casting the CST nodes to AST nodes.
 
 pub mod lex;
 
@@ -50,7 +48,7 @@ Syntactic kind of a tree element
 
 Both the lexer and the parser use this enum.
 */
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u16)]
 pub enum SyntaxKind {
     // ----------------------------------------
@@ -62,7 +60,7 @@ pub enum SyntaxKind {
     /// `)`
     RParen,
     /// String token, including the enclosures
-    String,
+    Str,
     /// `:`
     Colon,
     /// `.`
@@ -81,14 +79,21 @@ pub enum SyntaxKind {
     Comment,
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
+    // ----------------------------------------
+    /// Literal node
+    Literal,
     /// Path node
     Path,
     /// Call node
     Call,
     /// DefProc node
     DefProc,
+    /// DefProc proc name node
+    ProcName,
     /// Procedure parameter list
     Params,
+    /// A single procedure parameter
+    Param,
     /// Procedure body node
     Body,
     // ----------------------------------------

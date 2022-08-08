@@ -16,9 +16,9 @@ use std::{marker::PhantomData, sync::Arc};
 use derivative::Derivative;
 use la_arena::Idx;
 
-use crate::ir::{
-    data::decl,
-    db::{self, vfs::FileId, Intern},
+use crate::hir_def::{
+    db::{self, vfs::VfsFileId, Intern},
+    item, ItemList,
 };
 
 macro_rules! new_ids {
@@ -57,29 +57,13 @@ macro_rules! new_ids {
 //     Path
 // }
 
-/// Identifier of an `ItemTree`
-#[derive(Copy, Debug, PartialEq, Eq, Clone, Hash)]
-pub struct TreeId {
-    file: FileId,
-}
-
-impl TreeId {
-    pub fn new(file: FileId) -> Self {
-        Self { file }
-    }
-
-    pub fn item_tree(&self, db: &dyn db::Def) -> Arc<decl::ItemTree> {
-        db.file_item_tree(self.file)
-    }
-}
-
 /// Tree item location
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Loc<T> {
-    /// ID of the tree
-    pub tree: TreeId,
-    /// ID of the item in the tree
-    pub item: Idx<T>,
+    /// → FileItemList
+    pub file: VfsFileId,
+    /// → T
+    pub idx: Idx<T>,
 }
 
 /// Interned ID to a location
@@ -138,7 +122,7 @@ impl<T> Copy for DefId<T> {}
 #[derive(Derivative, Copy)]
 #[derivative(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum AnyDefId {
-    Proc(DefId<decl::DefProc>),
+    Proc(DefId<item::DefProc>),
 }
 
 macro_rules! impl_from {
@@ -151,12 +135,12 @@ macro_rules! impl_from {
     };
 }
 
-impl_from!(DefId<decl::DefProc>, Proc);
+impl_from!(DefId<item::DefProc>, Proc);
 
-impl Id<Loc<decl::DefProc>> {
+impl Id<Loc<item::DefProc>> {
     // NOTE: Use `Def` database, not `Intern` database as parameter. This is because Rust doesn't
     // have upcasting coercion (yet).
-    pub fn lookup(&self, db: &dyn db::Def) -> Loc<decl::DefProc> {
+    pub fn lookup(&self, db: &dyn db::Def) -> Loc<item::DefProc> {
         db.lookup_intern_proc(*self)
     }
 }

@@ -7,9 +7,11 @@ Call@0..13
     LParen@0..1
     Ident@1..2
     Ws@2..3
-    Num@3..10
+    Literal@3..10
+        Num@3..10
     Ws@10..11
-    Num@11..12
+    Literal@11..12
+        Num@11..12
     RParen@12..13
 ----------------------------------------
 
@@ -20,9 +22,11 @@ Call@0..7
     LParen@0..1
     Ident@1..2
     Ws@2..3
-    Num@3..4
+    Literal@3..4
+        Num@3..4
     Ws@4..5
-    Num@5..6
+    Literal@5..6
+        Num@5..6
     RParen@6..7
 ----------------------------------------
 
@@ -33,9 +37,11 @@ Call@0..8
     LParen@0..1
     Ident@1..2
     Ws@2..3
-    Num@3..4
+    Literal@3..4
+        Num@3..4
     Ws@4..5
-    Num@5..7
+    Literal@5..7
+        Num@5..7
     RParen@7..8
 ----------------------------------------
 
@@ -46,15 +52,18 @@ Call@0..13
     LParen@0..1
     Ident@1..2
     Ws@2..3
-    Num@3..4
+    Literal@3..4
+        Num@3..4
     Ws@4..5
     Call@5..12
         LParen@5..6
         Ident@6..7
         Ws@7..8
-        Num@8..9
+        Literal@8..9
+            Num@8..9
         Ws@9..10
-        Num@10..11
+        Literal@10..11
+            Num@10..11
         RParen@11..12
     RParen@12..13
 ----------------------------------------
@@ -63,7 +72,8 @@ Call@0..13
 ident"str"ident
 ----------------------------------------
 Ident@0..5
-String@5..10
+Literal@5..10
+    Str@5..10
 Ident@10..15
 ----------------------------------------
 
@@ -75,6 +85,26 @@ Comment@0..11
 Ident@11..12
 ----------------------------------------
 
+# literal main
+(proc main () 12)
+----------------------------------------
+DefProc@0..17
+    LParen@0..1
+    Ident@1..5
+    Ws@5..6
+    ProcName@6..10
+        Ident@6..10
+    Ws@10..11
+    Params@11..13
+        LParen@11..12
+        RParen@12..13
+    Ws@13..14
+    Body@14..16
+        Literal@14..16
+            Num@14..16
+    RParen@16..17
+----------------------------------------
+
 # simple proc
 (proc f (args) (none))
 ----------------------------------------
@@ -82,31 +112,20 @@ DefProc@0..22
     LParen@0..1
     Ident@1..5
     Ws@5..6
-    Ident@6..7
+    ProcName@6..7
+        Ident@6..7
     Ws@7..8
     Params@8..14
         LParen@8..9
-        Ident@9..13
+        Param@9..13
+            Ident@9..13
         RParen@13..14
     Ws@14..15
-    Call@15..21
-        LParen@15..16
-        Ident@16..20
-        RParen@20..21
+    Body@15..21
+        Call@15..21
+            LParen@15..16
+            Ident@16..20
+            RParen@20..21
     RParen@21..22
-----------------------------------------
-
-# path
-(proc mod:var)
-----------------------------------------
-DefProc@0..14
-    LParen@0..1
-    Ident@1..5
-    Ws@5..6
-    Path@6..13
-        Ident@6..9
-        Colon@9..10
-        Ident@10..13
-    RParen@13..14
 ----------------------------------------
 
