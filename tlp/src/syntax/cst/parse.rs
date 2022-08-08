@@ -189,7 +189,6 @@ impl ParseState {
 
         loop {
             let bump = self
-                // TODO: use matches!
                 .maybe_bump_kind(pcx, SyntaxKind::Ws)
                 .or_else(|| self.maybe_bump_kind(pcx, SyntaxKind::Comment))
                 .is_some();
@@ -198,8 +197,14 @@ impl ParseState {
                 res = true;
                 continue;
             } else {
-                break if res { Some(()) } else { None };
+                break;
             }
+        }
+
+        if res {
+            Some(())
+        } else {
+            None
         }
     }
 }

@@ -1,11 +1,9 @@
-/*!
-Concrete syntax tree
-
-`cst` is powered by [`rowan`]. It manages lossless structure of text, represented as a tree (node)
-of untyped, homogeneous tokens.
-
-Semanctic information is latter added by casting the CST nodes to AST nodes.
-*/
+//! Concrete syntax tree
+//!
+//! `cst` is powered by [`rowan`]. It manages lossless structure of text, represented as a tree
+//! (node) of untyped, homogeneous tokens.
+//!
+//! Semanctic information is latter added by casting the CST nodes to AST nodes.
 
 pub mod lex;
 

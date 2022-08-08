@@ -1,6 +1,4 @@
-/*!
-Lexer or otkenizer
-*/
+//! Lexer / tokenizer
 
 use thiserror::Error;
 
@@ -9,11 +7,11 @@ use crate::syntax::{
     span::{ByteSpan, TextPos},
 };
 
-/// Span of text with syntactic kind
+/// Text span with syntactic kind
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: SyntaxKind,
-    /// I wonder if `&str` is better
+    // TODO: prefer `&str`?
     pub sp: ByteSpan,
 }
 
@@ -23,12 +21,10 @@ impl Token {
     }
 }
 
-// TODO: try ariadne
-
-/// Error type accumulated while lexing
+/// Lexical error type
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum LexError {
-    // TODO: use line:column representation
+    // TODO: use line:column representation on print
     #[error("It doesn't make any sense: {sp:?}")]
     Unreachable { sp: ByteSpan },
     // TODO: while what?
@@ -94,18 +90,6 @@ fn is_ident_body(c: u8) -> bool {
 
 fn is_ident_start(c: u8) -> bool {
     is_ident_body(c) && !is_num_start(c) && !is_symbol(c)
-}
-
-fn tk_byte(c: u8) -> Option<SyntaxKind> {
-    let kind = match c {
-        b'(' => SyntaxKind::LParen,
-        b')' => SyntaxKind::RParen,
-        b':' => SyntaxKind::Colon,
-        b'.' => SyntaxKind::Dot,
-        _ => return None,
-    };
-
-    Some(kind)
 }
 
 /// Lexing utilities
@@ -216,16 +200,28 @@ impl<'s> Lexer<'s> {
 
 /// Syntaxes (&mut self → Option<Token>)
 impl<'s> Lexer<'s> {
-    /// Byte token such as parentheses
+    /// Byte tokens: `():.-`
     fn lex_one_byte(&mut self) -> Option<Token> {
         let c = self.src[self.sp.hi];
 
-        if let Some(kind) = self::tk_byte(c) {
-            self.sp.hi += 1;
-            Some(self.consume_span_as(kind))
-        } else {
-            None
-        }
+        let kind = match c {
+            b'(' => SyntaxKind::LParen,
+            b')' => SyntaxKind::RParen,
+            b':' => SyntaxKind::Colon,
+            b'.' => SyntaxKind::Dot,
+            b'-' => {
+                if let Some(c2) = self.src.get(self.sp.hi + 1) {
+                    if self::is_num_body(*c2) {
+                        return None;
+                    }
+                }
+                SyntaxKind::Ident
+            }
+            _ => return None,
+        };
+
+        self.sp.hi += 1;
+        Some(self.consume_span_as(kind))
     }
 
     /// Trivia
