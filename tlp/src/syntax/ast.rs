@@ -58,86 +58,90 @@ pub trait AstElement: Sized {
 
 macro_rules! def_node {
     (
-        $( #[$meta:meta] )*
-        $ty:ident,
-        $pred:expr $(,)?
+        $(
+            $( #[$meta:meta] )*
+                $ty:ident: $pred:expr ;
+        )*
     ) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        $( #[$meta] )*
-        pub struct $ty {
-            pub(crate) syn: SyntaxNode,
-        }
-
-        impl AstNode for $ty {
-            fn can_cast(kind: SyntaxKind) -> bool {
-                ($pred)(kind)
+        $(
+            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+            $( #[$meta] )*
+            pub struct $ty {
+                pub(crate) syn: SyntaxNode,
             }
 
-            fn cast_node(syn: SyntaxNode) -> Option<Self> {
-                if Self::can_cast(syn.kind()) {
-                    Some(Self { syn })
-                } else {
-                    None
+            impl AstNode for $ty {
+                fn can_cast(kind: SyntaxKind) -> bool {
+                    ($pred)(kind)
+                }
+
+                fn cast_node(syn: SyntaxNode) -> Option<Self> {
+                    if Self::can_cast(syn.kind()) {
+                        Some(Self { syn })
+                    } else {
+                        None
+                    }
+                }
+
+                fn syntax(&self) -> &SyntaxNode {
+                    &self.syn
                 }
             }
-
-            fn syntax(&self) -> &SyntaxNode {
-                &self.syn
-            }
-        }
+        )*
     };
 }
 
 macro_rules! def_tk {
     (
-        $( #[$meta:meta] )*
-        $ty:ident,
-        $kind:path $(| $kind2:path)* $(,)?
+        $(
+            $( #[$meta:meta] )*
+            $ty:ident: $kind:path $(| $kind2:path)* ;
+        )*
     ) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        $( #[$meta] )*
-        pub struct $ty {
-            pub(crate) syn: SyntaxToken,
-        }
-
-        impl AstToken for $ty {
-            fn can_cast(kind: SyntaxKind) -> bool {
-                matches!(kind, $kind $(| $kind2)*)
+        $(
+            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+            $( #[$meta] )*
+            pub struct $ty {
+                pub(crate) syn: SyntaxToken,
             }
 
-            fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-                if matches!(syn.kind(), $kind $(| $kind2)*) {
-                    Some(Self { syn })
-                } else {
-                    None
+            impl AstToken for $ty {
+                fn can_cast(kind: SyntaxKind) -> bool {
+                    matches!(kind, $kind $(| $kind2)*)
+                }
+
+                fn cast_tk(syn: SyntaxToken) -> Option<Self> {
+                    if matches!(syn.kind(), $kind $(| $kind2)*) {
+                        Some(Self { syn })
+                    } else {
+                        None
+                    }
+                }
+
+                fn syntax(&self) -> &SyntaxToken {
+                    &self.syn
                 }
             }
 
-            fn syntax(&self) -> &SyntaxToken {
-                &self.syn
+            impl $ty {
+                pub fn text(&self) -> &str {
+                    self.syn.text()
+                }
             }
-        }
-
-        impl $ty {
-            pub fn text(&self) -> &str {
-                self.syn.text()
-            }
-        }
+        )*
     };
 }
 
 macro_rules! transparent_node_wrapper {
     (
         $( #[$meta:meta] )*
-        $ty:ident,
+        $ty:ident: $pred:expr ;
         $( #[$kind_meta:meta] )*
-        $kind:ident = $( $var:ident )|*,
-        $pred:expr $(,)?
+        $kind:ident = $( $var:ident )|* ;
     ) => {
         def_node!{
             $( #[$meta] )*
-            $ty,
-            $pred
+            $ty: $pred ;
         }
 
         impl $ty {
@@ -171,15 +175,13 @@ macro_rules! transparent_node_wrapper {
 macro_rules! token_wrapper {
     (
         $( #[$meta:meta] )*
-        $ty:ident,
+        $ty:ident: $pred:expr ;
         $( #[$kind_meta:meta] )*
-        $ty_kind:ident = $($var:ident)|*,
-        $pred:expr $(,)?
+        $ty_kind:ident = $( $var:ident )|* ;
     ) => {
         def_node!{
             $( #[$meta] )*
-            $ty,
-            $pred,
+            $ty: $pred;
         }
 
         impl $ty {
@@ -241,13 +243,13 @@ impl Document {
 
 transparent_node_wrapper!(
     /// Form node (transparent wrapper around other nodes)
-    Form,
-    /// "View to the [`Form`]
-    FormKind = DefProc | Call | Literal,
-    |kind| matches!(
+    Form: |kind| matches!(
         kind,
         SyntaxKind::DefProc | SyntaxKind::Call | SyntaxKind::Literal
-    ),
+    );
+
+    /// "View to the [`Form`]
+    FormKind = DefProc | Call | Literal;
 );
 
 /// Function call
@@ -306,14 +308,10 @@ impl Call {
 
 def_node!(
     /// (proc name (params?) (block)..)
-    DefProc,
-    |kind| matches!(kind, SyntaxKind::DefProc),
-);
+    DefProc: |kind| matches!(kind, SyntaxKind::DefProc);
 
-def_node!(
     /// Procedure body
-    Body,
-    |kind| matches!(kind, SyntaxKind::Body),
+    Body: |kind| matches!(kind, SyntaxKind::Body);
 );
 
 impl Body {
@@ -357,8 +355,7 @@ impl DefProc {
 
 def_node!(
     /// Procedure name
-    ProcName,
-    |kind| matches!(kind, SyntaxKind::ProcName),
+    ProcName: |kind| matches!(kind, SyntaxKind::ProcName);
 );
 
 impl ProcName {
@@ -374,14 +371,10 @@ impl ProcName {
 
 def_node!(
     /// Procedure parameters
-    Params,
-    |kind| matches!(kind, SyntaxKind::Params),
-);
+    Params: |kind| matches!(kind, SyntaxKind::Params);
 
-def_node!(
     /// A single procedure parameter
-    Param,
-    |kind| matches!(kind, SyntaxKind::Param),
+    Param: |kind| matches!(kind, SyntaxKind::Param);
 );
 
 impl Params {
@@ -402,44 +395,21 @@ impl Param {
 
 token_wrapper!(
     /// Literal node
-    Literal,
+    Literal: |kind| matches!(kind, SyntaxKind::Literal);
     // View to the [`Literal`] node
-    LiteralKind = Num | Str | True | False,
-    |kind| matches!(kind, SyntaxKind::Literal),
+    LiteralKind = Num | Str | True | False;
 );
 
 def_tk! {
     /// Untyped, not validated number type (integers and floats)
-    Num,
-    SyntaxKind::Num,
-}
+    Num: SyntaxKind::Num;
 
-def_tk! {
     /// String, including the surroundings
-    Str,
-    SyntaxKind::Str,
-}
+    Str: SyntaxKind::Str;
 
-def_tk! {
     /// true
-    True,
-    SyntaxKind::True,
-}
+    True: SyntaxKind::True;
 
-def_tk! {
     /// false
-    False,
-    SyntaxKind::False,
+    False: SyntaxKind::False;
 }
-
-// def_tk!(Bool, SyntaxKind::True | SyntaxKind::False, "true | false");
-//
-// impl Bool {
-//     pub fn truthy(&self) -> bool {
-//         match self.syn.text() {
-//             "true" => true,
-//             "false" => false,
-//             _ => unreachable!("bool token has to be true or false"),
-//         }
-//     }
-// }
