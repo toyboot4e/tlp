@@ -56,7 +56,7 @@ pub trait AstElement: Sized {
     fn syntax(&self) -> SyntaxElement;
 }
 
-macro_rules! def_node {
+macro_rules! define_node {
     (
         $(
             $( #[$meta:meta] )*
@@ -91,7 +91,7 @@ macro_rules! def_node {
     };
 }
 
-macro_rules! def_tk {
+macro_rules! define_token {
     (
         $(
             $( #[$meta:meta] )*
@@ -132,14 +132,14 @@ macro_rules! def_tk {
     };
 }
 
-macro_rules! transparent_node_wrapper {
+macro_rules! define_transparent_node_wrapper {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pred:expr ;
         $( #[$kind_meta:meta] )*
         $kind:ident = $( $var:ident )|* ;
     ) => {
-        def_node!{
+        define_node! {
             $( #[$meta] )*
             $ty: $pred ;
         }
@@ -172,14 +172,14 @@ macro_rules! transparent_node_wrapper {
     };
 }
 
-macro_rules! token_wrapper {
+macro_rules! define_token_wrapper_node {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pred:expr ;
         $( #[$kind_meta:meta] )*
         $ty_kind:ident = $( $var:ident )|* ;
     ) => {
-        def_node!{
+        define_node! {
             $( #[$meta] )*
             $ty: $pred;
         }
@@ -241,7 +241,7 @@ impl Document {
     }
 }
 
-transparent_node_wrapper!(
+define_transparent_node_wrapper!(
     /// Form node (transparent wrapper around other nodes)
     Form: |kind| matches!(
         kind,
@@ -306,7 +306,7 @@ impl Call {
     }
 }
 
-def_node!(
+define_node!(
     /// (proc name (params?) (block)..)
     DefProc: |kind| matches!(kind, SyntaxKind::DefProc);
 
@@ -353,7 +353,7 @@ impl DefProc {
     }
 }
 
-def_node!(
+define_node!(
     /// Procedure name
     ProcName: |kind| matches!(kind, SyntaxKind::ProcName);
 );
@@ -369,7 +369,7 @@ impl ProcName {
     }
 }
 
-def_node!(
+define_node!(
     /// Procedure parameters
     Params: |kind| matches!(kind, SyntaxKind::Params);
 
@@ -393,14 +393,14 @@ impl Param {
     }
 }
 
-token_wrapper!(
+define_token_wrapper_node!(
     /// Literal node
     Literal: |kind| matches!(kind, SyntaxKind::Literal);
     // View to the [`Literal`] node
     LiteralKind = Num | Str | True | False;
 );
 
-def_tk! {
+define_token! {
     /// Untyped, not validated number type (integers and floats)
     Num: SyntaxKind::Num;
 
