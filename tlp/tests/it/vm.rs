@@ -53,4 +53,5 @@ fn run_test(src: &str, expected: f64) {
 fn simple_arithmetics() {
     run_test("(/ (- 64.0 32.0) 2.0)", 16.0);
     run_test("(+ (* 3.0 4.0) 2.0)", 14.0);
+    run_test("(let a 10.0) (+ a 2.0)", 12.0);
 }

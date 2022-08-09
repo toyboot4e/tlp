@@ -293,6 +293,7 @@ impl<'s> Lexer<'s> {
                 "true" => SyntaxKind::True,
                 "false" => SyntaxKind::False,
                 "nil" => SyntaxKind::Nil,
+                "let" => SyntaxKind::Let,
                 _ => {
                     return None;
                 }

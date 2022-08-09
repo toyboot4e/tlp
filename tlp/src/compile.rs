@@ -11,8 +11,8 @@ type Result<T, E = CompileError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
 pub enum CompileError {
-    #[error("Not an item")]
-    NotAnItem { kind: ast::FormKind },
+    #[error("Unexpected kind: {kind:?}")]
+    UnexpectedKind { kind: ast::FormKind },
     #[error("Unexisting method call")]
     UnexistingMethodCall,
 }
@@ -52,8 +52,13 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
                 let op = self::to_oper(call.name_tk().text()).unwrap();
                 chunk.push_code(op);
             }
-            _ => {}
+            _ => {
+                todo!("{:?}", call);
+            }
         },
+        ast::FormKind::Let(_let_) => {
+            todo!()
+        }
         ast::FormKind::Literal(lit) => match lit.kind() {
             ast::LiteralKind::Num(x) => {
                 let x: f64 = x.text().parse().unwrap();
@@ -62,7 +67,7 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
             }
             _ => panic!(),
         },
-        _ => errs.push(CompileError::NotAnItem { kind }),
+        _ => errs.push(CompileError::UnexpectedKind { kind }),
     }
 }
 

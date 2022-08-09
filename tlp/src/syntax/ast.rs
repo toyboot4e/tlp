@@ -248,7 +248,7 @@ define_transparent_node_wrapper!(
         SyntaxKind::DefProc | SyntaxKind::Call | SyntaxKind::Let | SyntaxKind::Literal
     );
 
-    /// "View to the [`Form`]
+    /// View to the [`Form`]
     FormKind = DefProc | Call | Let | Literal;
 );
 
