@@ -1,6 +1,4 @@
-/*!
-Tree of tokens
-*/
+//! Tree of tokens
 
 use std::fmt;
 
@@ -216,7 +214,7 @@ impl ParseState {
         self.maybe_bump_ws(pcx);
 
         if self.peek(pcx)?.kind == SyntaxKind::LParen {
-            self.always_list(pcx);
+            self.bump_list(pcx);
         } else {
             self.try_symbol(pcx);
         }
@@ -225,36 +223,15 @@ impl ParseState {
     }
 
     /// list → Call | Let | DefProc
-    fn always_list(&mut self, pcx: &ParseContext) {
+    fn bump_list(&mut self, pcx: &ParseContext) {
         // We don't know the node kind yet, so let's wrap the tokens later
         let checkpoint = self.builder.checkpoint();
 
         self.bump_kind(pcx, SyntaxKind::LParen);
         self.maybe_bump_ws(pcx);
 
-        let node_kind = match self.peek(pcx) {
-            Some(tk) if tk.kind == SyntaxKind::Ident && tk.slice(pcx.src) == "proc" => {
-                self.bump_kind(pcx, SyntaxKind::Ident);
-                SyntaxKind::DefProc
-            }
-            Some(tk) if tk.kind == SyntaxKind::Ident && tk.slice(pcx.src) == "let" => {
-                self.bump_kind(pcx, SyntaxKind::Ident);
-                SyntaxKind::Let
-            }
-            Some(tk) if tk.kind == SyntaxKind::Ident => {
-                self.bump_kind(pcx, SyntaxKind::Ident);
-                SyntaxKind::Call
-            }
-            Some(tk) => {
-                self.errs.push(ParseError::Unexpected {
-                    at: pcx.src.len(),
-                    expected: "<call or special form>".to_string(),
-                    found: format!("{:?}", tk.kind),
-                });
-
-                // TODO: recovery on wrong form
-                return;
-            }
+        let peek = match self.peek(pcx) {
+            Some(tk) => tk,
             None => {
                 self.errs.push(ParseError::Unexpected {
                     at: pcx.src.len(),
@@ -262,41 +239,63 @@ impl ParseState {
                     found: "EoF".to_string(),
                 });
 
-                // TODO: recovery on wrong form
+                // TODO: recovery
                 return;
             }
         };
 
-        // wrap the `Call`, `Let` or `DefProc` node
-        self.builder.start_node_at(checkpoint, node_kind.into());
+        if peek.kind != SyntaxKind::Ident {
+            self.errs.push(ParseError::Unexpected {
+                at: pcx.src.len(),
+                expected: "<call or special form>".to_string(),
+                found: format!("{:?}", peek.kind),
+            });
 
-        // maybe proc name and parameters
-        if node_kind == SyntaxKind::DefProc {
+            // TODO: recovery
+            return;
+        }
+
+        match peek.slice(pcx.src) {
+            "proc" => self.bump_list_proc(pcx, checkpoint),
+            "let" => self.bump_list_let(pcx, checkpoint),
+            _ => self.bump_list_call(pcx, checkpoint),
+        }
+    }
+
+    /// list-proc → "proc" Ident params form* ")"
+    /// params → "(" ")"
+    fn bump_list_proc(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        assert_eq!(tk.slice(pcx.src), "proc");
+
+        // wrap the list
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::DefProc.into());
+        self.maybe_bump_ws(pcx);
+
+        let found_rparen = {
             // start `Body` node
-            self.to_proc_param(pcx);
-        }
+            self._to_proc_param(pcx);
 
-        if node_kind == SyntaxKind::Let {
-            //
-        }
+            // maybe other list items
+            let found_rparen = self._sexps_to_end_paren(pcx).is_some();
 
-        // maybe other list items
-        let found_rparen = self.to_end_paren(pcx).is_some();
-
-        if node_kind == SyntaxKind::DefProc {
-            // end `Body` node
+            // end `Body` node just before `)`
             self.builder.finish_node();
-        }
+
+            found_rparen
+        };
 
         if found_rparen {
-            self.bump_kind(pcx, SyntaxKind::RParen);
+            self.maybe_bump_kind(pcx, SyntaxKind::RParen);
         }
-        // end `Call` or `DefProc`
+
+        // end `DefProc`
         self.builder.finish_node();
     }
 
     /// Parses params and starts proc body
-    fn to_proc_param(&mut self, pcx: &ParseContext) {
+    fn _to_proc_param(&mut self, pcx: &ParseContext) {
         self.maybe_bump_ws(pcx);
 
         // proc name
@@ -316,7 +315,7 @@ impl ParseState {
         // params
         if let Some(tk) = self.peek(pcx) {
             if tk.kind == SyntaxKind::LParen {
-                self.proc_params(pcx);
+                self._proc_params(pcx);
                 self.maybe_bump_ws(pcx);
             }
         }
@@ -324,7 +323,7 @@ impl ParseState {
         self.builder.start_node(SyntaxKind::Body.into());
     }
 
-    fn proc_params(&mut self, pcx: &ParseContext) {
+    fn _proc_params(&mut self, pcx: &ParseContext) {
         self.builder.start_node(SyntaxKind::Params.into());
         self.bump_kind(pcx, SyntaxKind::LParen);
 
@@ -361,7 +360,7 @@ impl ParseState {
     /// Sexp* ")"
     ///
     /// Advances until it peeks a right paren. Returns if the end of the list was found.
-    fn to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
+    fn _sexps_to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
         loop {
             self.maybe_bump_ws(pcx);
 
@@ -381,6 +380,41 @@ impl ParseState {
                 return None;
             }
         }
+    }
+
+    /// "let" Ident Expr ")"
+    fn bump_list_let(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        assert_eq!(tk.slice(pcx.src), "let");
+
+        // wrap the list
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Let.into());
+        self.maybe_bump_ws(pcx);
+
+        // TODO: validate `let` syntax?
+        if self._sexps_to_end_paren(pcx).is_some() {
+            self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+        }
+
+        // end `Let`
+        self.builder.finish_node();
+    }
+
+    fn bump_list_call(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let _tk = self.bump_kind(pcx, SyntaxKind::Ident);
+
+        // wrap the list
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Call.into());
+        self.maybe_bump_ws(pcx);
+
+        if self._sexps_to_end_paren(pcx).is_some() {
+            self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+        }
+
+        // end `Call`
+        self.builder.finish_node();
     }
 
     /// symbol → atom
