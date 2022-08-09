@@ -72,6 +72,8 @@ impl<'a> LowerExpr<'a> {
 
                 self.alloc_expr(expr::Expr::Call(call))
             }
+            // TODO: lower `let`?
+            ast::FormKind::Let(l) => todo!(),
             ast::FormKind::Literal(lit) => match lit.kind() {
                 ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
                 ast::LiteralKind::Str(_str) => {
