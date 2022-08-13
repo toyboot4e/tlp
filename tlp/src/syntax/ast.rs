@@ -260,7 +260,7 @@ define_node!(
     Let: |kind| matches!(kind, SyntaxKind::Let);
 
     /// (ident args sexp*)
-    Call: |kind| matches!(kind, SyntaxKind::Let);
+    Call: |kind| matches!(kind, SyntaxKind::Call);
 
     /// Procedure body
     Body: |kind| matches!(kind, SyntaxKind::Body);
