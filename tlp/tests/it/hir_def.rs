@@ -5,8 +5,8 @@ Tests for toylisp intermediate representations
 use std::sync::Arc;
 
 use tlp::hir_def::{
-    body::expr::*,
     db::{vfs::*, *},
+    expr::*,
     item::{self, Name},
 };
 

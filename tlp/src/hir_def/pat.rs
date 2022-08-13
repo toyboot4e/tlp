@@ -1,4 +1,4 @@
-//! Locations and patterns
+//! Patterns
 
 use la_arena::Idx;
 
@@ -24,3 +24,6 @@ pub struct BlockLoc {
 pub struct ItemPath {
     segments: Vec<Name>,
 }
+
+/// Pattern
+pub type Pat = ItemPath;

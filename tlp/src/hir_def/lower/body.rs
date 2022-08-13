@@ -6,14 +6,12 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        body::{
-            expr::{self, Expr},
-            Body,
-        },
+        body::Body,
         db::{
             self,
             ids::{Id, Loc},
         },
+        expr::{self, Expr},
         item::{self, Name},
     },
     syntax::ast,

@@ -2,9 +2,11 @@
 
 pub mod body;
 pub mod db;
+pub mod expr;
 pub mod item;
 pub mod lower;
-pub mod path;
+pub mod pat;
+pub mod resolve;
 
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
