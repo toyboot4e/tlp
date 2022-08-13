@@ -8,7 +8,12 @@ pub mod validate;
 
 pub use crate::syntax::cst::ParseError;
 
-use crate::syntax::cst::{self, SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
+use std::{
+    cmp::{Eq, PartialEq},
+    hash::Hash,
+};
+
+use crate::syntax::cst::{self, SyntaxKind, SyntaxNode, SyntaxToken};
 
 const STR_PROC: &'static str = "proc";
 const STR_LET: &'static str = "let";
@@ -47,16 +52,6 @@ pub trait AstToken: Sized {
     fn syntax(&self) -> &SyntaxToken;
 }
 
-/// Semantic element casted from syntax element
-///
-/// RA doesn't have this trait.
-pub trait AstElement: Sized {
-    /// Method for "syntax pointers"
-    fn can_cast(kind: SyntaxKind) -> bool;
-    fn cast_elem(syn: SyntaxElement) -> Option<Self>;
-    fn syntax(&self) -> SyntaxElement;
-}
-
 macro_rules! define_node {
     (
         $(
@@ -86,47 +81,6 @@ macro_rules! define_node {
 
                 fn syntax(&self) -> &SyntaxNode {
                     &self.syn
-                }
-            }
-        )*
-    };
-}
-
-macro_rules! define_token {
-    (
-        $(
-            $( #[$meta:meta] )*
-            $ty:ident: $kind:path $(| $kind2:path)* ;
-        )*
-    ) => {
-        $(
-            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-            $( #[$meta] )*
-            pub struct $ty {
-                pub(crate) syn: SyntaxToken,
-            }
-
-            impl AstToken for $ty {
-                fn can_cast(kind: SyntaxKind) -> bool {
-                    matches!(kind, $kind $(| $kind2)*)
-                }
-
-                fn cast_tk(syn: SyntaxToken) -> Option<Self> {
-                    if matches!(syn.kind(), $kind $(| $kind2)*) {
-                        Some(Self { syn })
-                    } else {
-                        None
-                    }
-                }
-
-                fn syntax(&self) -> &SyntaxToken {
-                    &self.syn
-                }
-            }
-
-            impl $ty {
-                pub fn text(&self) -> &str {
-                    self.syn.text()
                 }
             }
         )*
@@ -397,6 +351,47 @@ define_token_wrapper_node!(
     // View to the [`Literal`] node
     LiteralKind = Num | Str | True | False;
 );
+
+macro_rules! define_token {
+    (
+        $(
+            $( #[$meta:meta] )*
+            $ty:ident: $kind:path $(| $kind2:path)* ;
+        )*
+    ) => {
+        $(
+            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+            $( #[$meta] )*
+            pub struct $ty {
+                pub(crate) syn: SyntaxToken,
+            }
+
+            impl AstToken for $ty {
+                fn can_cast(kind: SyntaxKind) -> bool {
+                    matches!(kind, $kind $(| $kind2)*)
+                }
+
+                fn cast_tk(syn: SyntaxToken) -> Option<Self> {
+                    if matches!(syn.kind(), $kind $(| $kind2)*) {
+                        Some(Self { syn })
+                    } else {
+                        None
+                    }
+                }
+
+                fn syntax(&self) -> &SyntaxToken {
+                    &self.syn
+                }
+            }
+
+            impl $ty {
+                pub fn text(&self) -> &str {
+                    self.syn.text()
+                }
+            }
+        )*
+    };
+}
 
 define_token! {
     /// Untyped, not validated number type (integers and floats)
