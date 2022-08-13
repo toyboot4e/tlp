@@ -1,4 +1,4 @@
-//! Intermadiate representation between AST and bytecode
+//! Frontend IR
 
 pub mod body;
 pub mod db;

@@ -62,6 +62,7 @@ impl Vm {
         let chunk_len = self.chunk.bytes().len();
 
         while self.ip < chunk_len {
+            // FIXME: use bytes
             // consume the next instruction
             let code: OpCode = self.chunk.read_opcode(self.ip);
             self.ip += 1;

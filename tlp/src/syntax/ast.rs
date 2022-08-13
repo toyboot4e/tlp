@@ -245,66 +245,12 @@ define_transparent_node_wrapper!(
     /// Form node (transparent wrapper around other nodes)
     Form: |kind| matches!(
         kind,
-        SyntaxKind::DefProc | SyntaxKind::Call | SyntaxKind::Let | SyntaxKind::Literal
+        SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal
     );
 
     /// View to the [`Form`]
-    FormKind = DefProc | Call | Let | Literal;
+    FormKind = DefProc | Let | Call | Literal;
 );
-
-/// Function call
-#[derive(Debug, Clone, PartialEq)]
-pub struct Call {
-    pub(crate) syn: SyntaxNode,
-}
-
-impl AstNode for Call {
-    fn can_cast(kind: SyntaxKind) -> bool {
-        matches!(kind, SyntaxKind::Call)
-    }
-
-    fn syntax(&self) -> &SyntaxNode {
-        &self.syn
-    }
-
-    fn cast_node(syn: SyntaxNode) -> Option<Self> {
-        let mut c = syn.children_with_tokens();
-
-        if c.next()?.kind() != SyntaxKind::LParen {
-            return None;
-        }
-
-        let mut c = c.skip_while(|e| e.kind() == SyntaxKind::Ws);
-
-        if c.next()?.kind() != SyntaxKind::Ident {
-            return None;
-        }
-
-        Some(Self { syn })
-    }
-}
-
-impl Call {
-    pub fn name_tk(&self) -> SyntaxToken {
-        // TODO: maybe separate callee syntax kind
-        match self
-            .syn
-            .children_with_tokens()
-            .skip(1) // )
-            .filter_map(|elem| elem.into_token())
-            .filter(|tk| tk.kind() != SyntaxKind::Ws)
-            .next()
-        {
-            Some(tk) if tk.kind() == SyntaxKind::Ident => tk.clone(),
-            Some(tk) => unreachable!("Not identifier?: {}", tk),
-            None => unreachable!("No token?"),
-        }
-    }
-
-    pub fn arg_forms(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
-    }
-}
 
 define_node!(
     /// (proc name (params?) (block)..)
@@ -313,12 +259,61 @@ define_node!(
     /// (let pat sexp*)
     Let: |kind| matches!(kind, SyntaxKind::Let);
 
+    /// (ident args sexp*)
+    Call: |kind| matches!(kind, SyntaxKind::Let);
+
     /// Procedure body
     Body: |kind| matches!(kind, SyntaxKind::Body);
 );
 
 impl Body {
     pub fn forms(&self) -> impl Iterator<Item = Form> {
+        self.syn.children().filter_map(Form::cast_node)
+    }
+}
+
+impl Let {
+    pub fn let_tk(&self) -> SyntaxToken {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .find(|t| t.kind() == SyntaxKind::Ident && t.text() == STR_LET)
+            .unwrap_or_else(|| unreachable!())
+    }
+
+    // pattern (currently an identifier only)
+    pub fn pat(&self) -> Option<SyntaxToken> {
+        let c = self
+            .syn
+            .children_with_tokens()
+            .filter(|node| node.kind() != SyntaxKind::Ws)
+            .filter_map(|e| e.into_token());
+
+        c.skip(1).next()
+    }
+
+    pub fn forms(&self) -> impl Iterator<Item = Form> {
+        self.syn.children().filter_map(Form::cast_node)
+    }
+}
+
+impl Call {
+    pub fn name_tk(&self) -> Option<SyntaxToken> {
+        match self
+            .syn
+            .children_with_tokens()
+            .skip(1) // )
+            .filter_map(|elem| elem.into_token())
+            .filter(|tk| tk.kind() != SyntaxKind::Ws)
+            .next()
+        {
+            Some(tk) if tk.kind() == SyntaxKind::Ident => Some(tk.clone()),
+            Some(tk) => None,
+            None => unreachable!("No token?"),
+        }
+    }
+
+    pub fn arg_forms(&self) -> impl Iterator<Item = Form> {
         self.syn.children().filter_map(Form::cast_node)
     }
 }
@@ -353,30 +348,6 @@ impl DefProc {
 
     pub fn body(&self) -> Option<Body> {
         self.syn.children().find_map(Body::cast_node)
-    }
-}
-
-impl Let {
-    pub fn let_tk(&self) -> SyntaxToken {
-        self.syn
-            .children_with_tokens()
-            .filter_map(|e| e.into_token())
-            .find(|t| t.kind() == SyntaxKind::Ident && t.text() == STR_LET)
-            .unwrap_or_else(|| unreachable!())
-    }
-
-    pub fn pat(&self) -> Option<SyntaxToken> {
-        let c = self
-            .syn
-            .children_with_tokens()
-            .filter(|node| node.kind() != SyntaxKind::Ws)
-            .filter_map(|e| e.into_token());
-
-        c.skip(1).next()
-    }
-
-    pub fn forms(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
     }
 }
 

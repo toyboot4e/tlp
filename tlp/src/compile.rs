@@ -39,7 +39,7 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
     let kind = form.kind();
 
     match kind {
-        ast::FormKind::Call(call) => match call.name_tk().text() {
+        ast::FormKind::Call(call) => match call.name_tk().unwrap().text() {
             "+" | "-" | "*" | "/" => {
                 let mut args = call.arg_forms();
 
@@ -49,14 +49,15 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
                 let rhs = args.next().unwrap();
                 compile_form(chunk, errs, &rhs);
 
-                let op = self::to_oper(call.name_tk().text()).unwrap();
+                let op = self::to_oper(call.name_tk().unwrap().text()).unwrap();
                 chunk.push_code(op);
             }
             _ => {
                 todo!("{:?}", call);
             }
         },
-        ast::FormKind::Let(_let_) => {
+        ast::FormKind::Let(let_) => {
+            let pat = let_.pat().unwrap();
             todo!()
         }
         ast::FormKind::Literal(lit) => match lit.kind() {

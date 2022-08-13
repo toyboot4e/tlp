@@ -62,7 +62,7 @@ impl<'a> LowerExpr<'a> {
         match form.kind() {
             ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
             ast::FormKind::Call(call) => {
-                let name = Name::from_str(call.name_tk().text());
+                let name = Name::from_str(call.name_tk().unwrap().text());
 
                 let args = call
                     .arg_forms()
