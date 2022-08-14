@@ -1,4 +1,9 @@
 //! Tree of tokens
+//!
+//! # Implementation rules
+//!
+//! - Parse function users are responsibile of bumping white spaces. Parse functions do not call
+//! `maybe_bump_ws` at the beginning.
 
 use std::fmt;
 
@@ -130,8 +135,9 @@ impl ParseState {
     pub fn run(mut self, pcx: &ParseContext) -> (GreenNode, Vec<ParseError>) {
         self.builder.start_node(SyntaxKind::ROOT.into());
 
+        self.maybe_bump_ws(pcx);
         while self.tsp.lo < pcx.tks.len() {
-            self.maybe_sx(&pcx);
+            self.maybe_bump_sepx(&pcx);
             self.maybe_bump_ws(pcx);
         }
 
@@ -210,13 +216,11 @@ impl ParseState {
 /// High-level syntax items
 impl ParseState {
     /// sexp → list | symbol
-    pub fn maybe_sx(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.maybe_bump_ws(pcx);
-
+    pub fn maybe_bump_sepx(&mut self, pcx: &ParseContext) -> Option<()> {
         if self.peek(pcx)?.kind == SyntaxKind::LParen {
             self.bump_list(pcx);
         } else {
-            self.try_symbol(pcx);
+            self.try_bump_symbol(pcx);
         }
 
         Some(())
@@ -275,10 +279,10 @@ impl ParseState {
 
         let found_rparen = {
             // start `Body` node
-            self._to_proc_param(pcx);
+            self._bump_to_proc_param(pcx);
 
             // maybe other list items
-            let found_rparen = self._sexps_to_end_paren(pcx).is_some();
+            let found_rparen = self._bump_sexps_to_end_paren(pcx).is_some();
 
             // end `Body` node just before `)`
             self.builder.finish_node();
@@ -295,14 +299,12 @@ impl ParseState {
     }
 
     /// Parses params and starts proc body
-    fn _to_proc_param(&mut self, pcx: &ParseContext) {
-        self.maybe_bump_ws(pcx);
-
+    fn _bump_to_proc_param(&mut self, pcx: &ParseContext) {
         // proc name
         if let Some(tk) = self.peek(pcx) {
             if tk.kind == SyntaxKind::Ident {
                 self.builder.start_node(SyntaxKind::ProcName.into());
-                self.maybe_ident(pcx);
+                self.bump_kind(pcx, SyntaxKind::Ident);
                 self.builder.finish_node();
             }
         } else {
@@ -351,7 +353,7 @@ impl ParseState {
             });
 
             // consume the syntax
-            self.maybe_sx(pcx);
+            self.maybe_bump_sepx(pcx);
         }
 
         self.builder.finish_node();
@@ -360,7 +362,7 @@ impl ParseState {
     /// Sexp* ")"
     ///
     /// Advances until it peeks a right paren. Returns if the end of the list was found.
-    fn _sexps_to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
+    fn _bump_sexps_to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
         loop {
             self.maybe_bump_ws(pcx);
 
@@ -369,7 +371,7 @@ impl ParseState {
                 return Some(());
             }
 
-            if self.maybe_sx(pcx).is_none() {
+            if self.maybe_bump_sepx(pcx).is_none() {
                 self.errs.push(ParseError::Unexpected {
                     // todo: figure out why it's at this point
                     // todo: use span for error location
@@ -382,7 +384,7 @@ impl ParseState {
         }
     }
 
-    /// "let" Ident Expr ")"
+    /// "let" Pat Expr ")"
     fn bump_list_let(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
         assert_eq!(tk.slice(pcx.src), "let");
@@ -392,8 +394,11 @@ impl ParseState {
             .start_node_at(checkpoint, SyntaxKind::Let.into());
         self.maybe_bump_ws(pcx);
 
+        self.maybe_bump_pat(pcx);
+        self.maybe_bump_ws(pcx);
+
         // TODO: validate `let` syntax?
-        if self._sexps_to_end_paren(pcx).is_some() {
+        if self._bump_sexps_to_end_paren(pcx).is_some() {
             self.maybe_bump_kind(pcx, SyntaxKind::RParen);
         }
 
@@ -409,7 +414,7 @@ impl ParseState {
             .start_node_at(checkpoint, SyntaxKind::Call.into());
         self.maybe_bump_ws(pcx);
 
-        if self._sexps_to_end_paren(pcx).is_some() {
+        if self._bump_sexps_to_end_paren(pcx).is_some() {
             self.maybe_bump_kind(pcx, SyntaxKind::RParen);
         }
 
@@ -417,9 +422,8 @@ impl ParseState {
         self.builder.finish_node();
     }
 
-    /// symbol → atom
-    fn try_symbol(&mut self, pcx: &ParseContext) -> bool {
-        if self.maybe_symbol(pcx).is_some() {
+    fn try_bump_symbol(&mut self, pcx: &ParseContext) -> bool {
+        if self.maybe_bump_symbol(pcx).is_some() {
             return true;
         }
 
@@ -448,18 +452,17 @@ impl ParseState {
         return false;
     }
 
-    fn maybe_symbol(&mut self, pcx: &ParseContext) -> Option<()> {
-        if self.maybe_path_or_ident(pcx).is_some() || self.maybe_atom(pcx).is_some() {
+    /// Symbol → Path | Literal
+    fn maybe_bump_symbol(&mut self, pcx: &ParseContext) -> Option<()> {
+        if self.maybe_bump_path(pcx).is_some() || self.maybe_bump_lit(pcx).is_some() {
             Some(())
         } else {
             None
         }
     }
 
-    /// path → ident ( (:|.)+ ident )*
-    fn maybe_path_or_ident(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.maybe_bump_ws(pcx);
-
+    /// Path → Ident ( (:|.)+ Ident )*
+    fn maybe_bump_path(&mut self, pcx: &ParseContext) -> Option<()> {
         let lo = if self.tsp.hi > 0 {
             pcx.tks[self.tsp.hi - 1].sp.hi
         } else {
@@ -510,26 +513,22 @@ impl ParseState {
         return Some(());
     }
 
-    /// atom → litral
-    fn maybe_atom(&mut self, pcx: &ParseContext) -> Option<()> {
-        if let Some(()) = self.maybe_lit(pcx) {
-            return Some(());
-        }
+    /// Pat → Ident
+    fn maybe_bump_pat(&mut self, pcx: &ParseContext) -> Option<()> {
+        let checkpoint = self.builder.checkpoint();
+        self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Pat.into());
+        self.builder.finish_node();
 
-        None
+        Some(())
     }
 }
 
 /// Lower-level syntactic items
 impl ParseState {
-    fn maybe_ident(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.maybe_bump_kind(pcx, SyntaxKind::Ident)
-    }
-
-    /// literal → num | str
-    fn maybe_lit(&mut self, pcx: &ParseContext) -> Option<()> {
-        self.maybe_bump_ws(pcx);
-
+    /// Literal → Number | String
+    fn maybe_bump_lit(&mut self, pcx: &ParseContext) -> Option<()> {
         let checkpoint = self.builder.checkpoint();
 
         let wrap = loop {
@@ -537,7 +536,7 @@ impl ParseState {
                 break true;
             }
 
-            if self.maybe_str(pcx).is_some() {
+            if self.maybe_bump_str(pcx).is_some() {
                 break true;
             }
 
@@ -554,7 +553,7 @@ impl ParseState {
         }
     }
 
-    fn maybe_str(&mut self, pcx: &ParseContext) -> Option<()> {
+    fn maybe_bump_str(&mut self, pcx: &ParseContext) -> Option<()> {
         let top = self.peek(pcx)?;
 
         if top.kind != SyntaxKind::Str {

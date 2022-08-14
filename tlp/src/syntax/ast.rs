@@ -203,7 +203,7 @@ define_transparent_node_wrapper!(
     );
 
     /// View to the [`Form`]
-    FormKind = DefProc | Let | Call | Literal;
+    FormKind = DefProc | Let | Call | Literal | Path;
 );
 
 define_node!(
@@ -218,6 +218,9 @@ define_node!(
 
     /// Procedure body
     Body: |kind| matches!(kind, SyntaxKind::Body);
+
+    /// Procedure body
+    Path: |kind| matches!(kind, SyntaxKind::Path);
 );
 
 impl Body {
@@ -405,4 +408,7 @@ define_token! {
 
     /// false
     False: SyntaxKind::False;
+
+    /// Identifier
+    Ident: SyntaxKind::Ident;
 }

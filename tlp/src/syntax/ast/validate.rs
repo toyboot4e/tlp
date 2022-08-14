@@ -90,10 +90,10 @@ impl Validate for Form {
             FormKind::DefProc(proc) => {
                 proc.validate(errs);
             }
-            // TODO: validate call
+            // TODO: validate
             FormKind::Call(_call) => {}
-            // TODO: validate let
             FormKind::Let(_let) => {}
+            FormKind::Path(_path) => {}
             FormKind::Literal(lit) => {
                 lit.validate(errs);
             }
