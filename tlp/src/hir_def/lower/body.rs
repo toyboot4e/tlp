@@ -18,8 +18,6 @@ use crate::{
 };
 
 pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body> {
-    // collect parameters as pattern IDs
-
     // body = block expr
     let proc_loc = db.lookup_intern_proc(proc_id);
     let tree = db.file_item_list(proc_loc.file);
@@ -32,7 +30,6 @@ pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc
     .lower_proc(proc.ast.clone())
 }
 
-/// Proc AST → Proc HIR
 struct LowerExpr<'a> {
     db: &'a dyn db::Def,
     body: Body,

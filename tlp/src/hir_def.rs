@@ -18,7 +18,6 @@ use self::{
         ids::{Id, Loc},
         vfs::VfsFileId,
     },
-    item::{Name, Visibility},
 };
 
 /// [`FileData`] container
@@ -52,7 +51,6 @@ impl CrateData {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileData {
     pub(crate) file: VfsFileId,
-    pub(crate) vis: Visibility,
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
     pub(crate) scope: Arc<ItemScope>,

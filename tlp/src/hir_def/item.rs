@@ -14,9 +14,8 @@ pub enum ItemId {
 /// Declared item's name
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Name {
-    // TODO: consider preferring salsa?
+    // TODO: consider interning string with salsa?
     data: SmolStr,
-    // hygiene info?
 }
 
 impl Name {
@@ -27,13 +26,6 @@ impl Name {
     pub fn as_str(&self) -> &str {
         self.data.as_str()
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Visibility {
-    /// Default: can be seen from the module and sub modules
-    Module,
-    Public,
 }
 
 /// Function parameter
@@ -54,8 +46,6 @@ impl Param {
 pub struct DefProc {
     pub(crate) name: Option<Name>,
     pub(crate) params: ProcParams,
-    // pub vis: Visibility,
-    // pub ret_ty: TypeRefId,
     pub(crate) ast: ast::DefProc,
 }
 
@@ -84,7 +74,6 @@ impl DefProc {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProcParams {
     params: Vec<Param>,
-    // ast: ast::Params,
 }
 
 impl std::ops::Index<usize> for ProcParams {

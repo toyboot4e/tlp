@@ -10,7 +10,6 @@ use crate::hir_def::{
         ids::Loc,
         vfs::*,
     },
-    item::Visibility,
     CrateData, FileDataId, FileData, ItemScope,
 };
 
@@ -23,7 +22,6 @@ pub fn crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateData> {
     let root = FileDataId {
         idx: modules.alloc(FileData {
             file: krate.clone(),
-            vis: Visibility::Public,
             parent: None,
             children: Vec::new(),
             scope: root_scope,

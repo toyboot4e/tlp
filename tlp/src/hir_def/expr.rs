@@ -1,6 +1,6 @@
-/*!
-HIR expression (unresolved syntax separated from AST, still disugared)
-*/
+//! HIR expression
+//!
+//! Source information is deleted.
 
 use std::cmp;
 
