@@ -13,14 +13,14 @@ use crate::{
 /// Collects declarations and imports; they're interned, but as-is
 pub fn file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<ItemList> {
     let ast = db.parse(file.clone()).doc.clone();
-    Arc::new(ItemTreeCollect::run(file, ast))
+    Arc::new(ItemListCollect::run(file, ast))
 }
 
-struct ItemTreeCollect {
+struct ItemListCollect {
     tree: ItemList,
 }
 
-impl ItemTreeCollect {
+impl ItemListCollect {
     fn run(file: VfsFileId, ast: ast::Document) -> ItemList {
         let mut me = Self {
             tree: ItemList::new(file),

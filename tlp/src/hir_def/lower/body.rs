@@ -13,6 +13,7 @@ use crate::{
         },
         expr::{self, Expr},
         item::{self, Name},
+        pat,
     },
     syntax::ast,
 };
@@ -40,6 +41,7 @@ struct LowerExpr<'a> {
 
 impl<'a> LowerExpr<'a> {
     pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
+        // TODO: lower parameter patterns
         self.lower_proc_body(proc.clone());
         Arc::new(self.body)
     }
@@ -90,21 +92,13 @@ impl<'a> LowerExpr<'a> {
 }
 
 /// # Allocators
+/// TODO: Source map pattern
 impl<'a> LowerExpr<'a> {
-    // fn alloc_pat(&mut self, pat: Pattern, ptr: PatPtr) -> Id<Pattern> {
-    //     // InFile<T>
-    //     let src = self.expander.to_source(ptr);
-    //     let id = self.make_pat(pat, Ok(src.clone()));
-    //     // InFile<SyntaxPtr<T>> <-> ExprId
-    //     self.source_map.pat_map.insert(src, id);
-    //     id
-    // }
-
-    // fn make_pat(&mut self, pat: Pat, src: Result<PatSource, SyntheticSyntax>) -> PatId {
-    //     let id = self.body.pats.alloc(pat);
-    //     self.source_map.pat_map_back.insert(id, src);
-    //     id
-    // }
+    fn alloc_pat(&mut self, pat: ast::Ident) -> Idx<pat::Pat> {
+        let name = Name::from_str(pat.text());
+        let pat = pat::Pat::name(name);
+        self.body.pats.alloc(pat)
+    }
 
     fn alloc_expr(&mut self, expr: Expr) -> Idx<Expr> {
         self.body.exprs.alloc(expr)

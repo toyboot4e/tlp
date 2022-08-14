@@ -1,5 +1,7 @@
 //! Compiler (HIR → bytecode)
 
+pub mod scope;
+
 use thiserror::Error;
 
 use crate::{
@@ -23,6 +25,12 @@ pub trait Compile {
     fn compile(&self, code: &mut Chunk) -> Result<()>;
 }
 
+//
+pub struct Scope {
+    pub len: usize,
+}
+
+// TODO: compile `hir_def`, not `ast`
 pub fn compile(doc: ast::Document) -> (Chunk, Vec<CompileError>) {
     let mut chunk = Chunk::new();
     let mut errs = vec![];
@@ -57,7 +65,8 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
             }
         },
         ast::FormKind::Let(let_) => {
-            let pat = let_.pat().unwrap();
+            // let pat = let_.pat().unwrap();
+            // TODO: resolve
             todo!()
         }
         ast::FormKind::Literal(lit) => match lit.kind() {

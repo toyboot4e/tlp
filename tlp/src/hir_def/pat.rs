@@ -25,5 +25,13 @@ pub struct ItemPath {
     segments: Vec<Name>,
 }
 
+impl ItemPath {
+    pub fn name(name: Name) -> Self {
+        Self {
+            segments: vec![name],
+        }
+    }
+}
+
 /// Pattern
 pub type Pat = ItemPath;
