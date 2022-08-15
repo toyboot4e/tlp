@@ -7,16 +7,18 @@ use std::cmp;
 use la_arena::Idx;
 
 use crate::{
-    hir_def::item::Name,
+    hir_def::{item::Name, pat},
     syntax::ast::{self, AstToken},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
+    /// Invalid syntax can contain missing expression
+    Missing,
     Block(Block),
+    Let(Let),
     Call(Call),
     Literal(Literal),
-    // TODO: Let(Let),
 }
 
 /// Code block of S-expressions
@@ -24,6 +26,13 @@ pub enum Expr {
 pub struct Block {
     pub children: Vec<Idx<Expr>>,
     // pub ast_loc_id: Id<AstLoc<ast::Block>>,
+}
+
+/// Code block of S-expressions
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Let {
+    pub pat: Idx<pat::Pat>,
+    pub rhs: Idx<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
