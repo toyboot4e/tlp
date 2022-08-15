@@ -24,11 +24,8 @@ pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc
     let tree = db.file_item_list(proc_loc.file);
     let proc = &tree[proc_loc.idx];
 
-    LowerExpr {
-        _db: db,
-        body: Body::default(),
-    }
-    .lower_proc(proc.ast.clone())
+    let body = Body::new();
+    LowerExpr { _db: db, body }.lower_proc(proc.ast.clone())
 }
 
 struct LowerExpr<'a> {
@@ -41,16 +38,20 @@ struct LowerExpr<'a> {
 
 impl<'a> LowerExpr<'a> {
     pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
-        // TODO: lower parameter patterns
+        self.lower_proc_params(proc.clone());
         self.lower_proc_body(proc.clone());
         Arc::new(self.body)
+    }
+
+    fn lower_proc_params(&mut self, _proc: ast::DefProc) {
+        //
     }
 
     fn lower_proc_body(&mut self, proc: ast::DefProc) {
         if let Some(body) = proc.body() {
             for form in body.forms() {
                 let expr = self.lower_form(form);
-                self.body.root.children.push(expr);
+                self.body.root_block_mut().children.push(expr);
             }
         }
     }

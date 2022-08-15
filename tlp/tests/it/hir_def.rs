@@ -51,7 +51,7 @@ fn main_literal() {
 
     // 5. Body
     let body = db.proc_body(proc_id);
-    let mut exprs = body.root.children.iter().cloned();
+    let mut exprs = body.root_block().children.iter().cloned();
 
     // 12
     assert_eq!(

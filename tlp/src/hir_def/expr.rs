@@ -13,15 +13,15 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    Seq(Seq),
+    Block(Block),
     Call(Call),
     Literal(Literal),
 }
 
-/// Sequence of expressions (code block)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Seq {
-    pub(crate) exprs: Vec<Idx<Expr>>,
+/// Code block of S-expressions
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Block {
+    pub children: Vec<Idx<Expr>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
