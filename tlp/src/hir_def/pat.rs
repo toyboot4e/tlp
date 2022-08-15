@@ -34,4 +34,10 @@ impl ItemPath {
 }
 
 /// Pattern
-pub type Pat = ItemPath;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Pat {
+    /// Given invalid syntax, pattern can miss
+    Missing,
+    // TODO: Ident(Name),
+    Path(ItemPath),
+}

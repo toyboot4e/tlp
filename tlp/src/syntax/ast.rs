@@ -220,6 +220,9 @@ define_node!(
     Block: |kind| matches!(kind, SyntaxKind::Block);
 
     /// Path
+    Pat: |kind| matches!(kind, SyntaxKind::Pat);
+
+    /// Path
     Path: |kind| matches!(kind, SyntaxKind::Path);
 );
 
@@ -239,18 +242,12 @@ impl Let {
     }
 
     // pattern (currently an identifier only)
-    pub fn pat(&self) -> Option<SyntaxToken> {
-        let c = self
-            .syn
-            .children_with_tokens()
-            .filter(|node| node.kind() != SyntaxKind::Ws)
-            .filter_map(|e| e.into_token());
-
-        c.skip(1).next()
+    pub fn pat(&self) -> Option<Pat> {
+        self.syn.children().find_map(Pat::cast_node)
     }
 
-    pub fn forms(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
+    pub fn rhs(&self) -> Option<Form> {
+        self.syn.children().find_map(Form::cast_node)
     }
 }
 
