@@ -5,12 +5,8 @@ use std::sync::Arc;
 use la_arena::Arena;
 
 use crate::hir_def::{
-    db::{
-        self,
-        ids::Loc,
-        vfs::*,
-    },
-    CrateData, FileDataId, FileData, ItemScope,
+    db::{self, ids::Loc, vfs::*},
+    CrateData, FileData, FileDataId, ItemScope,
 };
 
 /// Collects tree of modules with `ItemScope`

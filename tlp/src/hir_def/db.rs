@@ -76,6 +76,9 @@ pub trait Def: Parse + Intern {
     #[salsa::invoke(lower::proc_body_query)]
     fn proc_body(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body>;
 
+    #[salsa::invoke(scope::proc_expr_scope_query)]
+    fn proc_expr_scopes(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<scope::ExprScopeStack>;
+
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;
 }

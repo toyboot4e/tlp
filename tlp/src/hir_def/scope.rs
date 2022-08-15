@@ -3,10 +3,11 @@
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
 
-use std::ops;
+use std::{ops, sync::Arc};
 
 use crate::hir_def::{
     db::{
+        self,
         ids::{Id, Loc},
         vfs::VfsFileId,
     },
@@ -40,6 +41,19 @@ impl ItemList {
     }
 }
 
+/// Resolves [`Name`] with a stack of [`Scope`] s
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExprScopeStack {
+    scopes: Vec<Scope>,
+}
+
+/// [`ItemScope`] | [`ExprScope`]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Scope {
+    Item(ItemScope),
+    Expr(ExprScope),
+}
+
 /// Items visible in a scope (declarations and imports)
 ///
 /// Built upon `ItemTree`.
@@ -63,20 +77,14 @@ impl ItemScope {
 }
 
 /// Resolves [`Name`]
-#[derive(Debug)]
-pub struct ExprScopeStack {
-    //
-}
-
-/// Resolves [`Name`]
-#[derive(Debug)]
-pub enum Scope {
-    Item(ItemScope),
-    Expr(ExprScope),
-}
-
-/// Resolves [`Name`]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExprScope {
     //
+}
+
+pub(crate) fn proc_expr_scope_query(
+    _db: &dyn db::Def,
+    _proc_id: Id<Loc<item::DefProc>>,
+) -> Arc<ExprScopeStack> {
+    todo!()
 }
