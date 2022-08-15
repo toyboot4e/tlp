@@ -84,7 +84,7 @@ impl ItemScope {
 //     Expr(ExprScope),
 // }
 
-// /// Slice of [`ExprScopeStack`]
+// /// View to [`ExprScopeMap`] for one scope
 // #[derive(Debug, Clone, PartialEq, Eq)]
 // pub struct ExprScope {
 //     //
@@ -94,15 +94,14 @@ impl ItemScope {
 // Expression scope
 // --------------------------------------------------------------------------------
 
-/// Scope data for a definition
-// TODO: Rename; it's not a stack!
+/// All stack data for a definition
 #[derive(Debug, Default, PartialEq, Eq)]
-pub struct ExprScopeStack {
+pub struct ExprScopeMap {
     scopes: Arena<ScopeData>,
     // scope_by_expr: FxHashMap<Idx<Expr>, Idx<ScopeData>>,
 }
 
-impl ExprScopeStack {
+impl ExprScopeMap {
     fn alloc_root_scope(&mut self) -> Idx<ScopeData> {
         todo!()
     }
@@ -111,6 +110,7 @@ impl ExprScopeStack {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ScopeData {
     parent: Option<Idx<ScopeData>>,
+    // TODO: include AST location information
     // block: Option<Id<AstLoc<ast::Block>>>,
     entries: Vec<ScopeEntry>,
 }
@@ -123,15 +123,15 @@ pub struct ScopeEntry {
 
 pub(crate) fn proc_expr_scope_query(
     db: &dyn db::Def,
-    proc_id: Id<Loc<item::DefProc>>,
-) -> Arc<ExprScopeStack> {
+    proc_id: Id<ItemLoc<item::DefProc>>,
+) -> Arc<ExprScopeMap> {
     let body = db.proc_body(proc_id);
     self::body_expr_scope(db, &body)
 }
 
 #[allow(unused)]
-fn body_expr_scope(db: &dyn db::Def, body: &Body) -> Arc<ExprScopeStack> {
-    let mut scopes = ExprScopeStack::default();
+fn body_expr_scope(db: &dyn db::Def, body: &Body) -> Arc<ExprScopeMap> {
+    let mut scopes = ExprScopeMap::default();
 
     let root_scope = scopes.alloc_root_scope();
     self::compute_expr_scopes(body.root_block, body, &mut scopes, root_scope);
@@ -139,11 +139,12 @@ fn body_expr_scope(db: &dyn db::Def, body: &Body) -> Arc<ExprScopeStack> {
     Arc::new(scopes)
 }
 
+/// Walks through body expressions, creates scopes and tracks the scope for each expression
 #[allow(unused)]
 fn compute_expr_scopes(
     expr: Idx<expr::Expr>,
     body: &Body,
-    scopes: &mut ExprScopeStack,
+    scopes: &mut ExprScopeMap,
     scope: Idx<ScopeData>,
 ) {
     todo!()

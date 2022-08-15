@@ -12,13 +12,13 @@
 //! - For each module, lower AST into [`FileData`], i.e., [`ItemList`]
 //! - For each declaration, lower the code block into [`Body`]
 //!   - For each (nested or root) code block, lower items into [`ItemList`]
-//! - Create [`ExprScopeStack`] for [`Body`]
+//! - Create [`ExprScopeMap`] for [`Body`]
 //!   - For each (nested or root) code block, lower [`ExprScope`]
 //!
 //! [`FileData`]: crate::hir_def::FileData
 //! [`Body`]: crate::hir_def::body::Body
 //! [`ExprScope`]: crate::hir_def::scope::ExprScope
-//! [`ExprScopeStack`]: crate::hir_def::scope::ExprScopeStack
+//! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
 
 pub mod body;
 pub mod db;
