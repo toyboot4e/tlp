@@ -303,8 +303,8 @@ impl DefProc {
             .map(|node| Params { syn: node.clone() })
     }
 
-    pub fn block(&self) -> Option<Block> {
-        self.syn.children().find_map(Block::cast_node)
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
     }
 }
 

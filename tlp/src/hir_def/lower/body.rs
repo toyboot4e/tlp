@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use la_arena::{Arena, Idx};
+use la_arena::Idx;
 
 use crate::{
     hir_def::{
@@ -24,18 +24,10 @@ pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) ->
     let tree = db.file_item_list(proc_loc.file);
     let proc = &tree[proc_loc.idx];
 
-    let mut exprs = Arena::default();
-    let root_block = {
-        let root_block = expr::Block {
-            children: Default::default(),
-            // loc_id,
-        };
-        exprs.alloc(expr::Expr::Block(root_block))
-    };
-
+    let dummy = Idx::from_raw(u32::MAX.into());
     let body = Body {
-        root_block,
-        exprs,
+        root_block: dummy,
+        exprs: Default::default(),
         pats: Default::default(),
     };
 
@@ -53,21 +45,15 @@ struct LowerExpr<'a> {
 impl<'a> LowerExpr<'a> {
     pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
         self.lower_proc_params(proc.clone());
-        self.lower_proc_body(proc.clone());
+
+        let block = proc.block();
+        self.body.root_block = self.lower_block(block);
+
         Arc::new(self.body)
     }
 
     fn lower_proc_params(&mut self, _proc: ast::DefProc) {
         //
-    }
-
-    fn lower_proc_body(&mut self, proc: ast::DefProc) {
-        if let Some(body) = proc.block() {
-            for form in body.forms() {
-                let expr = self.lower_form(form);
-                self.body.root_block_mut().children.push(expr);
-            }
-        }
     }
 
     fn lower_form(&mut self, form: ast::Form) -> Idx<Expr> {
@@ -103,6 +89,18 @@ impl<'a> LowerExpr<'a> {
                 }
             },
         }
+    }
+
+    fn lower_block(&mut self, block: ast::Block) -> Idx<Expr> {
+        let mut children = Vec::new();
+
+        for form in block.forms() {
+            let expr = self.lower_form(form);
+            children.push(expr);
+        }
+
+        let block = expr::Block { children };
+        self.alloc_expr(expr::Expr::Block(block))
     }
 }
 
