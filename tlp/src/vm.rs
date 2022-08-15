@@ -1,6 +1,7 @@
 //! Bytecode virtual machine (stack-based)
 
 pub mod code;
+pub mod stack;
 
 use std::ops;
 use thiserror::Error;

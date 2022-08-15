@@ -308,7 +308,7 @@ impl ParseState {
                 self.builder.finish_node();
             }
         } else {
-            self.builder.start_node(SyntaxKind::Body.into());
+            self.builder.start_node(SyntaxKind::Block.into());
             return;
         }
 
@@ -322,7 +322,7 @@ impl ParseState {
             }
         }
 
-        self.builder.start_node(SyntaxKind::Body.into());
+        self.builder.start_node(SyntaxKind::Block.into());
     }
 
     fn _proc_params(&mut self, pcx: &ParseContext) {

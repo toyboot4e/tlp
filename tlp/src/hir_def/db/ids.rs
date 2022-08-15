@@ -21,7 +21,7 @@ use crate::hir_def::{
     item,
 };
 
-/// Tree item location
+/// AST item location
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Loc<T> {
     /// → FileItemList

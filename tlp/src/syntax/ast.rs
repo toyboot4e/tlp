@@ -216,14 +216,14 @@ define_node!(
     /// (ident args sexp*)
     Call: |kind| matches!(kind, SyntaxKind::Call);
 
-    /// Procedure body
-    Body: |kind| matches!(kind, SyntaxKind::Body);
+    /// Expressions marked as inline code block
+    Block: |kind| matches!(kind, SyntaxKind::Block);
 
-    /// Procedure body
+    /// Path
     Path: |kind| matches!(kind, SyntaxKind::Path);
 );
 
-impl Body {
+impl Block {
     pub fn forms(&self) -> impl Iterator<Item = Form> {
         self.syn.children().filter_map(Form::cast_node)
     }
@@ -303,8 +303,8 @@ impl DefProc {
             .map(|node| Params { syn: node.clone() })
     }
 
-    pub fn body(&self) -> Option<Body> {
-        self.syn.children().find_map(Body::cast_node)
+    pub fn body(&self) -> Option<Block> {
+        self.syn.children().find_map(Block::cast_node)
     }
 }
 
