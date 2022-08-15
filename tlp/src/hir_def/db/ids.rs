@@ -105,7 +105,7 @@ impl Id<Loc<item::DefProc>> {
     // NOTE: Use `Def` database, not `Intern` database as parameter. This is because Rust doesn't
     // have upcasting coercion (yet).
     pub fn lookup(&self, db: &dyn db::Def) -> Loc<item::DefProc> {
-        db.lookup_intern_proc(*self)
+        db.lookup_intern_proc_loc(*self)
     }
 }
 

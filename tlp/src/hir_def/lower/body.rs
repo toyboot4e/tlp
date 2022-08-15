@@ -20,7 +20,7 @@ use crate::{
 
 pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body> {
     // body = block expr
-    let proc_loc = db.lookup_intern_proc(proc_id);
+    let proc_loc = db.lookup_intern_proc_loc(proc_id);
     let tree = db.file_item_list(proc_loc.file);
     let proc = &tree[proc_loc.idx];
 

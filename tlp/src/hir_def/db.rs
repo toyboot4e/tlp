@@ -53,7 +53,7 @@ pub trait Parse: Source {
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     #[salsa::interned]
-    fn intern_proc(&self, proc: Loc<item::DefProc>) -> Id<Loc<item::DefProc>>;
+    fn intern_proc_loc(&self, proc: Loc<item::DefProc>) -> Id<Loc<item::DefProc>>;
 }
 
 /// Collecter of definitions of items
