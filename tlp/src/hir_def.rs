@@ -1,4 +1,24 @@
 //! Frontend IR
+//!
+//! # Arenas and ownership
+//!
+//! - [`ItemList`] owns arenas of definition syntaxes
+//! - [`Body`] owns arenas of expressions and patterns
+//!
+//! Other data structures refere to the data by [`Idx`].
+//!
+//! # Data flow
+//!
+//! - For each module, lower AST into [`FileData`], i.e., [`ItemList`]
+//! - For each declaration, lower the code block into [`Body`]
+//!   - For each (nested or root) code block, lower items into [`ItemList`]
+//! - Create [`ExprScopeStack`] for [`Body`]
+//!   - For each (nested or root) code block, lower [`ExprScope`]
+//!
+//! [`FileData`]: crate::hir_def::FileData
+//! [`Body`]: crate::hir_def::body::Body
+//! [`ExprScope`]: crate::hir_def::scope::ExprScope
+//! [`ExprScopeStack`]: crate::hir_def::scope::ExprScopeStack
 
 pub mod body;
 pub mod db;
@@ -10,14 +30,12 @@ pub mod scope;
 
 use la_arena::{Arena, Idx};
 
-use std::sync::Arc;
-
 use self::{
     db::vfs::VfsFileId,
     scope::{ItemList, ItemScope},
 };
 
-/// [`FileData`] container
+/// Per-project [`FileData`] container
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
     pub(crate) root: FileDataId,
@@ -44,13 +62,14 @@ impl CrateData {
     }
 }
 
-/// File items
+/// Pre-file [`ItemScope`] with child/parent relationship
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileData {
     pub(crate) file: VfsFileId,
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
-    pub(crate) scope: Arc<ItemScope>,
+    /// Items visible from this file (defined or imported)
+    pub(crate) scope: ItemScope,
 }
 
 impl FileData {
@@ -65,3 +84,5 @@ pub struct FileDataId {
     // block: BlockId,
     pub(crate) idx: Idx<FileData>,
 }
+
+// TODO: add data for macro-expanded `ItemList` (use it for crate/block DefMap)

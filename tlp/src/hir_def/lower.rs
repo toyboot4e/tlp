@@ -1,4 +1,4 @@
-//! Creates `hir_def` types from AST
+//! Creates [`hir_def`](crate::hir_def) types from AST
 
 mod body;
 mod item;

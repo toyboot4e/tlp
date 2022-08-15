@@ -1,11 +1,4 @@
 //! Item / expression scopes
-//!
-//! # Data flow
-//!
-//! - For each module, lower AST into [`ItemList`]
-//! - For each def, lower code block into [`Body`](super::body::Body)
-//!   - For each block, lower items into [`ItemList`]
-//! - Create [`ExprScope`] for [`Body`]
 
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
@@ -19,7 +12,6 @@ use crate::hir_def::{
     },
     item::{self, Name},
 };
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemList {
@@ -48,30 +40,13 @@ impl ItemList {
     }
 }
 
-/// Resolves [`Name`] to ID
-#[derive(Debug)]
-pub struct Environment {}
-
-#[derive(Debug)]
-pub enum Scope {
-    Item(ItemScope),
-    Expr(ExprScope),
-}
-
-#[derive(Debug)]
-pub struct ExprScope {
-    //
-}
-
-/// Name-resolved item definitions IDs in a scope (declarations and imports)
+/// Items visible in a scope (declarations and imports)
 ///
 /// Built upon `ItemTree`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ItemScope {
     // declarations
     procs: FxHashMap<Name, Id<Loc<item::DefProc>>>,
-    // values:
-    // delcs
 }
 
 impl ItemScope {
@@ -85,4 +60,23 @@ impl ItemScope {
     pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<item::DefProc>>> {
         self.procs.get(name).cloned()
     }
+}
+
+/// Resolves [`Name`]
+#[derive(Debug)]
+pub struct ExprScopeStack {
+    //
+}
+
+/// Resolves [`Name`]
+#[derive(Debug)]
+pub enum Scope {
+    Item(ItemScope),
+    Expr(ExprScope),
+}
+
+/// Resolves [`Name`]
+#[derive(Debug)]
+pub struct ExprScope {
+    //
 }

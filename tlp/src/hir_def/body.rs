@@ -1,6 +1,4 @@
-//! Body of tem definition (procedure or constant)
-
-// not fully resolved (for example function calls)
+//! Item definition body and code blocks
 
 use la_arena::{Arena, Idx};
 
