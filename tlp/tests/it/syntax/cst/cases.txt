@@ -99,7 +99,7 @@ DefProc@0..17
         LParen@11..12
         RParen@12..13
     Ws@13..14
-    Body@14..16
+    Block@14..16
         Literal@14..16
             Num@14..16
     RParen@16..17
@@ -136,7 +136,7 @@ DefProc@0..22
             Ident@9..13
         RParen@13..14
     Ws@14..15
-    Body@15..21
+    Block@15..21
         Call@15..21
             LParen@15..16
             Ident@16..20
