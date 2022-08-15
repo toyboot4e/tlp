@@ -5,16 +5,19 @@ use rustc_hash::FxHashMap;
 
 use std::{ops, sync::Arc};
 
-use crate::hir_def::{
-    body::Body,
-    db::{
-        self,
-        ids::{Id, Loc},
-        vfs::VfsFileId,
+use crate::{
+    hir_def::{
+        body::Body,
+        db::{
+            self,
+            ids::{Id, ItemLoc},
+            vfs::VfsFileId,
+        },
+        expr,
+        item::{self, Name},
+        pat,
     },
-    expr,
-    item::{self, Name},
-    pat,
+    syntax::ast,
 };
 
 // --------------------------------------------------------------------------------
@@ -54,18 +57,18 @@ impl ItemList {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ItemScope {
     // declarations
-    procs: FxHashMap<Name, Id<Loc<item::DefProc>>>,
+    procs: FxHashMap<Name, Id<ItemLoc<item::DefProc>>>,
 }
 
 impl ItemScope {
-    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<Loc<item::DefProc>>) {
+    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<ItemLoc<item::DefProc>>) {
         // TOOD: consider upcasting or not
         // let id = DefId { loc_id: proc };
         // self.procs.insert(name, AnyDefId::from(id));
         self.procs.insert(name, proc);
     }
 
-    pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<item::DefProc>>> {
+    pub fn lookup_proc(&self, name: &Name) -> Option<Id<ItemLoc<item::DefProc>>> {
         self.procs.get(name).cloned()
     }
 }
@@ -108,8 +111,7 @@ impl ExprScopeStack {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ScopeData {
     parent: Option<Idx<ScopeData>>,
-    // block: Option<Idx<Block>>,
-    // label: Option<(LabelId, Name)>,
+    // block: Option<Id<AstLoc<ast::Block>>>,
     entries: Vec<ScopeEntry>,
 }
 

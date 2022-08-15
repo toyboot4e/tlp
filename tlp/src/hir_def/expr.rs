@@ -1,13 +1,16 @@
 //! HIR expression
 //!
-//! Source information is deleted.
+//! Source locations are interned.
 
 use std::cmp;
 
 use la_arena::Idx;
 
 use crate::{
-    hir_def::item::Name,
+    hir_def::{
+        db::ids::{Id, ItemLoc},
+        item::Name,
+    },
     syntax::ast::{self, AstToken},
 };
 
@@ -16,12 +19,14 @@ pub enum Expr {
     Block(Block),
     Call(Call),
     Literal(Literal),
+    // TODO: Let(Let),
 }
 
 /// Code block of S-expressions
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     pub children: Vec<Idx<Expr>>,
+    // pub loc_id: Id<ItemLoc<ast::Block>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

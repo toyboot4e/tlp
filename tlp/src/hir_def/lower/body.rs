@@ -2,14 +2,14 @@
 
 use std::sync::Arc;
 
-use la_arena::Idx;
+use la_arena::{Arena, Idx};
 
 use crate::{
     hir_def::{
         body::Body,
         db::{
             self,
-            ids::{Id, Loc},
+            ids::{Id, ItemLoc},
         },
         expr::{self, Expr},
         item::{self, Name},
@@ -18,13 +18,27 @@ use crate::{
     syntax::ast,
 };
 
-pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body> {
+pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body> {
     // body = block expr
     let proc_loc = db.lookup_intern_proc_loc(proc_id);
     let tree = db.file_item_list(proc_loc.file);
     let proc = &tree[proc_loc.idx];
 
-    let body = Body::new();
+    let mut exprs = Arena::default();
+    let root_block = {
+        let root_block = expr::Block {
+            children: Default::default(),
+            // loc_id,
+        };
+        exprs.alloc(expr::Expr::Block(root_block))
+    };
+
+    let body = Body {
+        root_block,
+        exprs,
+        pats: Default::default(),
+    };
+
     LowerExpr { _db: db, body }.lower_proc(proc.ast.clone())
 }
 

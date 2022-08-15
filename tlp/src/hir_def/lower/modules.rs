@@ -5,7 +5,7 @@ use std::sync::Arc;
 use la_arena::Arena;
 
 use crate::hir_def::{
-    db::{self, ids::Loc, vfs::*},
+    db::{self, ids::ItemLoc, vfs::*},
     CrateData, FileData, FileDataId, ItemScope,
 };
 
@@ -46,7 +46,7 @@ impl ModCollector {
                 None => continue,
             };
 
-            let id = db.intern_proc_loc(Loc {
+            let id = db.intern_proc_loc(ItemLoc {
                 file: self.vfs_file_id,
                 idx: id,
             });
