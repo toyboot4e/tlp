@@ -64,7 +64,7 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
                 todo!("{:?}", call);
             }
         },
-        ast::FormKind::Let(let_) => {
+        ast::FormKind::Let(_let_) => {
             // let pat = let_.pat().unwrap();
             // TODO: resolve
             todo!()

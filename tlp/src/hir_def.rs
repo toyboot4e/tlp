@@ -28,6 +28,8 @@ pub mod lower;
 pub mod pat;
 pub mod scope;
 
+use std::sync::Arc;
+
 use la_arena::{Arena, Idx};
 
 use self::{
@@ -69,7 +71,7 @@ pub struct FileData {
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
     /// Items visible from this file (defined or imported)
-    pub(crate) scope: ItemScope,
+    pub(crate) scope: Arc<ItemScope>,
 }
 
 impl FileData {

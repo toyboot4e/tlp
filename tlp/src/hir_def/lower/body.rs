@@ -25,14 +25,14 @@ pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<Loc<item::DefProc>>) -> Arc
     let proc = &tree[proc_loc.idx];
 
     LowerExpr {
-        db,
+        _db: db,
         body: Body::default(),
     }
     .lower_proc(proc.ast.clone())
 }
 
 struct LowerExpr<'a> {
-    db: &'a dyn db::Def,
+    _db: &'a dyn db::Def,
     body: Body,
     // TODO: source map:
     // /// AST expr ID → HIR expr ID
@@ -70,7 +70,7 @@ impl<'a> LowerExpr<'a> {
                 self.alloc_expr(expr::Expr::Call(call))
             }
             ast::FormKind::Let(let_) => {
-                if let Some(pat) = let_.pat() {
+                if let Some(_pat) = let_.pat() {
                     // self.alloc_pat
                 }
                 todo!()
@@ -94,7 +94,7 @@ impl<'a> LowerExpr<'a> {
 /// # Allocators
 /// TODO: Source map pattern
 impl<'a> LowerExpr<'a> {
-    fn alloc_pat(&mut self, pat: ast::Ident) -> Idx<pat::Pat> {
+    fn _alloc_pat(&mut self, pat: ast::Ident) -> Idx<pat::Pat> {
         let name = Name::from_str(pat.text());
         let pat = pat::Pat::name(name);
         self.body.pats.alloc(pat)

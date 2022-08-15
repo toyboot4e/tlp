@@ -55,7 +55,7 @@ impl ModCollector {
                 idx: id,
             });
 
-            let ix = scope.declare_proc(name, id);
+            let _ix = scope.declare_proc(name, id);
         }
 
         Arc::new(scope)

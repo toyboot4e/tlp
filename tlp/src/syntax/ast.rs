@@ -265,7 +265,7 @@ impl Call {
             .next()
         {
             Some(tk) if tk.kind() == SyntaxKind::Ident => Some(tk.clone()),
-            Some(tk) => None,
+            Some(_tk) => None,
             None => unreachable!("No token?"),
         }
     }

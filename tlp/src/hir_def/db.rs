@@ -8,7 +8,7 @@ pub mod vfs;
 use std::sync::Arc;
 
 use crate::{
-    hir_def::{body::Body, item, lower, CrateData, ItemList},
+    hir_def::{body::Body, item, lower, scope, CrateData, ItemList},
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
@@ -60,7 +60,7 @@ pub trait Intern: salsa::Database {
 #[salsa::query_group(LowerModuleDB)]
 pub trait Def: Parse + Intern {
     // --------------------------------------------------------------------------------
-    // Item
+    // File syntax
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::crate_data_query)]

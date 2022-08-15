@@ -102,7 +102,7 @@ impl Validate for Form {
 }
 
 impl Validate for Call {
-    fn validate(&self, errs: &mut Vec<SyntaxError>) {
+    fn validate(&self, _errs: &mut Vec<SyntaxError>) {
         // TODO: validate each argument
     }
 }
@@ -138,7 +138,7 @@ impl Validate for DefProc {
 
 impl Validate for Params {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        let mut elems = self.syn.children_with_tokens().filter(|elem| {
+        let elems = self.syn.children_with_tokens().filter(|elem| {
             !matches!(
                 elem.kind(),
                 SyntaxKind::Ws | SyntaxKind::Comment | SyntaxKind::LParen | SyntaxKind::RParen
@@ -158,7 +158,7 @@ impl Validate for Params {
 }
 
 impl Validate for Literal {
-    fn validate(&self, errs: &mut Vec<SyntaxError>) {
+    fn validate(&self, _errs: &mut Vec<SyntaxError>) {
         //
     }
 }

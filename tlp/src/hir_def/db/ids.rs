@@ -11,14 +11,14 @@ ID → Loc → Data:
 * container: Loc → Container → Data
 */
 
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 use derivative::Derivative;
 use la_arena::Idx;
 
 use crate::hir_def::{
-    db::{self, vfs::VfsFileId, Intern},
-    item, ItemList,
+    db::{self, vfs::VfsFileId},
+    item,
 };
 
 macro_rules! new_ids {
