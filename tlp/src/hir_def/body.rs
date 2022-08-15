@@ -19,11 +19,4 @@ impl Body {
             _ => unreachable!(),
         }
     }
-
-    pub(crate) fn root_block_mut(&mut self) -> &mut expr::Block {
-        match &mut self.exprs[self.root_block] {
-            expr::Expr::Block(seq) => seq,
-            _ => unreachable!(),
-        }
-    }
 }
