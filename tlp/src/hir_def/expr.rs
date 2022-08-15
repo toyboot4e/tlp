@@ -7,10 +7,7 @@ use std::cmp;
 use la_arena::Idx;
 
 use crate::{
-    hir_def::{
-        db::ids::{Id, ItemLoc},
-        item::Name,
-    },
+    hir_def::item::Name,
     syntax::ast::{self, AstToken},
 };
 
@@ -26,7 +23,7 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     pub children: Vec<Idx<Expr>>,
-    // pub loc_id: Id<ItemLoc<ast::Block>>,
+    // pub ast_loc_id: Id<AstLoc<ast::Block>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

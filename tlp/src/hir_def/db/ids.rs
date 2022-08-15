@@ -30,15 +30,15 @@ pub struct ItemLoc<T> {
     pub idx: Idx<T>,
 }
 
-/// AST syntax location
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct AstLoc<T> {
-    pub file: VfsFileId,
-    /// FIXME: Index to AstIdMap
-    pub idx: Idx<T>,
-    // /// The containing module.
-    // module: ModuleId,
-}
+// /// AST syntax location
+// #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+// pub struct AstLoc<T> {
+//     pub file: VfsFileId,
+//     /// FIXME: Index to AstIdMap
+//     pub idx: Idx<T>,
+//     // /// The containing module.
+//     // module: ModuleId,
+// }
 
 /// Interned ID to a location
 #[derive(Derivative)]

@@ -14,7 +14,7 @@ use crate::{
 };
 
 use self::{
-    ids::{Id, Loc},
+    ids::{Id, ItemLoc},
     vfs::VfsFileId,
 };
 
@@ -53,8 +53,12 @@ pub trait Parse: Source {
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     #[salsa::interned]
-    fn intern_proc_loc(&self, proc: Loc<item::DefProc>) -> Id<Loc<item::DefProc>>;
+    fn intern_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> Id<ItemLoc<item::DefProc>>;
+    // #[salsa::interned]
+    // fn intern_block_loc(&self, proc: AstLoc<ast::Block>) -> Id<AstLoc<item::DefProc>>;
 }
+
+// pub trait Ast: Parse + Intern { }
 
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]
@@ -74,10 +78,10 @@ pub trait Def: Parse + Intern {
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::proc_body_query)]
-    fn proc_body(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body>;
+    fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
 
     #[salsa::invoke(scope::proc_expr_scope_query)]
-    fn proc_expr_scopes(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<scope::ExprScopeStack>;
+    fn proc_expr_scopes(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeStack>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;
