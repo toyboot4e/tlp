@@ -48,7 +48,7 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_proc_body(&mut self, proc: ast::DefProc) {
-        if let Some(body) = proc.body() {
+        if let Some(body) = proc.block() {
             for form in body.forms() {
                 let expr = self.lower_form(form);
                 self.body.root_block_mut().children.push(expr);
