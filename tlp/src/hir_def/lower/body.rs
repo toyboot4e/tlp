@@ -58,47 +58,11 @@ impl<'a> LowerExpr<'a> {
         //
     }
 
-    fn lower_form(&mut self, form: ast::Form) -> Idx<Expr> {
-        match form.kind() {
-            // items
-            ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
-            // expressions
-            ast::FormKind::Call(call) => {
-                let path = self.lower_form(call.path().into_form());
-                let args = call.args().map(|form| self.lower_form(form)).collect();
-
-                let expr = expr::Call { path, args };
-                self.alloc_expr(expr::Expr::Call(expr))
-            }
-            ast::FormKind::Let(let_) => {
-                let pat = self.lower_opt_ast_pat(let_.pat());
-                let rhs = self.lower_opt_ast_expr(let_.rhs());
-
-                let expr = expr::Let { pat, rhs };
-
-                self.alloc_expr(expr::Expr::Let(expr))
-            }
-            ast::FormKind::Path(ast_path) => {
-                let expr_path = expr::Path::lower(ast_path, self.db.upcast());
-                self.alloc_expr(expr_path.into())
-            }
-            ast::FormKind::Literal(lit) => match lit.kind() {
-                ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
-                ast::LiteralKind::Str(_str) => {
-                    todo!()
-                }
-                ast::LiteralKind::True(_) | ast::LiteralKind::False(_) => {
-                    todo!()
-                }
-            },
-        }
-    }
-
     fn lower_block(&mut self, block: ast::Block) -> Idx<Expr> {
         let mut children = Vec::new();
 
         for form in block.forms() {
-            let expr = self.lower_form(form);
+            let expr = self.lower_ast_expr(form);
             children.push(expr);
         }
 
@@ -137,27 +101,36 @@ impl<'a> LowerExpr<'a> {
         }
     }
 
-    fn lower_ast_expr(&mut self, expr: ast::Form) -> Idx<expr::Expr> {
-        match expr.kind() {
-            ast::FormKind::DefProc(_) => todo!("seperate expression"),
+    fn lower_ast_expr(&mut self, form: ast::Form) -> Idx<Expr> {
+        match form.kind() {
+            // items
+            ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
+            // expressions
+            ast::FormKind::Call(call) => {
+                let path = self.lower_ast_expr(call.path().into_form());
+                let args = call.args().map(|form| self.lower_ast_expr(form)).collect();
+
+                let expr = expr::Call { path, args };
+                self.alloc_expr(expr::Expr::Call(expr))
+            }
             ast::FormKind::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
                 let rhs = self.lower_opt_ast_expr(let_.rhs());
                 self.alloc_expr(expr::Let { pat, rhs }.into())
             }
-            ast::FormKind::Call(call) => {
-                let path = {
-                    let path = call.path();
-                    self.lower_ast_expr(path.into_form()).unwrap())
-                };
-
-                let args = call.args().map(|form| self.lower_ast_expr(form)).collect();
-                let call = expr::Call { path, args };
-
-                self.alloc_expr(expr::Expr::Call(call))
+            ast::FormKind::Path(ast_path) => {
+                let expr_path = expr::Path::lower(ast_path, self.db.upcast());
+                self.alloc_expr(expr_path.into())
             }
-            ast::FormKind::Literal(_) => todo!(""),
-            ast::FormKind::Path(_) => todo!(""),
+            ast::FormKind::Literal(lit) => match lit.kind() {
+                ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
+                ast::LiteralKind::Str(_str) => {
+                    todo!()
+                }
+                ast::LiteralKind::True(_) | ast::LiteralKind::False(_) => {
+                    todo!()
+                }
+            },
         }
     }
 }
