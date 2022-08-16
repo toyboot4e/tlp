@@ -5,19 +5,16 @@ use rustc_hash::FxHashMap;
 
 use std::{ops, sync::Arc};
 
-use crate::{
-    hir_def::{
-        body::Body,
-        db::{
-            self,
-            ids::{Id, ItemLoc},
-            vfs::VfsFileId,
-        },
-        expr,
-        item::{self, Name},
-        pat,
+use crate::hir_def::{
+    body::Body,
+    db::{
+        self,
+        ids::{Id, ItemLoc},
+        vfs::VfsFileId,
     },
-    syntax::ast,
+    expr::{self, Expr},
+    item::{self, Name},
+    pat,
 };
 
 // --------------------------------------------------------------------------------
@@ -103,7 +100,39 @@ pub struct ExprScopeMap {
 
 impl ExprScopeMap {
     fn alloc_root_scope(&mut self) -> Idx<ScopeData> {
-        todo!()
+        self.scopes.alloc(ScopeData::default())
+    }
+
+    /// Creates a new block scope
+    fn new_block_scope(
+        &mut self,
+        parent: Idx<ScopeData>,
+        // block: Id<AstLoc<ast::Block>>,
+    ) -> Idx<ScopeData> {
+        self.scopes.alloc(ScopeData {
+            parent: Some(parent),
+            // block: Some(block),
+            entries: vec![],
+        })
+    }
+
+    /// Creates a new scope on a binding pattern
+    fn new_scope(&mut self, parent: Idx<ScopeData>) -> Idx<ScopeData> {
+        self.scopes.alloc(ScopeData {
+            parent: Some(parent),
+            entries: vec![],
+        })
+    }
+
+    fn add_bindings(&mut self, body: &Body, scope: Idx<ScopeData>, pat: Idx<pat::Pat>) {
+        let pattern = &body.pats[pat];
+        if let pat::Pat::Bind { name } = pattern {
+            let entry = ScopeEntry {
+                name: name.clone(),
+                pat,
+            };
+            self.scopes[scope].entries.push(entry);
+        }
     }
 }
 
@@ -133,6 +162,7 @@ pub(crate) fn proc_expr_scope_query(
 fn body_expr_scope(db: &dyn db::Def, body: &Body) -> Arc<ExprScopeMap> {
     let mut scopes = ExprScopeMap::default();
 
+    // start with the root block expression
     let root_scope = scopes.alloc_root_scope();
     self::compute_expr_scopes(body.root_block, body, &mut scopes, root_scope);
 
@@ -140,12 +170,76 @@ fn body_expr_scope(db: &dyn db::Def, body: &Body) -> Arc<ExprScopeMap> {
 }
 
 /// Walks through body expressions, creates scopes and tracks the scope for each expression
-#[allow(unused)]
+///
+/// Returns the last scope index for tracking the current scope.
 fn compute_expr_scopes(
     expr: Idx<expr::Expr>,
     body: &Body,
     scopes: &mut ExprScopeMap,
-    scope: Idx<ScopeData>,
-) {
-    todo!()
+    scope_idx: Idx<ScopeData>,
+) -> Idx<ScopeData> {
+    // Current scope only modified by `Let` expression.
+    // (Block scope creates a new scope, but it doesn't modify "current scope").
+    let mut scope_idx = scope_idx;
+
+    // TODO: track scope for each expression
+    // scopes.track_expr_scope(expr, scope);
+
+    match &body.exprs[expr] {
+        // --------------------------------------------------------------------------------
+        // Handle block and binding patterns
+        // --------------------------------------------------------------------------------
+        Expr::Block(block) => {
+            let block_scope_idx = scopes.new_block_scope(scope_idx);
+            // Overwrite the block scope with the deepest child.
+            // This is important for traverse as `ScopeData` only contains `parernt` index.
+            // scopes.track_expr_scope(expr, scope);
+            self::compute_block_scopes(&block.children, body, scopes, block_scope_idx);
+        }
+        Expr::Let(let_) => {
+            // expr: track scope
+            scope_idx = self::compute_expr_scopes(let_.rhs, body, scopes, scope_idx);
+
+            // pat: create new scope
+            scope_idx = scopes.new_scope(scope_idx);
+            scopes.add_bindings(body, scope_idx, let_.pat);
+        }
+
+        // --------------------------------------------------------------------------------
+        // Walk child expressions and track scope for them.
+        // It should not modify curernt scope.
+        // --------------------------------------------------------------------------------
+        Expr::Call(call) => {
+            self::compute_expr_scopes(call.path, body, scopes, scope_idx);
+            call.args.iter().for_each(|expr| {
+                self::compute_expr_scopes(*expr, body, scopes, scope_idx);
+            });
+        }
+
+        // --------------------------------------------------------------------------------
+        // Terminals
+        // TODO: Not given scope?
+        // --------------------------------------------------------------------------------
+        Expr::Missing => {}
+        Expr::Path(_) => {}
+        Expr::Literal(_) => {}
+    }
+
+    scope_idx
+}
+
+/// Walks through body expressions, creates scopes and tracks the scope for each expression
+fn compute_block_scopes(
+    exprs: &[Idx<expr::Expr>],
+    body: &Body,
+    scopes: &mut ExprScopeMap,
+    scope_idx: Idx<ScopeData>,
+) -> Idx<ScopeData> {
+    let mut scope_idx = scope_idx;
+
+    for expr in exprs {
+        scope_idx = self::compute_expr_scopes(*expr, body, scopes, scope_idx);
+    }
+
+    scope_idx
 }
