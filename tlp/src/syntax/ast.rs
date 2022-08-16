@@ -233,6 +233,15 @@ impl Block {
     }
 }
 
+impl Path {
+    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .filter_map(PathComponent::cast_token)
+    }
+}
+
 impl Let {
     pub fn let_tk(&self) -> SyntaxToken {
         self.syn
@@ -253,21 +262,12 @@ impl Let {
 }
 
 impl Call {
-    pub fn name_tk(&self) -> Option<SyntaxToken> {
-        match self
-            .syn
-            .children_with_tokens()
-            .skip(1) // )
-            .filter_map(|elem| elem.into_token())
-            .filter(|tk| tk.kind() != SyntaxKind::Ws)
-            .next()
-        {
-            Some(tk) if tk.kind() == SyntaxKind::Ident => Some(tk.clone()),
-            Some(_tk) => None,
-            None => unreachable!("No token?"),
-        }
+    /// Function path
+    pub fn path(&self) -> Path {
+        self.syn.children().find_map(Path::cast_node).unwrap()
     }
 
+    /// Function arguments
     pub fn arg_forms(&self) -> impl Iterator<Item = Form> {
         self.syn.children().filter_map(Form::cast_node)
     }
@@ -357,6 +357,7 @@ define_token_wrapper! {
     /// Literal node
     Literal: |kind| matches!(kind, SyntaxKind::Literal);
     // View to the [`Literal`] node
+    // TODO: use `Bool` node?
     LiteralKind = Num | Str | True | False;
 }
 
@@ -416,4 +417,7 @@ define_token! {
 
     /// Identifier
     Ident: SyntaxKind::Ident;
+
+    /// PathComponent
+    PathComponent: SyntaxKind::Ident;
 }

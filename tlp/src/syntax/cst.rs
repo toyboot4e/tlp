@@ -43,11 +43,9 @@ pub type SyntaxElement = rowan::SyntaxElement<Lang>;
 
 pub use rowan::TextRange;
 
-/**
-Syntactic kind of a tree element
-
-Both the lexer and the parser use this enum.
-*/
+/// Syntactic kind of a tree element
+///
+/// Both the lexer and the parser use this enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u16)]
 pub enum SyntaxKind {

@@ -1,4 +1,6 @@
 //! Lowers body and code blocks
+//!
+//! Each expression and pattern are given unique instance.
 
 use std::sync::Arc;
 
@@ -62,7 +64,10 @@ impl<'a> LowerExpr<'a> {
             ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
             // expressions
             ast::FormKind::Call(call) => {
-                let name = Name::from_str(call.name_tk().unwrap().text());
+                let path = call.path();
+                // TODO: support path
+                let ident = path.components().next().unwrap();
+                let name = Name::from_str(ident.text());
 
                 let args = call
                     .arg_forms()
