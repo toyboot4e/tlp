@@ -21,9 +21,26 @@ pub enum Expr {
     Literal(Literal),
 }
 
+macro_rules! impl_from {
+    ( $ty:ty = $( $ty_from:ident )|* ; ) => {
+        $(
+            impl From<$ty_from> for $ty {
+                fn from(x: $ty_from) -> $ty {
+                    Self::$ty_from(x)
+                }
+            }
+        )*
+    }
+}
+
+impl_from! {
+    Expr = Block | Let | Call | Literal;
+}
+
 /// Code block of S-expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
+    // TODO: statements?
     pub children: Vec<Idx<Expr>>,
     // pub ast_loc_id: Id<AstLoc<ast::Block>>,
 }

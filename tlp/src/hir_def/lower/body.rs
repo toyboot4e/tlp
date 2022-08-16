@@ -112,12 +112,50 @@ impl<'a> LowerExpr<'a> {
         self.alloc_expr(expr::Expr::Block(block))
     }
 
-    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Form>) -> Idx<expr::Expr> {
-        todo!()
+    fn lower_opt_ast_pat(&mut self, pat: Option<ast::Pat>) -> Idx<pat::Pat> {
+        match pat {
+            Some(pat) => self.lower_ast_pat(pat),
+            None => self.alloc_pat(pat::Pat::Missing),
+        }
     }
 
-    fn lower_opt_ast_pat(&mut self, pat: Option<ast::Pat>) -> Idx<pat::Pat> {
-        todo!()
+    fn lower_ast_pat(&mut self, pat: ast::Pat) -> Idx<pat::Pat> {
+        match pat.kind() {
+            // FIXME: add PatIdent
+            ast::PatKind::Path(path) => {
+                // FIXME: identifier
+                let components = path.components().collect::<Vec<_>>();
+                assert_eq!(components.len(), 1);
+                let ident = &components[0];
+
+                let name = Name::from_str(ident.text());
+                let pat = pat::Pat::Bind { name };
+                self.alloc_pat(pat)
+            }
+        }
+    }
+
+    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Form>) -> Idx<expr::Expr> {
+        match expr {
+            Some(expr) => self.lower_ast_expr(expr),
+            None => self.alloc_expr(expr::Expr::Missing),
+        }
+    }
+
+    fn lower_ast_expr(&mut self, expr: ast::Form) -> Idx<expr::Expr> {
+        match expr.kind() {
+            ast::FormKind::DefProc(_) => todo!("seperate expression"),
+            ast::FormKind::Let(let_) => {
+                let pat = self.lower_opt_ast_pat(let_.pat());
+                let rhs = self.lower_opt_ast_expr(let_.rhs());
+                self.alloc_expr(expr::Let { pat, rhs }.into())
+            }
+            ast::FormKind::Call(call) => {
+                todo!()
+            }
+            ast::FormKind::Literal(_) => todo!(""),
+            ast::FormKind::Path(_) => todo!(""),
+        }
     }
 }
 
@@ -128,15 +166,7 @@ impl<'a> LowerExpr<'a> {
         self.body.pats.alloc(pat)
     }
 
-    fn alloc_opt_pat(&mut self, pat: Option<pat::Pat>) -> Idx<pat::Pat> {
-        self.alloc_pat(pat.unwrap_or(pat::Pat::Missing))
-    }
-
     fn alloc_expr(&mut self, expr: Expr) -> Idx<Expr> {
         self.body.exprs.alloc(expr)
-    }
-
-    fn alloc_opt_expr(&mut self, expr: Option<Expr>) -> Idx<Expr> {
-        self.alloc_expr(expr.unwrap_or(expr::Expr::Missing))
     }
 }
