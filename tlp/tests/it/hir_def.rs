@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use tlp::hir_def::{
     db::{vfs::*, *},
-    expr::*,
+    expr::{self, Expr},
     item::{self, Name},
 };
 
@@ -56,16 +56,28 @@ fn main_literal() {
     // 12
     assert_eq!(
         &body.exprs[exprs.next().unwrap()],
-        &Expr::Literal(Literal::Int(12))
+        &Expr::Literal(expr::Literal::Int(12))
     );
 
     // (+ 1 2)
     let node = &body.exprs[exprs.next().unwrap()];
     match node {
         Expr::Call(call) => {
-            assert_eq!(call.path.as_str(), "+");
-            assert_eq!(&body.exprs[call.args[0]], &Expr::Literal(Literal::Int(1)),);
-            assert_eq!(&body.exprs[call.args[1]], &Expr::Literal(Literal::Int(2)),);
+            let path_expr = match &body.exprs[call.path] {
+                expr::Expr::Path(p) => p,
+                _ => unreachable!(),
+            };
+            let path_data = path_expr.lookup(&db);
+
+            assert_eq!(path_data.segments[0].as_str(), "+");
+            assert_eq!(
+                &body.exprs[call.args[0]],
+                &Expr::Literal(expr::Literal::Int(1)),
+            );
+            assert_eq!(
+                &body.exprs[call.args[1]],
+                &Expr::Literal(expr::Literal::Int(2)),
+            );
         }
         _ => panic!("not a call node: {:?}", node),
     };

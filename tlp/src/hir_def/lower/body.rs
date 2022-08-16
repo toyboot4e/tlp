@@ -64,12 +64,7 @@ impl<'a> LowerExpr<'a> {
             ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
             // expressions
             ast::FormKind::Call(call) => {
-                let path = {
-                    let path = call.path();
-                    let path = expr::Path::lower(path, self.db.upcast());
-                    self.alloc_expr(expr::Expr::Path(path))
-                };
-
+                let path = self.lower_form(call.path().into_form());
                 let args = call.args().map(|form| self.lower_form(form)).collect();
 
                 let expr = expr::Call { path, args };
@@ -83,8 +78,9 @@ impl<'a> LowerExpr<'a> {
 
                 self.alloc_expr(expr::Expr::Let(expr))
             }
-            ast::FormKind::Path(_) => {
-                todo!()
+            ast::FormKind::Path(ast_path) => {
+                let expr_path = expr::Path::lower(ast_path, self.db.upcast());
+                self.alloc_expr(expr_path.into())
             }
             ast::FormKind::Literal(lit) => match lit.kind() {
                 ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
@@ -106,6 +102,7 @@ impl<'a> LowerExpr<'a> {
             children.push(expr);
         }
 
+        let children = children.into_boxed_slice();
         let block = expr::Block { children };
         self.alloc_expr(expr::Expr::Block(block))
     }
@@ -151,8 +148,7 @@ impl<'a> LowerExpr<'a> {
             ast::FormKind::Call(call) => {
                 let path = {
                     let path = call.path();
-                    use crate::syntax::ast::AstNode;
-                    self.lower_ast_expr(ast::Form::cast_node(path.syntax().clone()).unwrap())
+                    self.lower_ast_expr(path.into_form()).unwrap())
                 };
 
                 let args = call.args().map(|form| self.lower_ast_expr(form)).collect();

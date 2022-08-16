@@ -240,6 +240,10 @@ impl Path {
             .filter_map(|e| e.into_token())
             .filter_map(PathComponent::cast_token)
     }
+
+    pub fn into_form(self) -> Form {
+        Form::cast_node(self.syn).unwrap()
+    }
 }
 
 impl Let {
@@ -269,7 +273,8 @@ impl Call {
 
     /// Function arguments
     pub fn args(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
+        // skip path
+        self.syn.children().filter_map(Form::cast_node).skip(1)
     }
 }
 

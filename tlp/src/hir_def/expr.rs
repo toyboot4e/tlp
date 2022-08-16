@@ -39,14 +39,14 @@ macro_rules! impl_from {
 }
 
 impl_from! {
-    Expr = Block | Let | Call | Literal;
+    Expr = Block | Let | Call | Literal | Path;
 }
 
 /// Code block of S-expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     // TODO: statements?
-    pub children: Vec<Idx<Expr>>,
+    pub children: Box<[Idx<Expr>]>,
     // pub ast_loc_id: Id<AstLoc<ast::Block>>,
 }
 
@@ -104,19 +104,20 @@ impl Path {
         let data = db.intern_path_data(data);
         Self { data }
     }
+
+    pub fn lookup(&self, db: &dyn db::Intern) -> PathData {
+        db.lookup_intern_path_data(self.data)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PathData {
-    segments: Vec<Name>,
+    pub segments: Box<[Name]>,
 }
 
 impl PathData {
     pub fn parse(ast: ast::Path) -> Self {
-        let segments = ast
-            .components()
-            .map(|c| Name::from_str(c.text()))
-            .collect::<Vec<_>>();
+        let segments = ast.components().map(|c| Name::from_str(c.text())).collect();
 
         Self { segments }
     }
