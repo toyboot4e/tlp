@@ -4,6 +4,8 @@
 //! wrappers around CST nodes. Each component is lazily retrieved via accessors traversing the
 //! internal CST.
 
+// TODO: remove kind enum
+
 pub mod validate;
 
 pub use crate::syntax::cst::ParseError;
@@ -48,7 +50,7 @@ pub trait AstNode: Sized {
 pub trait AstToken: Sized {
     /// Method for "syntax pointers"
     fn can_cast(kind: SyntaxKind) -> bool;
-    fn cast_tk(syn: SyntaxToken) -> Option<Self>;
+    fn cast_token(syn: SyntaxToken) -> Option<Self>;
     fn syntax(&self) -> &SyntaxToken;
 }
 
@@ -87,12 +89,12 @@ macro_rules! define_node {
     };
 }
 
-macro_rules! define_transparent_node_wrapper {
+macro_rules! define_node_wrapper {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pred:expr ;
         $( #[$kind_meta:meta] )*
-        $kind:ident = $( $var:ident )|* ;
+        $ty_kind:ident = $( $var:ident )|* ;
     ) => {
         define_node! {
             $( #[$meta] )*
@@ -100,25 +102,26 @@ macro_rules! define_transparent_node_wrapper {
         }
 
         impl $ty {
-            pub fn kind(&self) -> $kind {
+            pub fn kind(&self) -> $ty_kind {
                 let node = self.syn.clone();
-                None
-                    $(
-                        .or_else(|| $var::cast_node(node.clone()).map(|v| $kind::$var(v)))
-                    )*
-                    .unwrap_or_else(|| unreachable!("Can't be casted as a Form: {:?}", node))
+                $(
+                    if let Some(x) = $var::cast_node(node.clone()) {
+                        return $ty_kind::$var(x);
+                    }
+                )*
+                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
             }
         }
 
         #[derive(Debug, Clone, PartialEq)]
         $( #[$kind_meta] )*
-        pub enum $kind {
+        pub enum $ty_kind {
             $($var($var),)*
         }
 
 
         $(
-            impl From<$var> for $kind {
+            impl From<$var> for $ty_kind {
                 fn from(v: $var) -> Self {
                     Self::$var(v)
                 }
@@ -127,7 +130,7 @@ macro_rules! define_transparent_node_wrapper {
     };
 }
 
-macro_rules! define_token_wrapper_node {
+macro_rules! define_token_wrapper {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pred:expr ;
@@ -150,11 +153,12 @@ macro_rules! define_token_wrapper_node {
 
             pub fn kind(&self) -> $ty_kind {
                 let token = self.token();
-                None
-                    $(
-                        .or_else(|| $var::cast_tk(token.clone()).map(|v| $ty_kind::$var(v)))
-                    )*
-                    .unwrap()
+                $(
+                    if let Some(x) = $var::cast_token(token.clone()) {
+                        return $ty_kind::$var(x);
+                    }
+                )*
+                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), token);
             }
         }
 
@@ -195,7 +199,7 @@ impl Document {
     }
 }
 
-define_transparent_node_wrapper!(
+define_node_wrapper! {
     /// Form node (transparent wrapper around other nodes)
     Form: |kind| matches!(
         kind,
@@ -204,9 +208,9 @@ define_transparent_node_wrapper!(
 
     /// View to the [`Form`]
     FormKind = DefProc | Let | Call | Literal | Path;
-);
+}
 
-define_node!(
+define_node! {
     /// (proc name (params?) (block)..)
     DefProc: |kind| matches!(kind, SyntaxKind::DefProc);
 
@@ -220,11 +224,8 @@ define_node!(
     Block: |kind| matches!(kind, SyntaxKind::Block);
 
     /// Path
-    Pat: |kind| matches!(kind, SyntaxKind::Pat);
-
-    /// Path
     Path: |kind| matches!(kind, SyntaxKind::Path);
-);
+}
 
 impl Block {
     pub fn forms(&self) -> impl Iterator<Item = Form> {
@@ -305,10 +306,10 @@ impl DefProc {
     }
 }
 
-define_node!(
+define_node! {
     /// Procedure name
     ProcName: |kind| matches!(kind, SyntaxKind::ProcName);
-);
+}
 
 impl ProcName {
     pub fn token(&self) -> SyntaxToken {
@@ -321,13 +322,13 @@ impl ProcName {
     }
 }
 
-define_node!(
+define_node! {
     /// Procedure parameters
     Params: |kind| matches!(kind, SyntaxKind::Params);
 
     /// A single procedure parameter
     Param: |kind| matches!(kind, SyntaxKind::Param);
-);
+}
 
 impl Params {
     pub fn param_nodes(&self) -> impl Iterator<Item = Param> {
@@ -345,12 +346,19 @@ impl Param {
     }
 }
 
-define_token_wrapper_node!(
+define_node_wrapper! {
+    /// Pattern node
+    Pat: |kind| matches!(kind, SyntaxKind::Pat);
+    // View to the [`Pattern`] node
+    PatKind = Path;
+}
+
+define_token_wrapper! {
     /// Literal node
     Literal: |kind| matches!(kind, SyntaxKind::Literal);
     // View to the [`Literal`] node
     LiteralKind = Num | Str | True | False;
-);
+}
 
 macro_rules! define_token {
     (
@@ -371,7 +379,7 @@ macro_rules! define_token {
                     matches!(kind, $kind $(| $kind2)*)
                 }
 
-                fn cast_tk(syn: SyntaxToken) -> Option<Self> {
+                fn cast_token(syn: SyntaxToken) -> Option<Self> {
                     if matches!(syn.kind(), $kind $(| $kind2)*) {
                         Some(Self { syn })
                     } else {
