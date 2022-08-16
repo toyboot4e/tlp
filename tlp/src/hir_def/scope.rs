@@ -95,12 +95,17 @@ impl ItemScope {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ExprScopeMap {
     scopes: Arena<ScopeData>,
-    // scope_by_expr: FxHashMap<Idx<Expr>, Idx<ScopeData>>,
+    scope_by_expr: FxHashMap<Idx<Expr>, Idx<ScopeData>>,
 }
 
+/// Builder methods
 impl ExprScopeMap {
     fn alloc_root_scope(&mut self) -> Idx<ScopeData> {
         self.scopes.alloc(ScopeData::default())
+    }
+
+    fn track_expr_scope(&mut self, expr: Idx<Expr>, scope: Idx<ScopeData>) {
+        self.scope_by_expr.insert(expr, scope);
     }
 
     /// Creates a new block scope
@@ -117,7 +122,7 @@ impl ExprScopeMap {
     }
 
     /// Creates a new scope on a binding pattern
-    fn new_scope(&mut self, parent: Idx<ScopeData>) -> Idx<ScopeData> {
+    fn append_scope(&mut self, parent: Idx<ScopeData>) -> Idx<ScopeData> {
         self.scopes.alloc(ScopeData {
             parent: Some(parent),
             entries: vec![],
@@ -182,18 +187,21 @@ fn compute_expr_scopes(
     // (Block scope creates a new scope, but it doesn't modify "current scope").
     let mut scope_idx = scope_idx;
 
-    // TODO: track scope for each expression
-    // scopes.track_expr_scope(expr, scope);
+    // track parent expression
+    scopes.track_expr_scope(expr, scope_idx);
 
+    // call into the child expressions
     match &body.exprs[expr] {
         // --------------------------------------------------------------------------------
         // Handle block and binding patterns
         // --------------------------------------------------------------------------------
         Expr::Block(block) => {
             let block_scope_idx = scopes.new_block_scope(scope_idx);
+
             // Overwrite the block scope with the deepest child.
             // This is important for traverse as `ScopeData` only contains `parernt` index.
-            // scopes.track_expr_scope(expr, scope);
+            scopes.track_expr_scope(expr, block_scope_idx);
+
             self::compute_block_scopes(&block.children, body, scopes, block_scope_idx);
         }
         Expr::Let(let_) => {
@@ -201,7 +209,7 @@ fn compute_expr_scopes(
             scope_idx = self::compute_expr_scopes(let_.rhs, body, scopes, scope_idx);
 
             // pat: create new scope
-            scope_idx = scopes.new_scope(scope_idx);
+            scope_idx = scopes.append_scope(scope_idx);
             scopes.add_bindings(body, scope_idx, let_.pat);
         }
 
@@ -218,7 +226,6 @@ fn compute_expr_scopes(
 
         // --------------------------------------------------------------------------------
         // Terminals
-        // TODO: Not given scope?
         // --------------------------------------------------------------------------------
         Expr::Missing => {}
         Expr::Path(_) => {}
