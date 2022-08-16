@@ -7,7 +7,11 @@ use std::cmp;
 use la_arena::Idx;
 
 use crate::{
-    hir_def::{item::Name, pat},
+    hir_def::{
+        db::{self, ids::Id},
+        item::Name,
+        pat,
+    },
     syntax::ast::{self, AstToken},
 };
 
@@ -19,6 +23,7 @@ pub enum Expr {
     Let(Let),
     Call(Call),
     Literal(Literal),
+    Path(Path),
 }
 
 macro_rules! impl_from {
@@ -54,9 +59,8 @@ pub struct Let {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
-    // TODO: resolved form, path?
-    pub name: Name,
-    pub args: Vec<Idx<Expr>>,
+    pub path: Idx<Expr>,
+    pub args: Box<[Idx<Expr>]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,5 +90,34 @@ impl From<ast::Num> for Literal {
         }
 
         todo!("if not a number");
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Path {
+    data: Id<PathData>,
+}
+
+impl Path {
+    pub fn lower(ast: ast::Path, db: &dyn db::Intern) -> Self {
+        let data = PathData::parse(ast);
+        let data = db.intern_path_data(data);
+        Self { data }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PathData {
+    segments: Vec<Name>,
+}
+
+impl PathData {
+    pub fn parse(ast: ast::Path) -> Self {
+        let segments = ast
+            .components()
+            .map(|c| Name::from_str(c.text()))
+            .collect::<Vec<_>>();
+
+        Self { segments }
     }
 }

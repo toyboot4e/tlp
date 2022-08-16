@@ -63,7 +63,7 @@ fn main_literal() {
     let node = &body.exprs[exprs.next().unwrap()];
     match node {
         Expr::Call(call) => {
-            assert_eq!(call.name.as_str(), "+");
+            assert_eq!(call.path.as_str(), "+");
             assert_eq!(&body.exprs[call.args[0]], &Expr::Literal(Literal::Int(1)),);
             assert_eq!(&body.exprs[call.args[1]], &Expr::Literal(Literal::Int(2)),);
         }

@@ -203,7 +203,7 @@ define_node_wrapper! {
     /// Form node (transparent wrapper around other nodes)
     Form: |kind| matches!(
         kind,
-        SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal
+        SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
     );
 
     /// View to the [`Form`]
@@ -268,7 +268,7 @@ impl Call {
     }
 
     /// Function arguments
-    pub fn arg_forms(&self) -> impl Iterator<Item = Form> {
+    pub fn args(&self) -> impl Iterator<Item = Form> {
         self.syn.children().filter_map(Form::cast_node)
     }
 }

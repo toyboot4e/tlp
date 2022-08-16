@@ -54,7 +54,7 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
 
             match ident.text() {
                 "+" | "-" | "*" | "/" => {
-                    let mut args = call.arg_forms();
+                    let mut args = call.args();
 
                     let lhs = args.next().unwrap();
                     compile_form(chunk, errs, &lhs);

@@ -33,11 +33,11 @@ pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) ->
         pats: Default::default(),
     };
 
-    LowerExpr { _db: db, body }.lower_proc(proc.ast.clone())
+    LowerExpr { db, body }.lower_proc(proc.ast.clone())
 }
 
 struct LowerExpr<'a> {
-    _db: &'a dyn db::Def,
+    db: &'a dyn db::Def,
     body: Body,
     // TODO: source map:
     // /// AST expr ID → HIR expr ID
@@ -64,17 +64,15 @@ impl<'a> LowerExpr<'a> {
             ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
             // expressions
             ast::FormKind::Call(call) => {
-                let path = call.path();
-                // TODO: support path
-                let ident = path.components().next().unwrap();
-                let name = Name::from_str(ident.text());
+                let path = {
+                    let path = call.path();
+                    let path = expr::Path::lower(path, self.db.upcast());
+                    self.alloc_expr(expr::Expr::Path(path))
+                };
 
-                let args = call
-                    .arg_forms()
-                    .map(|form| self.lower_form(form))
-                    .collect::<Vec<_>>();
+                let args = call.args().map(|form| self.lower_form(form)).collect();
 
-                let expr = expr::Call { name, args };
+                let expr = expr::Call { path, args };
                 self.alloc_expr(expr::Expr::Call(expr))
             }
             ast::FormKind::Let(let_) => {
@@ -151,7 +149,16 @@ impl<'a> LowerExpr<'a> {
                 self.alloc_expr(expr::Let { pat, rhs }.into())
             }
             ast::FormKind::Call(call) => {
-                todo!()
+                let path = {
+                    let path = call.path();
+                    use crate::syntax::ast::AstNode;
+                    self.lower_ast_expr(ast::Form::cast_node(path.syntax().clone()).unwrap())
+                };
+
+                let args = call.args().map(|form| self.lower_ast_expr(form)).collect();
+                let call = expr::Call { path, args };
+
+                self.alloc_expr(expr::Expr::Call(call))
             }
             ast::FormKind::Literal(_) => todo!(""),
             ast::FormKind::Path(_) => todo!(""),
