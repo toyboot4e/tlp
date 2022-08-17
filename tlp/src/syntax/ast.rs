@@ -58,7 +58,7 @@ macro_rules! define_node {
     (
         $(
             $( #[$meta:meta] )*
-                $ty:ident: $pred:expr ;
+            $ty:ident: $pat:pat,
         )*
     ) => {
         $(
@@ -70,7 +70,7 @@ macro_rules! define_node {
 
             impl AstNode for $ty {
                 fn can_cast(kind: SyntaxKind) -> bool {
-                    ($pred)(kind)
+                    matches!(kind, $pat)
                 }
 
                 fn cast_node(syn: SyntaxNode) -> Option<Self> {
@@ -93,13 +93,13 @@ macro_rules! define_node {
 macro_rules! define_transparent_node {
     (
         $( #[$meta:meta] )*
-        $ty:ident: $pred:expr ;
+        $ty:ident: $pat:pat,
         $( #[$kind_meta:meta] )*
         $ty_kind:ident = $( $var:ident )|* ;
     ) => {
         define_node! {
             $( #[$meta] )*
-            $ty: $pred ;
+            $ty: $pat,
         }
 
         impl $ty {
@@ -135,13 +135,13 @@ macro_rules! define_transparent_node {
 macro_rules! define_parent_node {
     (
         $( #[$meta:meta] )*
-        $ty:ident: $pred:expr ;
+        $ty:ident: $pat:pat,
         $( #[$kind_meta:meta] )*
         $ty_kind:ident = $( $var:ident )|* ;
     ) => {
         define_node! {
             $( #[$meta] )*
-            $ty: $pred ;
+            $ty: $pat,
         }
 
         impl $ty {
@@ -176,13 +176,13 @@ macro_rules! define_parent_node {
 macro_rules! define_token_wrapper {
     (
         $( #[$meta:meta] )*
-        $ty:ident: $pred:expr ;
+        $ty:ident: $pat:pat,
         $( #[$kind_meta:meta] )*
         $ty_kind:ident = $( $var:ident )|* ;
     ) => {
         define_node! {
             $( #[$meta] )*
-            $ty: $pred;
+            $ty: $pat,
         }
 
         impl $ty {
@@ -248,10 +248,7 @@ impl Document {
 
 define_transparent_node! {
     /// Form node (transparent wrapper around other nodes)
-    Form: |kind| matches!(
-        kind,
-        SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
-    );
+    Form: SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path,
 
     /// View to the [`Form`]
     FormKind = DefProc | Let | Call | Literal | Path;
@@ -259,19 +256,19 @@ define_transparent_node! {
 
 define_node! {
     /// (proc name (params?) (block)..)
-    DefProc: |kind| matches!(kind, SyntaxKind::DefProc);
+    DefProc: SyntaxKind::DefProc,
 
     /// (let pat sexp*)
-    Let: |kind| matches!(kind, SyntaxKind::Let);
+    Let: SyntaxKind::Let,
 
     /// (ident args sexp*)
-    Call: |kind| matches!(kind, SyntaxKind::Call);
+    Call: SyntaxKind::Call,
 
     /// Expressions marked as inline code block
-    Block: |kind| matches!(kind, SyntaxKind::Block);
+    Block: SyntaxKind::Block,
 
     /// Path
-    Path: |kind| matches!(kind, SyntaxKind::Path);
+    Path: SyntaxKind::Path,
 }
 
 impl Block {
@@ -360,7 +357,7 @@ impl DefProc {
 
 define_node! {
     /// Procedure name
-    ProcName: |kind| matches!(kind, SyntaxKind::ProcName);
+    ProcName: SyntaxKind::ProcName,
 }
 
 impl ProcName {
@@ -376,10 +373,10 @@ impl ProcName {
 
 define_node! {
     /// Procedure parameters
-    Params: |kind| matches!(kind, SyntaxKind::Params);
+    Params: SyntaxKind::Params,
 
     /// A single procedure parameter
-    Param: |kind| matches!(kind, SyntaxKind::Param);
+    Param: SyntaxKind::Param,
 }
 
 impl Params {
@@ -400,17 +397,14 @@ impl Param {
 
 define_parent_node! {
     /// Pattern node
-    Pat: |kind| matches!(
-        kind,
-        SyntaxKind::Pat
-    );
+    Pat: SyntaxKind::Pat,
     // View to the [`Pattern`] node
     PatKind = Path;
 }
 
 define_token_wrapper! {
     /// Literal node
-    Literal: |kind| matches!(kind, SyntaxKind::Literal);
+    Literal: SyntaxKind::Literal,
     // View to the [`Literal`] node
     // TODO: use `Bool` node?
     LiteralKind = Num | Str | True | False;
