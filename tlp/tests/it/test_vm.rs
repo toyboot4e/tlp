@@ -33,12 +33,28 @@ fn log_chunk(chunk: &Chunk) {
     println!("--------------------------------------------------------------------------------");
 }
 
-fn run_test(src: &str, expected: f64) {
+fn test_expr(src: &str, expected: f64) {
     let (doc, errs) = ast::parse(src).into_tuple();
     self::print_errors(&errs, src);
 
-    let (chunk, errs) = compile::compile(doc);
-    self::print_errors(&errs, src);
+    let chunk = {
+        use std::sync::Arc;
+
+        use tlp::hir_def::db::*;
+
+        let mut db = DB::default();
+        let mut vfs = vfs::Vfs::default();
+
+        let path = "main.tlp".into();
+        let krate = vfs.intern(path);
+
+        let src = &format!("(proc main () {} )", src);
+        db.set_input(krate.clone(), Arc::new(String::from(src)));
+
+        let (chunk, errs) = compile::compile(&db, krate);
+        self::print_errors(&errs, src);
+        chunk
+    };
 
     // log_chunk(&chunk);
 
@@ -51,7 +67,11 @@ fn run_test(src: &str, expected: f64) {
 
 #[test]
 fn simple_arithmetics() {
-    run_test("(/ (- 64.0 32.0) 2.0)", 16.0);
-    run_test("(+ (* 3.0 4.0) 2.0)", 14.0);
-    run_test("(let a 10.0) (+ a 2.0)", 12.0);
+    test_expr("(/ (- 64.0 32.0) 2.0)", 16.0);
+    test_expr("(+ (* 3.0 4.0) 2.0)", 14.0);
 }
+
+// #[test]
+// fn let_statement() {
+//     test_expr("(let a 10.0) (+ a 2.0)", 12.0);
+// }

@@ -5,92 +5,106 @@ pub mod scope;
 use thiserror::Error;
 
 use crate::{
-    syntax::ast,
+    hir_def::{
+        body::Body,
+        db::{ids::*, vfs::*, *},
+        expr::{self, Expr},
+        item::{self, Name},
+    },
     vm::code::{Chunk, OpCode},
 };
-
-type Result<T, E = CompileError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
 pub enum CompileError {
     #[error("Unexpected expr: {expr:?}")]
-    UnexpectedExpr { expr: ast::Expr },
+    UnexpectedExpr { expr: Expr },
     #[error("Unexisting method call")]
     UnexistingMethodCall,
 }
 
-// pub struct Manifest {}
-
-pub trait Compile {
-    fn compile(&self, code: &mut Chunk) -> Result<()>;
+pub fn compile(db: &DB, krate: VfsFileId) -> (Chunk, Vec<CompileError>) {
+    let mut compiler = Compiler::default();
+    compiler.compile_crate(db, krate);
+    (compiler.chunk, compiler.errs)
 }
 
-//
-pub struct Scope {
-    pub len: usize,
+#[derive(Debug, Default)]
+struct Compiler {
+    chunk: Chunk,
+    errs: Vec<CompileError>,
 }
 
-// TODO: compile `hir_def`, not `ast`
-pub fn compile(doc: ast::Document) -> (Chunk, Vec<CompileError>) {
-    let mut chunk = Chunk::new();
-    let mut errs = vec![];
-
-    for item in doc.item_nodes() {
-        self::compile_item(&mut chunk, &mut errs, &item);
+impl Compiler {
+    pub fn compile_crate(&mut self, db: &DB, krate: VfsFileId) {
+        let main_proc_id = self::find_procedure_in_crate(db, krate, &Name::from_str("main"));
+        let main_proc_body = db.proc_body(main_proc_id);
+        self.compile_proc_body(db, &main_proc_body);
     }
 
-    (chunk, errs)
-}
-
-/// Dummy impl
-fn compile_item(chunk: &mut Chunk, errs: &mut Vec<CompileError>, item: &ast::Item) {
-    match item {
-        ast::Item::DefProc(_proc) => {
-            todo!()
-        }
+    #[allow(unused)]
+    fn compile_proc_body(&mut self, db: &DB, body: &Body) {
+        todo!("walk body expressions, keeping the order by occurence")
     }
-}
 
-fn compile_expr(chunk: &mut Chunk, errs: &mut Vec<CompileError>, expr: &ast::Expr) {
-    match expr {
-        ast::Expr::Call(call) => {
-            let path = call.path();
-            // TODO: support path
-            let ident = path.components().next().unwrap();
+    #[allow(unused)]
+    fn compile_expr(&mut self, db: &DB, body: &Body, expr: &Expr) {
+        match expr {
+            Expr::Call(call) => {
+                let path = body.get_path(call.path);
+                let path_data = path.lookup(db);
 
-            match ident.text() {
-                "+" | "-" | "*" | "/" => {
-                    let mut args = call.args();
+                // TODO: support path
+                let name = path_data.segments[0].clone();
 
-                    let lhs = args.next().unwrap();
-                    compile_expr(chunk, errs, &lhs);
+                match name.as_str() {
+                    "+" | "-" | "*" | "/" => {
+                        assert_eq!(call.args.len(), 2);
 
-                    let rhs = args.next().unwrap();
-                    compile_expr(chunk, errs, &rhs);
+                        let lhs = &body.exprs[call.args[0]];
+                        self.compile_expr(db, body, &lhs);
 
-                    let op = self::to_oper(ident.text()).unwrap();
-                    chunk.push_code(op);
-                }
-                _ => {
-                    todo!("{:?}", call);
-                }
-            };
-        }
-        ast::Expr::Let(_let_) => {
-            // let pat = let_.pat().unwrap();
-            // TODO: resolve
-            todo!()
-        }
-        ast::Expr::Literal(lit) => match lit.kind() {
-            ast::LiteralKind::Num(x) => {
-                let x: f64 = x.text().parse().unwrap();
-                let i = chunk.push_const(x);
-                chunk.push_ix_u8(i as u8);
+                        let rhs = &body.exprs[call.args[1]];
+                        self.compile_expr(db, body, &rhs);
+
+                        let op = self::to_oper(name.as_str()).unwrap();
+                        self.chunk.push_code(op);
+                    }
+                    _ => {
+                        todo!("{:?}", call);
+                    }
+                };
             }
-            _ => panic!(),
-        },
-        _ => errs.push(CompileError::UnexpectedExpr { expr: expr.clone() }),
+            Expr::Let(_let_) => {
+                // let pat = let_.pat().unwrap();
+                // TODO: resolve
+                todo!()
+            }
+            Expr::Literal(lit) => match lit {
+                expr::Literal::Float(x) => {
+                    let x = x.0 as f64;
+                    let i = self.chunk.push_const(x);
+                    self.chunk.push_ix_u8(i as u8);
+                }
+                _ => todo!(),
+            },
+            _ => {
+                self.errs
+                    .push(CompileError::UnexpectedExpr { expr: expr.clone() });
+            }
+        }
     }
+}
+
+fn find_procedure_in_crate(
+    db: &dyn Def,
+    krate: vfs::VfsFileId,
+    name: &Name,
+) -> Id<ItemLoc<item::DefProc>> {
+    let crate_data = db.crate_data(krate);
+    let crate_file_data = crate_data.root_file_data();
+    let item_scope = &crate_file_data.item_scope;
+
+    item_scope.lookup_proc(name).unwrap()
 }
 
 fn to_oper(s: &str) -> Option<OpCode> {
