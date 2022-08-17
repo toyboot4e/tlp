@@ -80,8 +80,6 @@ pub enum SyntaxKind {
     // ----------------------------------------
     /// Literal node
     Literal,
-    /// Pattern node
-    Pat,
     /// Path node
     Path,
     /// Call node

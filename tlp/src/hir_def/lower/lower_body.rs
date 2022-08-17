@@ -79,9 +79,8 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_ast_pat(&mut self, pat: ast::Pat) -> Idx<pat::Pat> {
-        match pat.kind() {
-            // FIXME: add PatIdent
-            ast::PatKind::Path(path) => {
+        match pat {
+            ast::Pat::Path(path) => {
                 // FIXME: identifier
                 let components = path.components().collect::<Vec<_>>();
                 assert_eq!(components.len(), 1);

@@ -54,6 +54,7 @@ pub trait AstToken: Sized {
     fn syntax(&self) -> &SyntaxToken;
 }
 
+/// Defines a physical syntax node
 macro_rules! define_node {
     (
         $(
@@ -89,8 +90,10 @@ macro_rules! define_node {
     };
 }
 
-/// Defines a node without CST node
-macro_rules! define_transparent_node {
+/// Defines an AST node without corresponding CST node (virtual node)
+///
+/// TODO: Replace it with Item / Statement / Expression CST node
+macro_rules! define_virtual_node {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pat:pat,
@@ -131,40 +134,40 @@ macro_rules! define_transparent_node {
     };
 }
 
-/// Defines a node with CST node
-macro_rules! define_parent_node {
+/// Defines an enum node that does NOT have corresponding CST node
+macro_rules! define_enum_node {
     (
         $( #[$meta:meta] )*
-        $ty:ident: $pat:pat,
-        $( #[$kind_meta:meta] )*
-        $ty_kind:ident = $( $var:ident )|* ;
+        $ty:ident = $( $var:ident )|*, $pat:pat
     ) => {
-        define_node! {
-            $( #[$meta] )*
-            $ty: $pat,
+        $( #[$meta] )*
+        pub enum $ty {
+            $( $var($var), )*
         }
 
-        impl $ty {
-            pub fn kind(&self) -> $ty_kind {
-                let node = self.syn.children().next().unwrap();
+        impl AstNode for $ty {
+            fn can_cast(kind: SyntaxKind) -> bool {
+                matches!(kind, $pat)
+            }
+
+            fn cast_node(syn: SyntaxNode) -> Option<Self> {
                 $(
-                    if let Some(x) = $var::cast_node(node.clone()) {
-                        return $ty_kind::$var(x);
+                    if let Some(node) = $var::cast_node(syn) {
+                        return Some(Self::$var(node));
                     }
                 )*
-                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
+                None
+            }
+
+            fn syntax(&self) -> &SyntaxNode {
+                match self {
+                    $( Self::$var(x) => x.syntax(), )*
+                }
             }
         }
 
-        #[derive(Debug, Clone, PartialEq)]
-        $( #[$kind_meta] )*
-        pub enum $ty_kind {
-            $($var($var),)*
-        }
-
-
         $(
-            impl From<$var> for $ty_kind {
+            impl From<$var> for $ty {
                 fn from(v: $var) -> Self {
                     Self::$var(v)
                 }
@@ -246,7 +249,7 @@ impl Document {
     }
 }
 
-define_transparent_node! {
+define_virtual_node! {
     /// Form node (transparent wrapper around other nodes)
     Form: SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path,
 
@@ -395,11 +398,9 @@ impl Param {
     }
 }
 
-define_parent_node! {
+define_enum_node! {
     /// Pattern node
-    Pat: SyntaxKind::Pat,
-    // View to the [`Pattern`] node
-    PatKind = Path;
+    Pat = Path, SyntaxKind::Path
 }
 
 define_token_wrapper! {

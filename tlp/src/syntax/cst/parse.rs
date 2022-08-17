@@ -546,14 +546,11 @@ impl ParseState {
     /// Pat → Path
     // FIXME: allow PatIdent
     fn maybe_bump_pat(&mut self, pcx: &ParseContext) -> Option<()> {
-        let pat_checkpoint = self.builder.checkpoint();
+        let checkpoint = self.builder.checkpoint();
 
-        self.builder.start_node(SyntaxKind::Path.into());
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
-        self.builder.finish_node();
 
-        self.builder
-            .start_node_at(pat_checkpoint, SyntaxKind::Pat.into());
+        self.builder.start_node_at(checkpoint,SyntaxKind::Path.into());
         self.builder.finish_node();
 
         Some(())
