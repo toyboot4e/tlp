@@ -3,6 +3,20 @@
 //! All AST nodes have the same internal structure, i.e, CST. As a result, AST nodes are just
 //! wrappers around CST nodes. Each component is lazily retrieved via accessors traversing the
 //! internal CST.
+//!
+//! # AST node types
+//!
+//! - Concrete node (e.g. [`Block`])
+//!   They implement [`AstNode`]. They have corresponding CST node. This is the most basic node
+//!   type.
+//!
+//! - Transparent node (e.g. [`Form`] enum and [`Pat`] enum)
+//!   They implement [`AstNode`]. They don't have corresponding CST node and just wraps the
+//!   underlying [`AstNode`] types.
+//!
+//! - Token wrapper node (e.g. [`Literal`] with [`LiteralKind`])
+//!   They implement [`AstNode`], but they don't have corresponding CST token. So we need
+//!   indirection from node to token, i.e., [`LiteralKind`].
 
 // TODO: remove kind enum
 
