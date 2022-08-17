@@ -98,6 +98,39 @@ pub struct ExprScopeMap {
     scope_by_expr: FxHashMap<Idx<Expr>, Idx<ScopeData>>,
 }
 
+/// Accessors
+impl ExprScopeMap {
+    pub fn entries(&self, scope: Idx<ScopeData>) -> &[ScopeEntry] {
+        &self.scopes[scope].entries
+    }
+
+    // /// If `scope` refers to a block expression scope, returns the corresponding `BlockId`.
+    // pub fn block(&self, scope: Idx<ScopeData>) -> Option<Id<AstLoc<ast::Block>>> {stLoc
+    //     self.scopes[scope].block
+    // }
+
+    pub fn scope_chain(&self, scope: Idx<ScopeData>) -> impl Iterator<Item = Idx<ScopeData>> + '_ {
+        std::iter::successors(Some(scope), move |&scope| self.scopes[scope].parent)
+    }
+
+    pub fn resolve_name_in_scope_chain(
+        &self,
+        scope: Idx<ScopeData>,
+        name: &Name,
+    ) -> Option<&ScopeEntry> {
+        self.scope_chain(scope)
+            .find_map(|scope| self.entries(scope).iter().find(|it| it.name == *name))
+    }
+
+    pub fn scope_by_expr(&self) -> &FxHashMap<Idx<Expr>, Idx<ScopeData>> {
+        &self.scope_by_expr
+    }
+
+    pub fn scope_for_expr(&self, expr: Idx<Expr>) -> Option<Idx<ScopeData>> {
+        self.scope_by_expr.get(&expr).copied()
+    }
+}
+
 /// Builder methods
 impl ExprScopeMap {
     fn alloc_root_scope(&mut self) -> Idx<ScopeData> {
@@ -151,8 +184,8 @@ pub struct ScopeData {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ScopeEntry {
-    name: Name,
-    pat: Idx<pat::Pat>,
+    pub name: Name,
+    pub pat: Idx<pat::Pat>,
 }
 
 pub(crate) fn proc_expr_scope_query(

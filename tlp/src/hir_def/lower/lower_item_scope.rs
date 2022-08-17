@@ -1,4 +1,4 @@
-//! Lowers module hierarchy
+//! Lowers module item scope into [`Name`] → `Id<Loc<T>>` maps in [`ItemScope`]
 
 use std::sync::Arc;
 

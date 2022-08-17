@@ -10,13 +10,15 @@
 //! # Data flow
 //!
 //! - For each module, lower AST into [`FileData`], i.e., [`ItemList`]
+//! - For each module, collect [`ItemList`] data into [`ItemScope`]
 //! - For each declaration, lower the code block into [`Body`]
 //!   - For each (nested or root) code block, lower items into [`ItemList`]
 //! - Create [`ExprScopeMap`] for [`Body`]
-//!   - For each (nested or root) code block, lower [`ExprScope`]
+//!   - For each (nested or root) code block, collect [`ScopeData`]
 //!
 //! [`FileData`]: crate::hir_def::FileData
 //! [`Body`]: crate::hir_def::body::Body
+//! [`ExprScope`]: crate::hir_def::scope::ItemScope
 //! [`ExprScope`]: crate::hir_def::scope::ExprScope
 //! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
 
@@ -57,6 +59,10 @@ impl CrateData {
 
     pub fn root_file_data_id(&self) -> FileDataId {
         self.root
+    }
+
+    pub fn root_file_data(&self) -> &FileData {
+        &self.files[self.root.idx]
     }
 
     pub fn sub_file(&self, module: FileDataId) -> &FileData {

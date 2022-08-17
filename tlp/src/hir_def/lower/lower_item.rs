@@ -1,4 +1,4 @@
-//! Lowers module items
+//! Lowers module items into `Arena` s in `ItemList`
 
 use std::sync::Arc;
 
