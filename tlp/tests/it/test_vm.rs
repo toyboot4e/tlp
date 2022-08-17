@@ -34,7 +34,7 @@ fn log_chunk(chunk: &Chunk) {
 }
 
 fn test_expr(src: &str, expected: f64) {
-    let (doc, errs) = ast::parse(src).into_tuple();
+    let (_doc, errs) = ast::parse(src).into_tuple();
     self::print_errors(&errs, src);
 
     let chunk = {

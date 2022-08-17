@@ -37,13 +37,20 @@ struct Compiler {
 impl Compiler {
     pub fn compile_crate(&mut self, db: &DB, krate: VfsFileId) {
         let main_proc_id = self::find_procedure_in_crate(db, krate, &Name::from_str("main"));
-        let main_proc_body = db.proc_body(main_proc_id);
-        self.compile_proc_body(db, &main_proc_body);
+        self.compile_proc(db, main_proc_id);
     }
 
     #[allow(unused)]
-    fn compile_proc_body(&mut self, db: &DB, body: &Body) {
-        todo!("walk body expressions, keeping the order by occurence")
+    fn compile_proc(&mut self, db: &DB, proc_id: Id<ItemLoc<item::DefProc>>) {
+        let body = db.proc_body(proc_id);
+        let proc = self::get_proc(db, proc_id);
+
+        // TODO: use source map pattern
+        let ast = proc.ast.clone();
+
+        for expr in ast.block().exprs() {
+            // TODO: convert AST expression into HIR expression and compile
+        }
     }
 
     #[allow(unused)]
@@ -115,4 +122,11 @@ fn to_oper(s: &str) -> Option<OpCode> {
         "/" => OpCode::OpDiv,
         _ => return None,
     })
+}
+
+fn get_proc(db: &DB, proc_loc_id: Id<ItemLoc<item::DefProc>>) -> item::DefProc {
+    let proc_loc = db.lookup_intern_proc_loc(proc_loc_id);
+    let items = db.file_item_list(proc_loc.file);
+    let proc = &items.procs[proc_loc.idx];
+    proc.clone()
 }
