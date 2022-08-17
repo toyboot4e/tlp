@@ -1,6 +1,4 @@
-/*!
-Run all test cases in `cst/cases.txt` (on `cargo test`)
-*/
+//! Run all test cases in `cst/cases.txt` (on `cargo test`)
 
 use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
