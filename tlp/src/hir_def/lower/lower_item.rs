@@ -33,8 +33,8 @@ impl ItemListCollect {
 
     fn collect(&mut self, forms: impl Iterator<Item = ast::Form>) {
         for form in forms {
-            match form.kind() {
-                ast::FormKind::DefProc(ast_proc) => {
+            match form {
+                ast::Form::DefProc(ast_proc) => {
                     let hir_proc = self.lower_proc(ast_proc);
                     self.tree.procs.alloc(hir_proc);
                     continue;

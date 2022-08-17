@@ -90,50 +90,6 @@ macro_rules! define_node {
     };
 }
 
-/// Defines an AST node without corresponding CST node (virtual node)
-///
-/// TODO: Replace it with Item / Statement / Expression CST node
-macro_rules! define_virtual_node {
-    (
-        $( #[$meta:meta] )*
-        $ty:ident: $pat:pat,
-        $( #[$kind_meta:meta] )*
-        $ty_kind:ident = $( $var:ident )|* ;
-    ) => {
-        define_node! {
-            $( #[$meta] )*
-            $ty: $pat,
-        }
-
-        impl $ty {
-            pub fn kind(&self) -> $ty_kind {
-                let node = self.syn.clone();
-                $(
-                    if let Some(x) = $var::cast_node(node.clone()) {
-                        return $ty_kind::$var(x);
-                    }
-                )*
-                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
-            }
-        }
-
-        #[derive(Debug, Clone, PartialEq)]
-        $( #[$kind_meta] )*
-        pub enum $ty_kind {
-            $($var($var),)*
-        }
-
-
-        $(
-            impl From<$var> for $ty_kind {
-                fn from(v: $var) -> Self {
-                    Self::$var(v)
-                }
-            }
-        )*
-    };
-}
-
 /// Defines an enum node that does NOT have corresponding CST node
 macro_rules! define_enum_node {
     (
@@ -141,6 +97,7 @@ macro_rules! define_enum_node {
         $ty:ident = $( $var:ident )|*, $pat:pat
     ) => {
         $( #[$meta] )*
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub enum $ty {
             $( $var($var), )*
         }
@@ -152,7 +109,7 @@ macro_rules! define_enum_node {
 
             fn cast_node(syn: SyntaxNode) -> Option<Self> {
                 $(
-                    if let Some(node) = $var::cast_node(syn) {
+                    if let Some(node) = $var::cast_node(syn.clone()) {
                         return Some(Self::$var(node));
                     }
                 )*
@@ -249,12 +206,10 @@ impl Document {
     }
 }
 
-define_virtual_node! {
+define_enum_node! {
     /// Form node (transparent wrapper around other nodes)
-    Form: SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path,
-
-    /// View to the [`Form`]
-    FormKind = DefProc | Let | Call | Literal | Path;
+    Form = DefProc | Let | Call | Literal | Path,
+    SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
 }
 
 define_node! {
