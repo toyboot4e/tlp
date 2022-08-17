@@ -89,7 +89,8 @@ macro_rules! define_node {
     };
 }
 
-macro_rules! define_node_wrapper {
+/// Defines a node without CST node
+macro_rules! define_transparent_node {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pred:expr ;
@@ -104,6 +105,48 @@ macro_rules! define_node_wrapper {
         impl $ty {
             pub fn kind(&self) -> $ty_kind {
                 let node = self.syn.clone();
+                $(
+                    if let Some(x) = $var::cast_node(node.clone()) {
+                        return $ty_kind::$var(x);
+                    }
+                )*
+                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
+            }
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        $( #[$kind_meta] )*
+        pub enum $ty_kind {
+            $($var($var),)*
+        }
+
+
+        $(
+            impl From<$var> for $ty_kind {
+                fn from(v: $var) -> Self {
+                    Self::$var(v)
+                }
+            }
+        )*
+    };
+}
+
+/// Defines a node with CST node
+macro_rules! define_parent_node {
+    (
+        $( #[$meta:meta] )*
+        $ty:ident: $pred:expr ;
+        $( #[$kind_meta:meta] )*
+        $ty_kind:ident = $( $var:ident )|* ;
+    ) => {
+        define_node! {
+            $( #[$meta] )*
+            $ty: $pred ;
+        }
+
+        impl $ty {
+            pub fn kind(&self) -> $ty_kind {
+                let node = self.syn.children().next().unwrap();
                 $(
                     if let Some(x) = $var::cast_node(node.clone()) {
                         return $ty_kind::$var(x);
@@ -203,7 +246,7 @@ impl Document {
     }
 }
 
-define_node_wrapper! {
+define_transparent_node! {
     /// Form node (transparent wrapper around other nodes)
     Form: |kind| matches!(
         kind,
@@ -355,9 +398,12 @@ impl Param {
     }
 }
 
-define_node_wrapper! {
+define_parent_node! {
     /// Pattern node
-    Pat: |kind| matches!(kind, SyntaxKind::Pat);
+    Pat: |kind| matches!(
+        kind,
+        SyntaxKind::Pat
+    );
     // View to the [`Pattern`] node
     PatKind = Path;
 }

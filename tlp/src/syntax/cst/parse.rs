@@ -388,11 +388,11 @@ impl ParseState {
     fn bump_list_let(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
         assert_eq!(tk.slice(pcx.src), "let");
+        self.maybe_bump_ws(pcx);
 
         // wrap the list
         self.builder
             .start_node_at(checkpoint, SyntaxKind::Let.into());
-        self.maybe_bump_ws(pcx);
 
         self.maybe_bump_pat(pcx);
         self.maybe_bump_ws(pcx);
@@ -543,12 +543,17 @@ impl ParseState {
         return Some(());
     }
 
-    /// Pat → Ident
+    /// Pat → Path
+    // FIXME: allow PatIdent
     fn maybe_bump_pat(&mut self, pcx: &ParseContext) -> Option<()> {
-        let checkpoint = self.builder.checkpoint();
+        let pat_checkpoint = self.builder.checkpoint();
+
+        self.builder.start_node(SyntaxKind::Path.into());
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
+        self.builder.finish_node();
+
         self.builder
-            .start_node_at(checkpoint, SyntaxKind::Pat.into());
+            .start_node_at(pat_checkpoint, SyntaxKind::Pat.into());
         self.builder.finish_node();
 
         Some(())
