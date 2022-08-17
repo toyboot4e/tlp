@@ -20,7 +20,7 @@ pub fn crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateData> {
             file: krate.clone(),
             parent: None,
             children: Vec::new(),
-            scope: root_scope,
+            item_scope: root_scope,
         }),
     };
 

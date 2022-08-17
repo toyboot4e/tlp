@@ -71,13 +71,7 @@ pub struct FileData {
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
     /// Items visible from this file (defined or imported)
-    pub(crate) scope: Arc<ItemScope>,
-}
-
-impl FileData {
-    pub fn scope(&self) -> &ItemScope {
-        &self.scope
-    }
+    pub item_scope: Arc<ItemScope>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

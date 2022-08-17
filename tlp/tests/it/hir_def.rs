@@ -1,6 +1,4 @@
-/*!
-Tests for toylisp intermediate representations
-*/
+//! Tests of toylisp HIR
 
 use std::sync::Arc;
 

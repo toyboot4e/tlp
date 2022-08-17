@@ -33,7 +33,6 @@ impl Upcast<dyn Intern> for DB {
     }
 }
 
-
 pub trait Upcast<T: ?Sized> {
     fn upcast(&self) -> &T;
 }
@@ -78,6 +77,7 @@ pub trait Intern: salsa::Database {
     fn intern_path_data(&self, path: expr::PathData) -> Id<expr::PathData>;
 }
 
+// `AstIdMap`
 // pub trait Ast: Parse + Intern { }
 
 /// Collecter of definitions of items
@@ -101,7 +101,7 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
 
     #[salsa::invoke(scope::proc_expr_scope_query)]
-    fn proc_expr_scopes(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeMap>;
+    fn proc_expr_scope_map(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;

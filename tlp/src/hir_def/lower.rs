@@ -2,6 +2,6 @@
 
 mod body;
 mod item;
-mod modules;
+mod item_scope;
 
-pub use self::{body::*, item::*, modules::*};
+pub use self::{body::*, item::*, item_scope::*};

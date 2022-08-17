@@ -197,6 +197,10 @@ impl Document {
     pub fn item_nodes(&self) -> impl Iterator<Item = Form> {
         self.syn.children().filter_map(Form::cast_node)
     }
+
+    pub fn syntax_node(&self) -> &SyntaxNode {
+        &self.syn
+    }
 }
 
 define_node_wrapper! {
