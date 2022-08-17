@@ -117,9 +117,8 @@ Let@0..10
     LParen@0..1
     Ident@1..4
     Ws@4..5
-    Pat@5..6
-        Path@5..6
-            Ident@5..6
+    PatIdent@5..6
+        Ident@5..6
     Ws@6..7
     Literal@7..9
         Num@7..9

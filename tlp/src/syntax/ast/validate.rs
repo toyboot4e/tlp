@@ -47,15 +47,15 @@ impl Validate for Document {
 
 impl Validate for Form {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        match self.kind() {
-            FormKind::DefProc(proc) => {
+        match self {
+            Form::DefProc(proc) => {
                 proc.validate(errs);
             }
             // TODO: validate
-            FormKind::Call(_call) => {}
-            FormKind::Let(_let) => {}
-            FormKind::Path(_path) => {}
-            FormKind::Literal(lit) => {
+            Form::Call(_call) => {}
+            Form::Let(_let) => {}
+            Form::Path(_path) => {}
+            Form::Literal(lit) => {
                 lit.validate(errs);
             }
         }

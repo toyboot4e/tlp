@@ -1,4 +1,6 @@
 //! Lowers module item scope into [`Name`] → `Id<Loc<T>>` maps in [`ItemScope`]
+//!
+//! [`Name`]: crate::hir_def::item::Name
 
 use std::sync::Arc;
 
@@ -10,7 +12,7 @@ use crate::hir_def::{
 };
 
 /// Collects tree of modules with `ItemScope`
-pub fn crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateData> {
+pub fn lower_crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateData> {
     let mut modules = Arena::<FileData>::new();
 
     let root_scope = ModCollector { vfs_file_id: krate }.module_item_scope(db);

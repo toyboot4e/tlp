@@ -3,6 +3,20 @@
 //! All AST nodes have the same internal structure, i.e, CST. As a result, AST nodes are just
 //! wrappers around CST nodes. Each component is lazily retrieved via accessors traversing the
 //! internal CST.
+//!
+//! # AST node types
+//!
+//! - Concrete node (e.g. [`Block`])
+//!   They implement [`AstNode`]. They have corresponding CST node. This is the most basic node
+//!   type.
+//!
+//! - Transparent node (e.g. [`Form`] enum and [`Pat`] enum)
+//!   They implement [`AstNode`]. They don't have corresponding CST node and just wraps the
+//!   underlying [`AstNode`] types.
+//!
+//! - Token wrapper node (e.g. [`Literal`] with [`LiteralKind`])
+//!   They implement [`AstNode`], but they don't have corresponding CST token. So we need
+//!   indirection from node to token, i.e., [`LiteralKind`].
 
 // TODO: remove kind enum
 
@@ -54,11 +68,12 @@ pub trait AstToken: Sized {
     fn syntax(&self) -> &SyntaxToken;
 }
 
+/// Defines a physical syntax node
 macro_rules! define_node {
     (
         $(
             $( #[$meta:meta] )*
-                $ty:ident: $pred:expr ;
+            $ty:ident: $pat:pat,
         )*
     ) => {
         $(
@@ -70,7 +85,7 @@ macro_rules! define_node {
 
             impl AstNode for $ty {
                 fn can_cast(kind: SyntaxKind) -> bool {
-                    ($pred)(kind)
+                    matches!(kind, $pat)
                 }
 
                 fn cast_node(syn: SyntaxNode) -> Option<Self> {
@@ -89,82 +104,41 @@ macro_rules! define_node {
     };
 }
 
-/// Defines a node without CST node
-macro_rules! define_transparent_node {
+/// Defines an enum node that does NOT have corresponding CST node
+macro_rules! define_enum_node {
     (
         $( #[$meta:meta] )*
-        $ty:ident: $pred:expr ;
-        $( #[$kind_meta:meta] )*
-        $ty_kind:ident = $( $var:ident )|* ;
+        $ty:ident = $( $var:ident )|*, $pat:pat
     ) => {
-        define_node! {
-            $( #[$meta] )*
-            $ty: $pred ;
+        $( #[$meta] )*
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        pub enum $ty {
+            $( $var($var), )*
         }
 
-        impl $ty {
-            pub fn kind(&self) -> $ty_kind {
-                let node = self.syn.clone();
+        impl AstNode for $ty {
+            fn can_cast(kind: SyntaxKind) -> bool {
+                matches!(kind, $pat)
+            }
+
+            fn cast_node(syn: SyntaxNode) -> Option<Self> {
                 $(
-                    if let Some(x) = $var::cast_node(node.clone()) {
-                        return $ty_kind::$var(x);
+                    if let Some(node) = $var::cast_node(syn.clone()) {
+                        return Some(Self::$var(node));
                     }
                 )*
-                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
+                None
             }
-        }
 
-        #[derive(Debug, Clone, PartialEq)]
-        $( #[$kind_meta] )*
-        pub enum $ty_kind {
-            $($var($var),)*
-        }
-
-
-        $(
-            impl From<$var> for $ty_kind {
-                fn from(v: $var) -> Self {
-                    Self::$var(v)
+            fn syntax(&self) -> &SyntaxNode {
+                match self {
+                    $( Self::$var(x) => x.syntax(), )*
                 }
             }
-        )*
-    };
-}
-
-/// Defines a node with CST node
-macro_rules! define_parent_node {
-    (
-        $( #[$meta:meta] )*
-        $ty:ident: $pred:expr ;
-        $( #[$kind_meta:meta] )*
-        $ty_kind:ident = $( $var:ident )|* ;
-    ) => {
-        define_node! {
-            $( #[$meta] )*
-            $ty: $pred ;
         }
-
-        impl $ty {
-            pub fn kind(&self) -> $ty_kind {
-                let node = self.syn.children().next().unwrap();
-                $(
-                    if let Some(x) = $var::cast_node(node.clone()) {
-                        return $ty_kind::$var(x);
-                    }
-                )*
-                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
-            }
-        }
-
-        #[derive(Debug, Clone, PartialEq)]
-        $( #[$kind_meta] )*
-        pub enum $ty_kind {
-            $($var($var),)*
-        }
-
 
         $(
-            impl From<$var> for $ty_kind {
+            impl From<$var> for $ty {
                 fn from(v: $var) -> Self {
                     Self::$var(v)
                 }
@@ -176,13 +150,13 @@ macro_rules! define_parent_node {
 macro_rules! define_token_wrapper {
     (
         $( #[$meta:meta] )*
-        $ty:ident: $pred:expr ;
+        $ty:ident: $pat:pat,
         $( #[$kind_meta:meta] )*
         $ty_kind:ident = $( $var:ident )|* ;
     ) => {
         define_node! {
             $( #[$meta] )*
-            $ty: $pred;
+            $ty: $pat,
         }
 
         impl $ty {
@@ -246,32 +220,33 @@ impl Document {
     }
 }
 
-define_transparent_node! {
+define_enum_node! {
     /// Form node (transparent wrapper around other nodes)
-    Form: |kind| matches!(
-        kind,
-        SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
-    );
-
-    /// View to the [`Form`]
-    FormKind = DefProc | Let | Call | Literal | Path;
+    Form = DefProc | Let | Call | Literal | Path,
+    SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
 }
 
 define_node! {
     /// (proc name (params?) (block)..)
-    DefProc: |kind| matches!(kind, SyntaxKind::DefProc);
+    DefProc: SyntaxKind::DefProc,
 
     /// (let pat sexp*)
-    Let: |kind| matches!(kind, SyntaxKind::Let);
+    Let: SyntaxKind::Let,
 
     /// (ident args sexp*)
-    Call: |kind| matches!(kind, SyntaxKind::Call);
+    Call: SyntaxKind::Call,
 
     /// Expressions marked as inline code block
-    Block: |kind| matches!(kind, SyntaxKind::Block);
+    Block: SyntaxKind::Block,
 
     /// Path
-    Path: |kind| matches!(kind, SyntaxKind::Path);
+    Path: SyntaxKind::Path,
+
+    /// Pattern variant
+    PatIdent: SyntaxKind::PatIdent,
+
+    /// Pattern variant
+    PatPath: SyntaxKind::PatPath,
 }
 
 impl Block {
@@ -281,6 +256,28 @@ impl Block {
 }
 
 impl Path {
+    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .filter_map(PathComponent::cast_token)
+    }
+
+    pub fn into_form(self) -> Form {
+        Form::cast_node(self.syn).unwrap()
+    }
+}
+
+impl PatIdent {
+    pub fn ident_token(self) -> SyntaxToken {
+        self.syn
+            .children_with_tokens()
+            .find_map(|e| e.into_token())
+            .unwrap()
+    }
+}
+
+impl PatPath {
     pub fn components(&self) -> impl Iterator<Item = PathComponent> {
         self.syn
             .children_with_tokens()
@@ -360,7 +357,7 @@ impl DefProc {
 
 define_node! {
     /// Procedure name
-    ProcName: |kind| matches!(kind, SyntaxKind::ProcName);
+    ProcName: SyntaxKind::ProcName,
 }
 
 impl ProcName {
@@ -376,10 +373,10 @@ impl ProcName {
 
 define_node! {
     /// Procedure parameters
-    Params: |kind| matches!(kind, SyntaxKind::Params);
+    Params: SyntaxKind::Params,
 
     /// A single procedure parameter
-    Param: |kind| matches!(kind, SyntaxKind::Param);
+    Param: SyntaxKind::Param,
 }
 
 impl Params {
@@ -398,19 +395,14 @@ impl Param {
     }
 }
 
-define_parent_node! {
+define_enum_node! {
     /// Pattern node
-    Pat: |kind| matches!(
-        kind,
-        SyntaxKind::Pat
-    );
-    // View to the [`Pattern`] node
-    PatKind = Path;
+    Pat = PatIdent | PatPath, SyntaxKind::PatIdent | SyntaxKind::PatPath
 }
 
 define_token_wrapper! {
     /// Literal node
-    Literal: |kind| matches!(kind, SyntaxKind::Literal);
+    Literal: SyntaxKind::Literal,
     // View to the [`Literal`] node
     // TODO: use `Bool` node?
     LiteralKind = Num | Str | True | False;

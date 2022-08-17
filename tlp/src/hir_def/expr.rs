@@ -1,6 +1,6 @@
-//! HIR expression
+//! HIR expressions in [`Body`]
 //!
-//! Source locations are interned.
+//! [`Body`]: crate::hir_def::body::Body
 
 use std::cmp;
 

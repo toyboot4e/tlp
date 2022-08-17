@@ -1,7 +1,7 @@
 [package]
 name = "tlp"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 # std++
@@ -28,4 +28,3 @@ la-arena = "0.2.1"
 nonmax = "0.5.3"
 
 # utilities
-itertools = "0.10.3"

@@ -1,9 +1,9 @@
-//! Creates [`hir_def`](crate::hir_def) types from AST
+//! Procecures for creating `hir_def` data types
 //!
-//! Lowering is converting AST data into `Arena` s.
+//! Lowering is about converting AST data into `Arena` s.
 
+mod collect_item_scope;
 mod lower_body;
 mod lower_item;
-mod lower_item_scope;
 
-pub use self::{lower_body::*, lower_item::*, lower_item_scope::*};
+pub use self::{collect_item_scope::*, lower_body::*, lower_item::*};

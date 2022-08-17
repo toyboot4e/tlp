@@ -20,7 +20,7 @@ use crate::{
     syntax::ast,
 };
 
-pub fn proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body> {
+pub fn loewr_proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body> {
     // body = block expr
     let proc_loc = db.lookup_intern_proc_loc(proc_id);
     let tree = db.file_item_list(proc_loc.file);
@@ -79,15 +79,10 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_ast_pat(&mut self, pat: ast::Pat) -> Idx<pat::Pat> {
-        match pat.kind() {
-            // FIXME: add PatIdent
-            ast::PatKind::Path(path) => {
-                // FIXME: identifier
-                let components = path.components().collect::<Vec<_>>();
-                assert_eq!(components.len(), 1);
-                let ident = &components[0];
-
-                let name = Name::from_str(ident.text());
+        match pat {
+            ast::Pat::PatPath(_) => todo!(),
+            ast::Pat::PatIdent(ident) => {
+                let name = Name::from_str(ident.ident_token().text());
                 let pat = pat::Pat::Bind { name };
                 self.alloc_pat(pat)
             }
@@ -102,27 +97,27 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_ast_expr(&mut self, form: ast::Form) -> Idx<Expr> {
-        match form.kind() {
+        match form {
             // items
-            ast::FormKind::DefProc(_proc) => todo!("nested procedure"),
+            ast::Form::DefProc(_proc) => todo!("nested procedure"),
             // expressions
-            ast::FormKind::Call(call) => {
+            ast::Form::Call(call) => {
                 let path = self.lower_ast_expr(call.path().into_form());
                 let args = call.args().map(|form| self.lower_ast_expr(form)).collect();
 
                 let expr = expr::Call { path, args };
                 self.alloc_expr(expr::Expr::Call(expr))
             }
-            ast::FormKind::Let(let_) => {
+            ast::Form::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
                 let rhs = self.lower_opt_ast_expr(let_.rhs());
                 self.alloc_expr(expr::Let { pat, rhs }.into())
             }
-            ast::FormKind::Path(ast_path) => {
+            ast::Form::Path(ast_path) => {
                 let expr_path = expr::Path::lower(ast_path, self.db.upcast());
                 self.alloc_expr(expr_path.into())
             }
-            ast::FormKind::Literal(lit) => match lit.kind() {
+            ast::Form::Literal(lit) => match lit.kind() {
                 ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
                 ast::LiteralKind::Str(_str) => {
                     todo!()

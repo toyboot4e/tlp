@@ -13,8 +13,8 @@ type Result<T, E = CompileError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
 pub enum CompileError {
-    #[error("Unexpected kind: {kind:?}")]
-    UnexpectedKind { kind: ast::FormKind },
+    #[error("Unexpected form: {form:?}")]
+    UnexpectedForm { form: ast::Form },
     #[error("Unexisting method call")]
     UnexistingMethodCall,
 }
@@ -44,10 +44,8 @@ pub fn compile(doc: ast::Document) -> (Chunk, Vec<CompileError>) {
 
 /// Dummy impl
 fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::Form) {
-    let kind = form.kind();
-
-    match kind {
-        ast::FormKind::Call(call) => {
+    match form {
+        ast::Form::Call(call) => {
             let path = call.path();
             // TODO: support path
             let ident = path.components().next().unwrap();
@@ -70,12 +68,12 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
                 }
             };
         }
-        ast::FormKind::Let(_let_) => {
+        ast::Form::Let(_let_) => {
             // let pat = let_.pat().unwrap();
             // TODO: resolve
             todo!()
         }
-        ast::FormKind::Literal(lit) => match lit.kind() {
+        ast::Form::Literal(lit) => match lit.kind() {
             ast::LiteralKind::Num(x) => {
                 let x: f64 = x.text().parse().unwrap();
                 let i = chunk.push_const(x);
@@ -83,7 +81,7 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
             }
             _ => panic!(),
         },
-        _ => errs.push(CompileError::UnexpectedKind { kind }),
+        _ => errs.push(CompileError::UnexpectedForm { form: form.clone() }),
     }
 }
 

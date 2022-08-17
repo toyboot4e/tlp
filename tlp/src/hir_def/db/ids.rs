@@ -1,15 +1,4 @@
-/*!
-IDs of interned data types
-
-# Data flows
-
-ID ← Loc ← Data:
-* Interning: Loc → ID
-
-ID → Loc → Data:
-* lookup: ID → Loc
-* container: Loc → Container → Data
-*/
+//! IDs of lowered data types
 
 use std::marker::PhantomData;
 

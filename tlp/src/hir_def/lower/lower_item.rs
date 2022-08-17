@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Collects declarations and imports; they're interned, but as-is
-pub fn file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<ItemList> {
+pub fn collect_file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<ItemList> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemListCollect::run(file, ast))
 }
@@ -33,8 +33,8 @@ impl ItemListCollect {
 
     fn collect(&mut self, forms: impl Iterator<Item = ast::Form>) {
         for form in forms {
-            match form.kind() {
-                ast::FormKind::DefProc(ast_proc) => {
+            match form {
+                ast::Form::DefProc(ast_proc) => {
                     let hir_proc = self.lower_proc(ast_proc);
                     self.tree.procs.alloc(hir_proc);
                     continue;
