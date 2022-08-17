@@ -13,8 +13,8 @@ type Result<T, E = CompileError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
 pub enum CompileError {
-    #[error("Unexpected form: {form:?}")]
-    UnexpectedForm { form: ast::Form },
+    #[error("Unexpected expr: {expr:?}")]
+    UnexpectedExpr { expr: ast::Expr },
     #[error("Unexisting method call")]
     UnexistingMethodCall,
 }
@@ -35,17 +35,25 @@ pub fn compile(doc: ast::Document) -> (Chunk, Vec<CompileError>) {
     let mut chunk = Chunk::new();
     let mut errs = vec![];
 
-    for form in doc.item_nodes() {
-        self::compile_form(&mut chunk, &mut errs, &form);
+    for item in doc.item_nodes() {
+        self::compile_item(&mut chunk, &mut errs, &item);
     }
 
     (chunk, errs)
 }
 
 /// Dummy impl
-fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::Form) {
-    match form {
-        ast::Form::Call(call) => {
+fn compile_item(chunk: &mut Chunk, errs: &mut Vec<CompileError>, item: &ast::Item) {
+    match item {
+        ast::Item::DefProc(_proc) => {
+            todo!()
+        }
+    }
+}
+
+fn compile_expr(chunk: &mut Chunk, errs: &mut Vec<CompileError>, expr: &ast::Expr) {
+    match expr {
+        ast::Expr::Call(call) => {
             let path = call.path();
             // TODO: support path
             let ident = path.components().next().unwrap();
@@ -55,10 +63,10 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
                     let mut args = call.args();
 
                     let lhs = args.next().unwrap();
-                    compile_form(chunk, errs, &lhs);
+                    compile_expr(chunk, errs, &lhs);
 
                     let rhs = args.next().unwrap();
-                    compile_form(chunk, errs, &rhs);
+                    compile_expr(chunk, errs, &rhs);
 
                     let op = self::to_oper(ident.text()).unwrap();
                     chunk.push_code(op);
@@ -68,12 +76,12 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
                 }
             };
         }
-        ast::Form::Let(_let_) => {
+        ast::Expr::Let(_let_) => {
             // let pat = let_.pat().unwrap();
             // TODO: resolve
             todo!()
         }
-        ast::Form::Literal(lit) => match lit.kind() {
+        ast::Expr::Literal(lit) => match lit.kind() {
             ast::LiteralKind::Num(x) => {
                 let x: f64 = x.text().parse().unwrap();
                 let i = chunk.push_const(x);
@@ -81,7 +89,7 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
             }
             _ => panic!(),
         },
-        _ => errs.push(CompileError::UnexpectedForm { form: form.clone() }),
+        _ => errs.push(CompileError::UnexpectedExpr { expr: expr.clone() }),
     }
 }
 
