@@ -1,6 +1,4 @@
-/*!
-Syntactic validation of AST
-*/
+//! Syntactic validation of AST
 
 use thiserror::Error;
 
@@ -39,23 +37,30 @@ pub trait Validate {
 
 impl Validate for Document {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        for form in self.item_nodes() {
-            form.validate(errs);
+        for item in self.item_nodes() {
+            item.validate(errs);
         }
     }
 }
 
-impl Validate for Form {
+impl Validate for Item {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
         match self {
-            Form::DefProc(proc) => {
+            Item::DefProc(proc) => {
                 proc.validate(errs);
             }
+        }
+    }
+}
+
+impl Validate for Expr {
+    fn validate(&self, errs: &mut Vec<SyntaxError>) {
+        match self {
             // TODO: validate
-            Form::Call(_call) => {}
-            Form::Let(_let) => {}
-            Form::Path(_path) => {}
-            Form::Literal(lit) => {
+            Expr::Call(_call) => {}
+            Expr::Let(_let) => {}
+            Expr::Path(_path) => {}
+            Expr::Literal(lit) => {
                 lit.validate(errs);
             }
         }

@@ -10,7 +10,7 @@
 //!   They implement [`AstNode`]. They have corresponding CST node. This is the most basic node
 //!   type.
 //!
-//! - Transparent node (e.g. [`Form`] enum and [`Pat`] enum)
+//! - Transparent node (e.g. [`Item`] enum, [`Expr`] enum and [`Pat`] enum)
 //!   They implement [`AstNode`]. They don't have corresponding CST node and just wraps the
 //!   underlying [`AstNode`] types.
 //!
@@ -211,8 +211,8 @@ impl Document {
         }
     }
 
-    pub fn item_nodes(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
+    pub fn item_nodes(&self) -> impl Iterator<Item = Item> {
+        self.syn.children().filter_map(Item::cast_node)
     }
 
     pub fn syntax_node(&self) -> &SyntaxNode {
@@ -221,9 +221,15 @@ impl Document {
 }
 
 define_enum_node! {
-    /// Form node (transparent wrapper around other nodes)
-    Form = DefProc | Let | Call | Literal | Path,
-    SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
+    /// AST item node (transparent node wrapper)
+    Item = DefProc,
+    SyntaxKind::DefProc
+}
+
+define_enum_node! {
+    /// AST expression node (transparent node wrapper)
+    Expr = Let | Call | Literal | Path,
+    SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
 }
 
 define_node! {
@@ -250,8 +256,8 @@ define_node! {
 }
 
 impl Block {
-    pub fn forms(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
+    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
+        self.syn.children().filter_map(Expr::cast_node)
     }
 }
 
@@ -261,10 +267,6 @@ impl Path {
             .children_with_tokens()
             .filter_map(|e| e.into_token())
             .filter_map(PathComponent::cast_token)
-    }
-
-    pub fn into_form(self) -> Form {
-        Form::cast_node(self.syn).unwrap()
     }
 }
 
@@ -285,8 +287,8 @@ impl PatPath {
             .filter_map(PathComponent::cast_token)
     }
 
-    pub fn into_form(self) -> Form {
-        Form::cast_node(self.syn).unwrap()
+    pub fn into_form(self) -> Item {
+        Item::cast_node(self.syn).unwrap()
     }
 }
 
@@ -304,8 +306,8 @@ impl Let {
         self.syn.children().find_map(Pat::cast_node)
     }
 
-    pub fn rhs(&self) -> Option<Form> {
-        self.syn.children().find_map(Form::cast_node)
+    pub fn rhs(&self) -> Option<Expr> {
+        self.syn.children().find_map(Expr::cast_node)
     }
 }
 
@@ -316,9 +318,9 @@ impl Call {
     }
 
     /// Function arguments
-    pub fn args(&self) -> impl Iterator<Item = Form> {
+    pub fn args(&self) -> impl Iterator<Item = Expr> {
         // skip path
-        self.syn.children().filter_map(Form::cast_node).skip(1)
+        self.syn.children().filter_map(Expr::cast_node).skip(1)
     }
 }
 

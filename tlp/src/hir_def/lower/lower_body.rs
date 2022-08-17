@@ -61,7 +61,7 @@ impl<'a> LowerExpr<'a> {
     fn lower_block(&mut self, block: ast::Block) -> Idx<Expr> {
         let mut children = Vec::new();
 
-        for form in block.forms() {
+        for form in block.exprs() {
             let expr = self.lower_ast_expr(form);
             children.push(expr);
         }
@@ -89,35 +89,33 @@ impl<'a> LowerExpr<'a> {
         }
     }
 
-    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Form>) -> Idx<expr::Expr> {
+    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Expr>) -> Idx<expr::Expr> {
         match expr {
             Some(expr) => self.lower_ast_expr(expr),
             None => self.alloc_expr(expr::Expr::Missing),
         }
     }
 
-    fn lower_ast_expr(&mut self, form: ast::Form) -> Idx<Expr> {
+    fn lower_ast_expr(&mut self, form: ast::Expr) -> Idx<Expr> {
         match form {
-            // items
-            ast::Form::DefProc(_proc) => todo!("nested procedure"),
             // expressions
-            ast::Form::Call(call) => {
-                let path = self.lower_ast_expr(call.path().into_form());
+            ast::Expr::Call(call) => {
+                let path = self.lower_ast_expr(call.path().into());
                 let args = call.args().map(|form| self.lower_ast_expr(form)).collect();
 
                 let expr = expr::Call { path, args };
                 self.alloc_expr(expr::Expr::Call(expr))
             }
-            ast::Form::Let(let_) => {
+            ast::Expr::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
                 let rhs = self.lower_opt_ast_expr(let_.rhs());
                 self.alloc_expr(expr::Let { pat, rhs }.into())
             }
-            ast::Form::Path(ast_path) => {
+            ast::Expr::Path(ast_path) => {
                 let expr_path = expr::Path::lower(ast_path, self.db.upcast());
                 self.alloc_expr(expr_path.into())
             }
-            ast::Form::Literal(lit) => match lit.kind() {
+            ast::Expr::Literal(lit) => match lit.kind() {
                 ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into())),
                 ast::LiteralKind::Str(_str) => {
                     todo!()
