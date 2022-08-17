@@ -1,10 +1,6 @@
-/*!
-Common utilities for tests
-*/
+//! Common utilities for tests
 
-use std::fmt::{self};
-
-use tlp::syntax::cst::{self, ParseError, SyntaxElement};
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct Test {

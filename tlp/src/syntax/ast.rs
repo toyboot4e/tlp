@@ -4,6 +4,8 @@
 //! wrappers around CST nodes. Each component is lazily retrieved via accessors traversing the
 //! internal CST.
 
+// TODO: remove kind enum
+
 pub mod validate;
 
 pub use crate::syntax::cst::ParseError;
@@ -48,7 +50,7 @@ pub trait AstNode: Sized {
 pub trait AstToken: Sized {
     /// Method for "syntax pointers"
     fn can_cast(kind: SyntaxKind) -> bool;
-    fn cast_tk(syn: SyntaxToken) -> Option<Self>;
+    fn cast_token(syn: SyntaxToken) -> Option<Self>;
     fn syntax(&self) -> &SyntaxToken;
 }
 
@@ -87,12 +89,13 @@ macro_rules! define_node {
     };
 }
 
-macro_rules! define_transparent_node_wrapper {
+/// Defines a node without CST node
+macro_rules! define_transparent_node {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pred:expr ;
         $( #[$kind_meta:meta] )*
-        $kind:ident = $( $var:ident )|* ;
+        $ty_kind:ident = $( $var:ident )|* ;
     ) => {
         define_node! {
             $( #[$meta] )*
@@ -100,25 +103,26 @@ macro_rules! define_transparent_node_wrapper {
         }
 
         impl $ty {
-            pub fn kind(&self) -> $kind {
+            pub fn kind(&self) -> $ty_kind {
                 let node = self.syn.clone();
-                None
-                    $(
-                        .or_else(|| $var::cast_node(node.clone()).map(|v| $kind::$var(v)))
-                    )*
-                    .unwrap_or_else(|| unreachable!("Can't be casted as a Form: {:?}", node))
+                $(
+                    if let Some(x) = $var::cast_node(node.clone()) {
+                        return $ty_kind::$var(x);
+                    }
+                )*
+                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
             }
         }
 
         #[derive(Debug, Clone, PartialEq)]
         $( #[$kind_meta] )*
-        pub enum $kind {
+        pub enum $ty_kind {
             $($var($var),)*
         }
 
 
         $(
-            impl From<$var> for $kind {
+            impl From<$var> for $ty_kind {
                 fn from(v: $var) -> Self {
                     Self::$var(v)
                 }
@@ -127,7 +131,49 @@ macro_rules! define_transparent_node_wrapper {
     };
 }
 
-macro_rules! define_token_wrapper_node {
+/// Defines a node with CST node
+macro_rules! define_parent_node {
+    (
+        $( #[$meta:meta] )*
+        $ty:ident: $pred:expr ;
+        $( #[$kind_meta:meta] )*
+        $ty_kind:ident = $( $var:ident )|* ;
+    ) => {
+        define_node! {
+            $( #[$meta] )*
+            $ty: $pred ;
+        }
+
+        impl $ty {
+            pub fn kind(&self) -> $ty_kind {
+                let node = self.syn.children().next().unwrap();
+                $(
+                    if let Some(x) = $var::cast_node(node.clone()) {
+                        return $ty_kind::$var(x);
+                    }
+                )*
+                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), node);
+            }
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        $( #[$kind_meta] )*
+        pub enum $ty_kind {
+            $($var($var),)*
+        }
+
+
+        $(
+            impl From<$var> for $ty_kind {
+                fn from(v: $var) -> Self {
+                    Self::$var(v)
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! define_token_wrapper {
     (
         $( #[$meta:meta] )*
         $ty:ident: $pred:expr ;
@@ -150,11 +196,12 @@ macro_rules! define_token_wrapper_node {
 
             pub fn kind(&self) -> $ty_kind {
                 let token = self.token();
-                None
-                    $(
-                        .or_else(|| $var::cast_tk(token.clone()).map(|v| $ty_kind::$var(v)))
-                    )*
-                    .unwrap()
+                $(
+                    if let Some(x) = $var::cast_token(token.clone()) {
+                        return $ty_kind::$var(x);
+                    }
+                )*
+                unreachable!("Can't be casted as {:?}: {:?}", stringify!($ty), token);
             }
         }
 
@@ -193,20 +240,24 @@ impl Document {
     pub fn item_nodes(&self) -> impl Iterator<Item = Form> {
         self.syn.children().filter_map(Form::cast_node)
     }
+
+    pub fn syntax_node(&self) -> &SyntaxNode {
+        &self.syn
+    }
 }
 
-define_transparent_node_wrapper!(
+define_transparent_node! {
     /// Form node (transparent wrapper around other nodes)
     Form: |kind| matches!(
         kind,
-        SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal
+        SyntaxKind::DefProc | SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
     );
 
     /// View to the [`Form`]
     FormKind = DefProc | Let | Call | Literal | Path;
-);
+}
 
-define_node!(
+define_node! {
     /// (proc name (params?) (block)..)
     DefProc: |kind| matches!(kind, SyntaxKind::DefProc);
 
@@ -216,16 +267,29 @@ define_node!(
     /// (ident args sexp*)
     Call: |kind| matches!(kind, SyntaxKind::Call);
 
-    /// Procedure body
-    Body: |kind| matches!(kind, SyntaxKind::Body);
+    /// Expressions marked as inline code block
+    Block: |kind| matches!(kind, SyntaxKind::Block);
 
-    /// Procedure body
+    /// Path
     Path: |kind| matches!(kind, SyntaxKind::Path);
-);
+}
 
-impl Body {
+impl Block {
     pub fn forms(&self) -> impl Iterator<Item = Form> {
         self.syn.children().filter_map(Form::cast_node)
+    }
+}
+
+impl Path {
+    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .filter_map(PathComponent::cast_token)
+    }
+
+    pub fn into_form(self) -> Form {
+        Form::cast_node(self.syn).unwrap()
     }
 }
 
@@ -239,39 +303,25 @@ impl Let {
     }
 
     // pattern (currently an identifier only)
-    pub fn pat(&self) -> Option<SyntaxToken> {
-        let c = self
-            .syn
-            .children_with_tokens()
-            .filter(|node| node.kind() != SyntaxKind::Ws)
-            .filter_map(|e| e.into_token());
-
-        c.skip(1).next()
+    pub fn pat(&self) -> Option<Pat> {
+        self.syn.children().find_map(Pat::cast_node)
     }
 
-    pub fn forms(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
+    pub fn rhs(&self) -> Option<Form> {
+        self.syn.children().find_map(Form::cast_node)
     }
 }
 
 impl Call {
-    pub fn name_tk(&self) -> Option<SyntaxToken> {
-        match self
-            .syn
-            .children_with_tokens()
-            .skip(1) // )
-            .filter_map(|elem| elem.into_token())
-            .filter(|tk| tk.kind() != SyntaxKind::Ws)
-            .next()
-        {
-            Some(tk) if tk.kind() == SyntaxKind::Ident => Some(tk.clone()),
-            Some(tk) => None,
-            None => unreachable!("No token?"),
-        }
+    /// Function path
+    pub fn path(&self) -> Path {
+        self.syn.children().find_map(Path::cast_node).unwrap()
     }
 
-    pub fn arg_forms(&self) -> impl Iterator<Item = Form> {
-        self.syn.children().filter_map(Form::cast_node)
+    /// Function arguments
+    pub fn args(&self) -> impl Iterator<Item = Form> {
+        // skip path
+        self.syn.children().filter_map(Form::cast_node).skip(1)
     }
 }
 
@@ -303,15 +353,15 @@ impl DefProc {
             .map(|node| Params { syn: node.clone() })
     }
 
-    pub fn body(&self) -> Option<Body> {
-        self.syn.children().find_map(Body::cast_node)
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
     }
 }
 
-define_node!(
+define_node! {
     /// Procedure name
     ProcName: |kind| matches!(kind, SyntaxKind::ProcName);
-);
+}
 
 impl ProcName {
     pub fn token(&self) -> SyntaxToken {
@@ -324,13 +374,13 @@ impl ProcName {
     }
 }
 
-define_node!(
+define_node! {
     /// Procedure parameters
     Params: |kind| matches!(kind, SyntaxKind::Params);
 
     /// A single procedure parameter
     Param: |kind| matches!(kind, SyntaxKind::Param);
-);
+}
 
 impl Params {
     pub fn param_nodes(&self) -> impl Iterator<Item = Param> {
@@ -348,12 +398,23 @@ impl Param {
     }
 }
 
-define_token_wrapper_node!(
+define_parent_node! {
+    /// Pattern node
+    Pat: |kind| matches!(
+        kind,
+        SyntaxKind::Pat
+    );
+    // View to the [`Pattern`] node
+    PatKind = Path;
+}
+
+define_token_wrapper! {
     /// Literal node
     Literal: |kind| matches!(kind, SyntaxKind::Literal);
     // View to the [`Literal`] node
+    // TODO: use `Bool` node?
     LiteralKind = Num | Str | True | False;
-);
+}
 
 macro_rules! define_token {
     (
@@ -374,7 +435,7 @@ macro_rules! define_token {
                     matches!(kind, $kind $(| $kind2)*)
                 }
 
-                fn cast_tk(syn: SyntaxToken) -> Option<Self> {
+                fn cast_token(syn: SyntaxToken) -> Option<Self> {
                     if matches!(syn.kind(), $kind $(| $kind2)*) {
                         Some(Self { syn })
                     } else {
@@ -411,4 +472,7 @@ define_token! {
 
     /// Identifier
     Ident: SyntaxKind::Ident;
+
+    /// PathComponent
+    PathComponent: SyntaxKind::Ident;
 }

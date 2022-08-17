@@ -8,17 +8,17 @@ pub mod vfs;
 use std::sync::Arc;
 
 use crate::{
-    hir_def::{body::Body, item, lower, CrateData, ItemList},
+    hir_def::{body::Body, expr, item, lower, scope, CrateData, ItemList},
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
 use self::{
-    ids::{Id, Loc},
+    ids::{Id, ItemLoc},
     vfs::VfsFileId,
 };
 
-/// [`salsa`] database for the `queries`
+/// [`salsa`] database instance for the queries
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]
 #[derive(Default)]
 pub struct DB {
@@ -26,6 +26,16 @@ pub struct DB {
 }
 
 impl salsa::Database for DB {}
+
+impl Upcast<dyn Intern> for DB {
+    fn upcast(&self) -> &(dyn Intern + 'static) {
+        &*self
+    }
+}
+
+pub trait Upcast<T: ?Sized> {
+    fn upcast(&self) -> &T;
+}
 
 /// Source data available to both compiler and IDE
 ///
@@ -49,18 +59,32 @@ pub trait Parse: Source {
     fn parse(&self, file: VfsFileId) -> Arc<ParseResult>;
 }
 
-/// Interner of locations (`Loc<T>` → `Id<Loc<T>>` and vice versa)
+/// `hir_def` interner
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
+    // --------------------------------------------------------------------------------
+    // Locations
+    // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_proc(&self, proc: Loc<item::DefProc>) -> Id<Loc<item::DefProc>>;
+    fn intern_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> Id<ItemLoc<item::DefProc>>;
+    // #[salsa::interned]
+    // fn intern_block_loc(&self, proc: AstLoc<ast::Block>) -> Id<AstLoc<item::DefProc>>;
+
+    // --------------------------------------------------------------------------------
+    // Path
+    // --------------------------------------------------------------------------------
+    #[salsa::interned]
+    fn intern_path_data(&self, path: expr::PathData) -> Id<expr::PathData>;
 }
+
+// `AstIdMap`
+// pub trait Ast: Parse + Intern { }
 
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]
-pub trait Def: Parse + Intern {
+pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // --------------------------------------------------------------------------------
-    // Item
+    // File syntax
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::crate_data_query)]
@@ -74,7 +98,10 @@ pub trait Def: Parse + Intern {
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::proc_body_query)]
-    fn proc_body(&self, proc_id: Id<Loc<item::DefProc>>) -> Arc<Body>;
+    fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
+
+    #[salsa::invoke(scope::proc_expr_scope_query)]
+    fn proc_expr_scope_map(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;

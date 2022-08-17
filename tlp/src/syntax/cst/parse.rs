@@ -150,11 +150,11 @@ impl ParseState {
 /// Helpers
 impl ParseState {
     fn peek<'pcx>(&mut self, pcx: &'pcx ParseContext) -> Option<&'pcx Token> {
-        if self.tsp.hi < pcx.tks.len() {
-            Some(&pcx.tks[self.tsp.hi])
-        } else {
-            None
-        }
+        self.peek_n(pcx, 0)
+    }
+
+    fn peek_n<'pcx>(&mut self, pcx: &'pcx ParseContext, n: usize) -> Option<&'pcx Token> {
+        pcx.tks.get(self.tsp.hi + n)
     }
 
     /// Consume the next element as a token
@@ -308,7 +308,7 @@ impl ParseState {
                 self.builder.finish_node();
             }
         } else {
-            self.builder.start_node(SyntaxKind::Body.into());
+            self.builder.start_node(SyntaxKind::Block.into());
             return;
         }
 
@@ -322,7 +322,7 @@ impl ParseState {
             }
         }
 
-        self.builder.start_node(SyntaxKind::Body.into());
+        self.builder.start_node(SyntaxKind::Block.into());
     }
 
     fn _proc_params(&mut self, pcx: &ParseContext) {
@@ -388,11 +388,11 @@ impl ParseState {
     fn bump_list_let(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
         assert_eq!(tk.slice(pcx.src), "let");
+        self.maybe_bump_ws(pcx);
 
         // wrap the list
         self.builder
             .start_node_at(checkpoint, SyntaxKind::Let.into());
-        self.maybe_bump_ws(pcx);
 
         self.maybe_bump_pat(pcx);
         self.maybe_bump_ws(pcx);
@@ -406,8 +406,9 @@ impl ParseState {
         self.builder.finish_node();
     }
 
+    /// Call → "(" Path Sexp* ")"
     fn bump_list_call(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
-        let _tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        self.maybe_bump_path(pcx).unwrap();
 
         // wrap the list
         self.builder
@@ -454,14 +455,38 @@ impl ParseState {
 
     /// Symbol → Path | Literal
     fn maybe_bump_symbol(&mut self, pcx: &ParseContext) -> Option<()> {
-        if self.maybe_bump_path(pcx).is_some() || self.maybe_bump_lit(pcx).is_some() {
+        if self.maybe_bump_ident_or_path(pcx).is_some() || self.maybe_bump_lit(pcx).is_some() {
             Some(())
         } else {
             None
         }
     }
 
-    /// Path → Ident ( (:|.)+ Ident )*
+    fn maybe_bump_ident_or_path(&mut self, pcx: &ParseContext) -> Option<()> {
+        let peek0 = self.peek(pcx)?;
+        if peek0.kind != SyntaxKind::Ident {
+            return None;
+        }
+
+        let peek1 = match self.peek_n(pcx, 1) {
+            Some(x) => x,
+            None => {
+                self.bump_kind(pcx, SyntaxKind::Ident);
+                return Some(());
+            }
+        };
+
+        if matches!(peek1.kind, SyntaxKind::Colon | SyntaxKind::Dot) {
+            assert!(self.maybe_bump_path(pcx).is_some());
+            Some(())
+        } else {
+            self.bump_kind(pcx, SyntaxKind::Ident);
+            Some(())
+        }
+    }
+
+    /// Path node
+    // TODO: refactor
     fn maybe_bump_path(&mut self, pcx: &ParseContext) -> Option<()> {
         let lo = if self.tsp.hi > 0 {
             pcx.tks[self.tsp.hi - 1].sp.hi
@@ -475,8 +500,13 @@ impl ParseState {
         match self.peek(pcx) {
             // path
             Some(tk) if matches!(tk.kind, SyntaxKind::Colon | SyntaxKind::Dot) => {}
-            // ident
-            _ => return Some(()),
+            // ident (wrap as Path node)
+            _ => {
+                self.builder
+                    .start_node_at(checkpoint, SyntaxKind::Path.into());
+                self.builder.finish_node();
+                return Some(());
+            }
         };
 
         // path
@@ -513,12 +543,17 @@ impl ParseState {
         return Some(());
     }
 
-    /// Pat → Ident
+    /// Pat → Path
+    // FIXME: allow PatIdent
     fn maybe_bump_pat(&mut self, pcx: &ParseContext) -> Option<()> {
-        let checkpoint = self.builder.checkpoint();
+        let pat_checkpoint = self.builder.checkpoint();
+
+        self.builder.start_node(SyntaxKind::Path.into());
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
+        self.builder.finish_node();
+
         self.builder
-            .start_node_at(checkpoint, SyntaxKind::Pat.into());
+            .start_node_at(pat_checkpoint, SyntaxKind::Pat.into());
         self.builder.finish_node();
 
         Some(())

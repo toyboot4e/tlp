@@ -37,45 +37,6 @@ pub trait Validate {
     fn validate(&self, errs: &mut Vec<SyntaxError>);
 }
 
-fn lparen(syn: SyntaxNode, _errs: &mut Vec<SyntaxError>) {
-    let tk = match syn.first_token() {
-        Some(tk) => tk,
-        None => return,
-    };
-
-    if tk.kind() != SyntaxKind::LParen {
-        unreachable!("List can't be without left paren");
-    }
-}
-
-fn rparen(syn: SyntaxNode, errs: &mut Vec<SyntaxError>) {
-    let tks = syn
-        .children_with_tokens()
-        .filter_map(|elem| elem.into_token());
-
-    // TODO: reversible tokens without vec?
-    let tks = tks.collect::<Vec<_>>();
-
-    let tk = tks
-        .iter()
-        .rev()
-        .skip_while(|tk| tk.kind() == SyntaxKind::Ws)
-        .next();
-
-    match tk {
-        Some(tk) if tk.kind() == SyntaxKind::RParen => {}
-        Some(tk) => {
-            errs.push(SyntaxError::MissingToken {
-                at: tk.text_range().start().into(),
-                kind: SyntaxKind::RParen,
-            });
-        }
-        None => {
-            unreachable!("invalid node");
-        }
-    }
-}
-
 impl Validate for Document {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
         for form in self.item_nodes() {
@@ -102,7 +63,7 @@ impl Validate for Form {
 }
 
 impl Validate for Call {
-    fn validate(&self, errs: &mut Vec<SyntaxError>) {
+    fn validate(&self, _errs: &mut Vec<SyntaxError>) {
         // TODO: validate each argument
     }
 }
@@ -138,7 +99,7 @@ impl Validate for DefProc {
 
 impl Validate for Params {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        let mut elems = self.syn.children_with_tokens().filter(|elem| {
+        let elems = self.syn.children_with_tokens().filter(|elem| {
             !matches!(
                 elem.kind(),
                 SyntaxKind::Ws | SyntaxKind::Comment | SyntaxKind::LParen | SyntaxKind::RParen
@@ -158,7 +119,7 @@ impl Validate for Params {
 }
 
 impl Validate for Literal {
-    fn validate(&self, errs: &mut Vec<SyntaxError>) {
+    fn validate(&self, _errs: &mut Vec<SyntaxError>) {
         //
     }
 }

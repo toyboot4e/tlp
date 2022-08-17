@@ -10,15 +10,17 @@
 //! # Data flow
 //!
 //! - For each module, lower AST into [`FileData`], i.e., [`ItemList`]
+//! - For each module, collect [`ItemList`] data into [`ItemScope`]
 //! - For each declaration, lower the code block into [`Body`]
 //!   - For each (nested or root) code block, lower items into [`ItemList`]
-//! - Create [`ExprScopeStack`] for [`Body`]
-//!   - For each (nested or root) code block, lower [`ExprScope`]
+//! - Create [`ExprScopeMap`] for [`Body`]
+//!   - For each (nested or root) code block, collect [`ScopeData`]
 //!
 //! [`FileData`]: crate::hir_def::FileData
 //! [`Body`]: crate::hir_def::body::Body
+//! [`ExprScope`]: crate::hir_def::scope::ItemScope
 //! [`ExprScope`]: crate::hir_def::scope::ExprScope
-//! [`ExprScopeStack`]: crate::hir_def::scope::ExprScopeStack
+//! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
 
 pub mod body;
 pub mod db;
@@ -27,6 +29,8 @@ pub mod item;
 pub mod lower;
 pub mod pat;
 pub mod scope;
+
+use std::sync::Arc;
 
 use la_arena::{Arena, Idx};
 
@@ -57,6 +61,10 @@ impl CrateData {
         self.root
     }
 
+    pub fn root_file_data(&self) -> &FileData {
+        &self.files[self.root.idx]
+    }
+
     pub fn sub_file(&self, module: FileDataId) -> &FileData {
         &self.files[module.idx]
     }
@@ -69,13 +77,7 @@ pub struct FileData {
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
     /// Items visible from this file (defined or imported)
-    pub(crate) scope: ItemScope,
-}
-
-impl FileData {
-    pub fn scope(&self) -> &ItemScope {
-        &self.scope
-    }
+    pub item_scope: Arc<ItemScope>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

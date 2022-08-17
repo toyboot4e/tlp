@@ -26,6 +26,12 @@ impl Name {
     pub fn as_str(&self) -> &str {
         self.data.as_str()
     }
+
+    pub const fn missing() -> Name {
+        Name {
+            data: SmolStr::new_inline("[missing name]"),
+        }
+    }
 }
 
 /// Function parameter

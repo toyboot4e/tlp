@@ -1,34 +1,66 @@
 //! HIR expression
 //!
-//! Source information is deleted.
+//! Source locations are interned.
 
 use std::cmp;
 
 use la_arena::Idx;
 
 use crate::{
-    hir_def::item::Name,
+    hir_def::{
+        db::{self, ids::Id},
+        item::Name,
+        pat,
+    },
     syntax::ast::{self, AstToken},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    Seq(Seq),
+    /// Invalid syntax can contain missing expression
+    Missing,
+    Block(Block),
+    Let(Let),
     Call(Call),
     Literal(Literal),
+    Path(Path),
 }
 
-/// Sequence of expressions (code block)
+macro_rules! impl_from {
+    ( $ty:ty = $( $ty_from:ident )|* ; ) => {
+        $(
+            impl From<$ty_from> for $ty {
+                fn from(x: $ty_from) -> $ty {
+                    Self::$ty_from(x)
+                }
+            }
+        )*
+    }
+}
+
+impl_from! {
+    Expr = Block | Let | Call | Literal | Path;
+}
+
+/// Code block of S-expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Seq {
-    pub(crate) exprs: Vec<Idx<Expr>>,
+pub struct Block {
+    // TODO: statements?
+    pub children: Box<[Idx<Expr>]>,
+    // pub ast_loc_id: Id<AstLoc<ast::Block>>,
+}
+
+/// Code block of S-expressions
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Let {
+    pub pat: Idx<pat::Pat>,
+    pub rhs: Idx<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
-    // TODO: resolved form, path?
-    pub name: Name,
-    pub args: Vec<Idx<Expr>>,
+    pub path: Idx<Expr>,
+    pub args: Box<[Idx<Expr>]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,5 +90,35 @@ impl From<ast::Num> for Literal {
         }
 
         todo!("if not a number");
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Path {
+    data: Id<PathData>,
+}
+
+impl Path {
+    pub fn lower(ast: ast::Path, db: &dyn db::Intern) -> Self {
+        let data = PathData::parse(ast);
+        let data = db.intern_path_data(data);
+        Self { data }
+    }
+
+    pub fn lookup(&self, db: &dyn db::Intern) -> PathData {
+        db.lookup_intern_path_data(self.data)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PathData {
+    pub segments: Box<[Name]>,
+}
+
+impl PathData {
+    pub fn parse(ast: ast::Path) -> Self {
+        let segments = ast.components().map(|c| Name::from_str(c.text())).collect();
+
+        Self { segments }
     }
 }

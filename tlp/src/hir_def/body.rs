@@ -2,17 +2,21 @@
 
 use la_arena::{Arena, Idx};
 
-use crate::hir_def::{expr::Expr, pat::Pat};
+use crate::hir_def::{expr, pat};
 
 /// Body
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Body {
-    pub root: Block,
-    pub exprs: Arena<Expr>,
-    pub pats: Arena<Pat>,
+    pub root_block: Idx<expr::Expr>,
+    pub exprs: Arena<expr::Expr>,
+    pub pats: Arena<pat::Pat>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Block {
-    pub children: Vec<Idx<Expr>>,
+impl Body {
+    pub fn root_block(&self) -> &expr::Block {
+        match &self.exprs[self.root_block] {
+            expr::Expr::Block(seq) => seq,
+            _ => unreachable!(),
+        }
+    }
 }

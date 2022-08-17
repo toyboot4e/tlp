@@ -33,5 +33,13 @@ impl ItemPath {
     }
 }
 
-/// Pattern
-pub type Pat = ItemPath;
+/// HIR pattern type
+///
+/// It's more semantic compared to AST patterns.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Pat {
+    /// Given invalid syntax, pattern can miss
+    Missing,
+    /// Introduces a new identifier
+    Bind { name: Name },
+}
