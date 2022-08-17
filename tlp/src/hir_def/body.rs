@@ -46,12 +46,19 @@ impl Body {
 /// that does not change item/expression order.
 #[derive(Default, Debug, Eq, PartialEq)]
 pub struct BodySourceMap {
-    expr_hir_ast: ArenaMap<Idx<Expr>, AstPtr<ast::Expr>>,
-    expr_ast_hir: FxHashMap<AstPtr<ast::Expr>, Idx<Expr>>,
+    pub(crate) expr_ast_hir: FxHashMap<AstPtr<ast::Expr>, Idx<Expr>>,
+    pub(crate) expr_hir_ast: ArenaMap<Idx<Expr>, ToAst<ast::Expr>>,
 
-    pat_hir_ast: ArenaMap<Idx<Pat>, AstPtr<ast::Pat>>,
-    pat_ast_hir: FxHashMap<AstPtr<ast::Pat>, Idx<Pat>>,
+    pub(crate) pat_ast_hir: FxHashMap<AstPtr<ast::Pat>, Idx<Pat>>,
+    pub(crate) pat_hir_ast: ArenaMap<Idx<Pat>, ToAst<ast::Pat>>,
     // /// Diagnostics accumulated during body lowering. These contain `AstPtr`s and so are stored in
     // /// the source map (since they're just as volatile).
-    // diagnostics: Vec<BodyDiagnostic>,
+    // pub(crate) diagnostics: Vec<BodyDiagnostic>,
 }
+
+/// Syntax pointer to an existing AST node or missing
+pub type ToAst<Ast> = Result<AstPtr<Ast>, SyntheticSyntax>;
+
+/// Represents missing syntax in AST
+#[derive(Default, Debug, Eq, PartialEq, Clone, Copy)]
+pub struct SyntheticSyntax;
