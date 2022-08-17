@@ -1,6 +1,4 @@
-/*!
-Utilities taken from rust-analyzer
-*/
+//! Utilities taken from rust-analyzer
 
 pub use la_arena as arena;
 

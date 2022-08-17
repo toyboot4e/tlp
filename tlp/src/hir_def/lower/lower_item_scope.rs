@@ -1,17 +1,12 @@
-//! Lowers module hierarchy
+//! Lowers module item scope into [`Name`] → `Id<Loc<T>>` maps in [`ItemScope`]
 
 use std::sync::Arc;
 
 use la_arena::Arena;
 
 use crate::hir_def::{
-    db::{
-        self,
-        ids::Loc,
-        vfs::*,
-    },
-    item::Visibility,
-    CrateData, FileDataId, FileData, ItemScope,
+    db::{self, ids::ItemLoc, vfs::*},
+    CrateData, FileData, FileDataId, ItemScope,
 };
 
 /// Collects tree of modules with `ItemScope`
@@ -23,10 +18,9 @@ pub fn crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateData> {
     let root = FileDataId {
         idx: modules.alloc(FileData {
             file: krate.clone(),
-            vis: Visibility::Public,
             parent: None,
             children: Vec::new(),
-            scope: root_scope,
+            item_scope: root_scope,
         }),
     };
 
@@ -52,12 +46,12 @@ impl ModCollector {
                 None => continue,
             };
 
-            let id = db.intern_proc(Loc {
+            let id = db.intern_proc_loc(ItemLoc {
                 file: self.vfs_file_id,
                 idx: id,
             });
 
-            let ix = scope.declare_proc(name, id);
+            let _ix = scope.declare_proc(name, id);
         }
 
         Arc::new(scope)

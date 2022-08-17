@@ -1,25 +1,45 @@
-//! Intermadiate representation between AST and bytecode
+//! Frontend IR
+//!
+//! # Arenas and ownership
+//!
+//! - [`ItemList`] owns arenas of definition syntaxes
+//! - [`Body`] owns arenas of expressions and patterns
+//!
+//! Other data structures refere to the data by [`Idx`].
+//!
+//! # Data flow
+//!
+//! - For each module, lower AST into [`FileData`], i.e., [`ItemList`]
+//! - For each module, collect [`ItemList`] data into [`ItemScope`]
+//! - For each declaration, lower the code block into [`Body`]
+//!   - For each (nested or root) code block, lower items into [`ItemList`]
+//! - Create [`ExprScopeMap`] for [`Body`]
+//!   - For each (nested or root) code block, collect [`ScopeData`]
+//!
+//! [`FileData`]: crate::hir_def::FileData
+//! [`Body`]: crate::hir_def::body::Body
+//! [`ExprScope`]: crate::hir_def::scope::ItemScope
+//! [`ExprScope`]: crate::hir_def::scope::ExprScope
+//! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
 
 pub mod body;
 pub mod db;
+pub mod expr;
 pub mod item;
 pub mod lower;
-pub mod path;
+pub mod pat;
+pub mod scope;
+
+use std::sync::Arc;
 
 use la_arena::{Arena, Idx};
-use rustc_hash::FxHashMap;
-
-use std::{ops, sync::Arc};
 
 use self::{
-    db::{
-        ids::{Id, Loc},
-        vfs::VfsFileId,
-    },
-    item::{Name, Visibility},
+    db::vfs::VfsFileId,
+    scope::{ItemList, ItemScope},
 };
 
-/// [`FileData`] container
+/// Per-project [`FileData`] container
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
     pub(crate) root: FileDataId,
@@ -41,25 +61,23 @@ impl CrateData {
         self.root
     }
 
+    pub fn root_file_data(&self) -> &FileData {
+        &self.files[self.root.idx]
+    }
+
     pub fn sub_file(&self, module: FileDataId) -> &FileData {
         &self.files[module.idx]
     }
 }
 
-/// File items
+/// Pre-file [`ItemScope`] with child/parent relationship
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileData {
     pub(crate) file: VfsFileId,
-    pub(crate) vis: Visibility,
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
-    pub(crate) scope: Arc<ItemScope>,
-}
-
-impl FileData {
-    pub fn scope(&self) -> &ItemScope {
-        &self.scope
-    }
+    /// Items visible from this file (defined or imported)
+    pub item_scope: Arc<ItemScope>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -69,53 +87,4 @@ pub struct FileDataId {
     pub(crate) idx: Idx<FileData>,
 }
 
-/// Name-resolved item definitions IDs in a scope (declarations and imports)
-///
-/// Built upon `ItemTree`.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ItemScope {
-    // declarations
-    procs: FxHashMap<Name, Id<Loc<item::DefProc>>>,
-    // values:
-    // delcs
-}
-
-impl ItemScope {
-    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<Loc<item::DefProc>>) {
-        // TOOD: consider upcasting or not
-        // let id = DefId { loc_id: proc };
-        // self.procs.insert(name, AnyDefId::from(id));
-        self.procs.insert(name, proc);
-    }
-
-    pub fn lookup_proc(&self, name: &Name) -> Option<Id<Loc<item::DefProc>>> {
-        self.procs.get(name).cloned()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemList {
-    pub(crate) file: VfsFileId,
-    pub(crate) procs: Arena<item::DefProc>,
-    // pub(crate) imports: Vec<Import>,
-}
-
-impl ops::Index<Idx<item::DefProc>> for ItemList {
-    type Output = item::DefProc;
-    fn index(&self, ix: Idx<item::DefProc>) -> &Self::Output {
-        &self.procs[ix]
-    }
-}
-
-impl ItemList {
-    pub(crate) fn new(file: VfsFileId) -> Self {
-        Self {
-            file,
-            procs: Default::default(),
-        }
-    }
-
-    pub fn procs(&self) -> &Arena<item::DefProc> {
-        &self.procs
-    }
-}
+// TODO: add data for macro-expanded `ItemList` (use it for crate/block DefMap)

@@ -1,4 +1,4 @@
-//! Locations and patterns
+//! Patterns
 
 use la_arena::Idx;
 
@@ -23,4 +23,23 @@ pub struct BlockLoc {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemPath {
     segments: Vec<Name>,
+}
+
+impl ItemPath {
+    pub fn name(name: Name) -> Self {
+        Self {
+            segments: vec![name],
+        }
+    }
+}
+
+/// HIR pattern type
+///
+/// It's more semantic compared to AST patterns.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Pat {
+    /// Given invalid syntax, pattern can miss
+    Missing,
+    /// Introduces a new identifier
+    Bind { name: Name },
 }

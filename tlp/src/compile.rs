@@ -1,5 +1,7 @@
 //! Compiler (HIR → bytecode)
 
+pub mod scope;
+
 use thiserror::Error;
 
 use crate::{
@@ -11,8 +13,8 @@ type Result<T, E = CompileError> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone, Error)]
 pub enum CompileError {
-    #[error("Not an item")]
-    NotAnItem { kind: ast::FormKind },
+    #[error("Unexpected kind: {kind:?}")]
+    UnexpectedKind { kind: ast::FormKind },
     #[error("Unexisting method call")]
     UnexistingMethodCall,
 }
@@ -23,6 +25,12 @@ pub trait Compile {
     fn compile(&self, code: &mut Chunk) -> Result<()>;
 }
 
+//
+pub struct Scope {
+    pub len: usize,
+}
+
+// TODO: compile `hir_def`, not `ast`
 pub fn compile(doc: ast::Document) -> (Chunk, Vec<CompileError>) {
     let mut chunk = Chunk::new();
     let mut errs = vec![];
@@ -39,21 +47,34 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
     let kind = form.kind();
 
     match kind {
-        ast::FormKind::Call(call) => match call.name_tk().text() {
-            "+" | "-" | "*" | "/" => {
-                let mut args = call.arg_forms();
+        ast::FormKind::Call(call) => {
+            let path = call.path();
+            // TODO: support path
+            let ident = path.components().next().unwrap();
 
-                let lhs = args.next().unwrap();
-                compile_form(chunk, errs, &lhs);
+            match ident.text() {
+                "+" | "-" | "*" | "/" => {
+                    let mut args = call.args();
 
-                let rhs = args.next().unwrap();
-                compile_form(chunk, errs, &rhs);
+                    let lhs = args.next().unwrap();
+                    compile_form(chunk, errs, &lhs);
 
-                let op = self::to_oper(call.name_tk().text()).unwrap();
-                chunk.push_code(op);
-            }
-            _ => {}
-        },
+                    let rhs = args.next().unwrap();
+                    compile_form(chunk, errs, &rhs);
+
+                    let op = self::to_oper(ident.text()).unwrap();
+                    chunk.push_code(op);
+                }
+                _ => {
+                    todo!("{:?}", call);
+                }
+            };
+        }
+        ast::FormKind::Let(_let_) => {
+            // let pat = let_.pat().unwrap();
+            // TODO: resolve
+            todo!()
+        }
         ast::FormKind::Literal(lit) => match lit.kind() {
             ast::LiteralKind::Num(x) => {
                 let x: f64 = x.text().parse().unwrap();
@@ -62,7 +83,7 @@ fn compile_form(chunk: &mut Chunk, errs: &mut Vec<CompileError>, form: &ast::For
             }
             _ => panic!(),
         },
-        _ => errs.push(CompileError::NotAnItem { kind }),
+        _ => errs.push(CompileError::UnexpectedKind { kind }),
     }
 }
 
