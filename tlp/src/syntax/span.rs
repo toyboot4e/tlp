@@ -1,6 +1,4 @@
-/*!
-Span of UTF-8 source text TODO: Just [`rowan`] types.
-*/
+//! Span of UTF-8 source text TODO: Just [`rowan`] types.
 
 pub type TextLen = usize;
 pub type TextPos = usize;

@@ -1,10 +1,8 @@
-/*!
-Run all test cases in `cst/cases.txt` (on `cargo test`)
-*/
+//! Run all test cases in `cst/cases.txt` (on `cargo test`)
 
 use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
-use crate::syntax::utils::{self, Test, TestError};
+use crate::test_syntax::utils::{self, Test, TestError};
 
 fn cst_display(cst: &SyntaxNode) -> String {
     let mut nest = 0;

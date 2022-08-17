@@ -54,7 +54,8 @@ impl Param {
 pub struct DefProc {
     pub(crate) name: Option<Name>,
     pub(crate) params: ProcParams,
-    pub(crate) ast: ast::DefProc,
+    // TODO: remove AST completely using source map pattern
+    pub ast: ast::DefProc,
 }
 
 impl DefProc {
