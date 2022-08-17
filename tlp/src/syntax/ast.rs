@@ -18,8 +18,6 @@
 //!   They implement [`AstNode`], but they don't have corresponding CST token. So we need
 //!   indirection from node to token, i.e., [`LiteralKind`].
 
-// TODO: remove kind enum
-
 pub use crate::syntax::cst::ParseError;
 
 use std::{
@@ -226,8 +224,8 @@ define_enum_node! {
 
 define_enum_node! {
     /// AST expression node (transparent node wrapper)
-    Expr = Let | Call | Literal | Path,
-    SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path
+    Expr = Let | Call | Literal | Path | Block,
+    SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path | SyntaxKind::Block
 }
 
 define_node! {
