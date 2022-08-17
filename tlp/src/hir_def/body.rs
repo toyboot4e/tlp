@@ -1,4 +1,4 @@
-//! Item definition body and code blocks
+//! Item definition body and code blocks lowered from AST
 
 use la_arena::{Arena, Idx};
 

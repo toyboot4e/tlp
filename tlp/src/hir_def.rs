@@ -15,7 +15,7 @@
 //! - For each module, lower AST into [`FileData`], i.e., [`ItemList`]
 //! - For each module, collect [`ItemList`] data into [`ItemScope`]
 //! - For each declaration, lower the code block into [`Body`]
-//!   - For each (nested or root) code block, lower items into [`ItemList`]
+//!   - For each (nested or root) code block, collect items into [`ItemList`]
 //! - Create [`ExprScopeMap`] for [`Body`]
 //!   - For each (nested or root) code block, collect [`ScopeData`]
 //!

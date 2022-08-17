@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Collects declarations and imports; they're interned, but as-is
-pub fn file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<ItemList> {
+pub fn collect_file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<ItemList> {
     let ast = db.parse(file.clone()).doc.clone();
     Arc::new(ItemListCollect::run(file, ast))
 }

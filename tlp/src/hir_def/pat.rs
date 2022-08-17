@@ -1,4 +1,6 @@
-//! Patterns
+//! HIR patterns in [`Body`]
+//!
+//! [`Body`]: crate::hir_def::body::Body
 
 use la_arena::Idx;
 

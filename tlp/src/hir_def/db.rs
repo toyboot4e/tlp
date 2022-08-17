@@ -87,17 +87,17 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // File syntax
     // --------------------------------------------------------------------------------
 
-    #[salsa::invoke(lower::crate_data_query)]
+    #[salsa::invoke(lower::lower_crate_data_query)]
     fn crate_data(&self, krate: VfsFileId) -> Arc<CrateData>;
 
-    #[salsa::invoke(lower::file_item_list_query)]
+    #[salsa::invoke(lower::collect_file_item_list_query)]
     fn file_item_list(&self, file: VfsFileId) -> Arc<ItemList>;
 
     // --------------------------------------------------------------------------------
     // Body
     // --------------------------------------------------------------------------------
 
-    #[salsa::invoke(lower::proc_body_query)]
+    #[salsa::invoke(lower::loewr_proc_body_query)]
     fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
 
     #[salsa::invoke(scope::proc_expr_scope_query)]
