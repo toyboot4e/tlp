@@ -8,7 +8,10 @@ pub mod vfs;
 use std::sync::Arc;
 
 use crate::{
-    hir_def::{body::Body, expr, item, lower, scope, CrateData, ItemList},
+    hir_def::{
+        body::{Body, BodySourceMap},
+        expr, item, lower, scope, CrateData, ItemList,
+    },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
@@ -97,8 +100,14 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // Body
     // --------------------------------------------------------------------------------
 
-    #[salsa::invoke(lower::loewr_proc_body_query)]
+    #[salsa::invoke(lower::lower_proc_body_query)]
     fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
+
+    #[salsa::invoke(lower::lower_proc_body_with_source_map_query)]
+    fn proc_body_with_source_map(
+        &self,
+        proc_id: Id<ItemLoc<item::DefProc>>,
+    ) -> (Arc<Body>, Arc<BodySourceMap>);
 
     #[salsa::invoke(scope::proc_expr_scope_query)]
     fn proc_expr_scope_map(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeMap>;

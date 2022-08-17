@@ -8,7 +8,7 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        body::Body,
+        body::{Body, BodySourceMap},
         db::{
             self,
             ids::{Id, ItemLoc},
@@ -20,7 +20,14 @@ use crate::{
     syntax::ast,
 };
 
-pub fn loewr_proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body> {
+pub fn lower_proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body> {
+    db.proc_body_with_source_map(proc_id).0
+}
+
+pub fn lower_proc_body_with_source_map_query(
+    db: &dyn db::Def,
+    proc_id: Id<ItemLoc<item::DefProc>>,
+) -> (Arc<Body>, Arc<BodySourceMap>) {
     // body = block expr
     let proc_loc = db.lookup_intern_proc_loc(proc_id);
     let tree = db.file_item_list(proc_loc.file);
@@ -33,25 +40,29 @@ pub fn loewr_proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc
         pats: Default::default(),
     };
 
-    LowerExpr { db, body }.lower_proc(proc.ast.clone())
+    let (body, map) = LowerExpr {
+        db,
+        body,
+        map: Default::default(),
+    }
+    .lower_proc(proc.ast.clone());
+    (Arc::new(body), Arc::new(map))
 }
 
 struct LowerExpr<'a> {
     db: &'a dyn db::Def,
     body: Body,
-    // TODO: source map:
-    // /// AST expr ID → HIR expr ID
-    // /// HIR expr ID → AST expr ID
+    map: BodySourceMap,
 }
 
 impl<'a> LowerExpr<'a> {
-    pub fn lower_proc(mut self, proc: ast::DefProc) -> Arc<Body> {
+    pub fn lower_proc(mut self, proc: ast::DefProc) -> (Body, BodySourceMap) {
         self.lower_proc_params(proc.clone());
 
         let block = proc.block();
         self.body.root_block = self.lower_block(block);
 
-        Arc::new(self.body)
+        (self.body, self.map)
     }
 
     fn lower_proc_params(&mut self, _proc: ast::DefProc) {

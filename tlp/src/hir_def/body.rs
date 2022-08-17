@@ -1,10 +1,14 @@
 //! Item definition body and code blocks lowered from AST
 
-use la_arena::{Arena, Idx};
+use la_arena::{Arena, ArenaMap, Idx};
+use rustc_hash::FxHashMap;
 
-use crate::hir_def::{
-    expr::{self, Expr},
-    pat,
+use crate::{
+    hir_def::{
+        expr::{self, Expr},
+        pat::{self, Pat},
+    },
+    syntax::{ast, ptr::AstPtr},
 };
 
 /// Body
@@ -32,4 +36,22 @@ impl Body {
             _ => unreachable!(),
         }
     }
+}
+
+/// Map between HIR `Idx` and AST pointers
+///
+/// # Incremental compilation
+///
+/// HIR uses positional index instead of source syntax location. It works great on source change
+/// that does not change item/expression order.
+#[derive(Default, Debug, Eq, PartialEq)]
+pub struct BodySourceMap {
+    expr_hir_ast: ArenaMap<Idx<Expr>, AstPtr<ast::Expr>>,
+    expr_ast_hir: FxHashMap<AstPtr<ast::Expr>, Idx<Expr>>,
+
+    pat_hir_ast: ArenaMap<Idx<Pat>, AstPtr<ast::Pat>>,
+    pat_ast_hir: FxHashMap<AstPtr<ast::Pat>, Idx<Pat>>,
+    // /// Diagnostics accumulated during body lowering. These contain `AstPtr`s and so are stored in
+    // /// the source map (since they're just as volatile).
+    // diagnostics: Vec<BodyDiagnostic>,
 }
