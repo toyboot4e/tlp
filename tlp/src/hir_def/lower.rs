@@ -2,11 +2,8 @@
 //!
 //! Lowering is about converting AST data into `Arena` s.
 
-// lower
+mod collect_item_scope;
 mod lower_body;
 mod lower_item;
 
-// collect
-mod lower_item_scope;
-
-pub use self::{lower_body::*, lower_item::*, lower_item_scope::*};
+pub use self::{collect_item_scope::*, lower_body::*, lower_item::*};

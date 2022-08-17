@@ -82,17 +82,17 @@ pub enum SyntaxKind {
     Literal,
     /// Path node
     Path,
-    /// Pattern variant
+    /// Pattern enum variant
     PatIdent,
-    /// Pattern variant
+    /// Pattern enum variant
     PatPath,
     /// Call node
     Call,
     /// DefProc node
     DefProc,
-    /// DefProc proc name node
+    /// DefProc node name node
     ProcName,
-    /// Procedure parameter list
+    /// DefProc node parameter list
     Params,
     /// A single procedure parameter
     Param,
