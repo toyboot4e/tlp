@@ -20,8 +20,6 @@
 
 // TODO: remove kind enum
 
-pub mod validate;
-
 pub use crate::syntax::cst::ParseError;
 
 use std::{
