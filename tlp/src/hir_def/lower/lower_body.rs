@@ -80,13 +80,9 @@ impl<'a> LowerExpr<'a> {
 
     fn lower_ast_pat(&mut self, pat: ast::Pat) -> Idx<pat::Pat> {
         match pat {
-            ast::Pat::Path(path) => {
-                // FIXME: identifier
-                let components = path.components().collect::<Vec<_>>();
-                assert_eq!(components.len(), 1);
-                let ident = &components[0];
-
-                let name = Name::from_str(ident.text());
+            ast::Pat::PatPath(_) => todo!(),
+            ast::Pat::PatIdent(ident) => {
+                let name = Name::from_str(ident.ident_token().text());
                 let pat = pat::Pat::Bind { name };
                 self.alloc_pat(pat)
             }

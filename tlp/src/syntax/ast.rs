@@ -227,6 +227,12 @@ define_node! {
 
     /// Path
     Path: SyntaxKind::Path,
+
+    /// Pattern variant
+    PatIdent: SyntaxKind::PatIdent,
+
+    /// Pattern variant
+    PatPath: SyntaxKind::PatPath,
 }
 
 impl Block {
@@ -236,6 +242,28 @@ impl Block {
 }
 
 impl Path {
+    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .filter_map(PathComponent::cast_token)
+    }
+
+    pub fn into_form(self) -> Form {
+        Form::cast_node(self.syn).unwrap()
+    }
+}
+
+impl PatIdent {
+    pub fn ident_token(self) -> SyntaxToken {
+        self.syn
+            .children_with_tokens()
+            .find_map(|e| e.into_token())
+            .unwrap()
+    }
+}
+
+impl PatPath {
     pub fn components(&self) -> impl Iterator<Item = PathComponent> {
         self.syn
             .children_with_tokens()
@@ -355,7 +383,7 @@ impl Param {
 
 define_enum_node! {
     /// Pattern node
-    Pat = Path, SyntaxKind::Path
+    Pat = PatIdent | PatPath, SyntaxKind::PatIdent | SyntaxKind::PatPath
 }
 
 define_token_wrapper! {

@@ -397,7 +397,6 @@ impl ParseState {
         self.maybe_bump_pat(pcx);
         self.maybe_bump_ws(pcx);
 
-        // TODO: validate `let` syntax?
         if self._bump_sexps_to_end_paren(pcx).is_some() {
             self.maybe_bump_kind(pcx, SyntaxKind::RParen);
         }
@@ -543,14 +542,15 @@ impl ParseState {
         return Some(());
     }
 
-    /// Pat → Path
-    // FIXME: allow PatIdent
+    /// Pat → PatIdent | PatPath
     fn maybe_bump_pat(&mut self, pcx: &ParseContext) -> Option<()> {
         let checkpoint = self.builder.checkpoint();
 
         self.maybe_bump_kind(pcx, SyntaxKind::Ident)?;
 
-        self.builder.start_node_at(checkpoint,SyntaxKind::Path.into());
+        // TODO: handle path
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::PatIdent.into());
         self.builder.finish_node();
 
         Some(())

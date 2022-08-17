@@ -82,6 +82,10 @@ pub enum SyntaxKind {
     Literal,
     /// Path node
     Path,
+    /// Pattern variant
+    PatIdent,
+    /// Pattern variant
+    PatPath,
     /// Call node
     Call,
     /// DefProc node
