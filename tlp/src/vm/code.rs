@@ -10,6 +10,12 @@ pub enum OpCode {
     /// Operand: two bytes index
     OpConst16,
 
+    // OpLoadGlobal,
+    // OpSetGlobal,
+
+    // OpLoadLocal,
+    // OpSetLocal,
+
     // arithmetic
     OpNegate,
     OpAdd,

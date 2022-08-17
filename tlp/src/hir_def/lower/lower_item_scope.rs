@@ -1,4 +1,6 @@
 //! Lowers module item scope into [`Name`] → `Id<Loc<T>>` maps in [`ItemScope`]
+//!
+//! [`Name`]: crate::hir_def::item::Name
 
 use std::sync::Arc;
 

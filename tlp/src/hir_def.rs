@@ -2,10 +2,13 @@
 //!
 //! # Arenas and ownership
 //!
+//! AST is lowered into [`Arena`] s in item level and expression level:
+//!
 //! - [`ItemList`] owns arenas of definition syntaxes
 //! - [`Body`] owns arenas of expressions and patterns
 //!
-//! Other data structures refere to the data by [`Idx`].
+//! Other data structures refere to the data by [`Idx`] to the arenas. More global [`Idx`] data type
+//! is known as locations (e.g. [`ItemLoc`]).
 //!
 //! # Data flow
 //!
@@ -16,10 +19,16 @@
 //! - Create [`ExprScopeMap`] for [`Body`]
 //!   - For each (nested or root) code block, collect [`ScopeData`]
 //!
+//! [`Arena`]: la_arena::Arena
+//! [`Idx`]: la_arena::Idx
+//! [`ItemLoc`]: crate::hir_def::db::ids::ItemLoc
+//!
 //! [`FileData`]: crate::hir_def::FileData
 //! [`Body`]: crate::hir_def::body::Body
-//! [`ExprScope`]: crate::hir_def::scope::ItemScope
+//!
+//! [`ItemScope`]: crate::hir_def::scope::ItemScope
 //! [`ExprScope`]: crate::hir_def::scope::ExprScope
+//! [`ScopeData`]: crate::hir_def::scope::ScopeData
 //! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
 
 pub mod body;
