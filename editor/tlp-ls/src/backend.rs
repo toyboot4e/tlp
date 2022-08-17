@@ -9,6 +9,8 @@ use self::bufs::{Buffer, BufferSync};
 
 // TODO: cancelable. progress option?
 
+pub const LSP_NAME: &'static str = "tlp-ls";
+
 #[derive(Debug)]
 pub struct Inner {
     client: Client,
@@ -38,13 +40,13 @@ impl Inner {
 impl Inner {
     pub async fn initialize(&self, p: InitializeParams) -> Result<InitializeResult> {
         let meta = ServerInfo {
-            name: "tlp-ls".to_string(),
+            name: LSP_NAME.to_string(),
             version: Some(env!("CARGO_PKG_VERSION").to_string()),
         };
 
         let cap = ServerCapabilities {
             text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                TextDocumentSyncKind::Incremental,
+                TextDocumentSyncKind::INCREMENTAL,
             )),
             completion_provider: Some(CompletionOptions {
                 resolve_provider: Some(false),
@@ -74,7 +76,7 @@ impl Inner {
 
     pub async fn initialized(&self, _: InitializedParams) {
         self.client
-            .log_message(MessageType::Info, "initialized!")
+            .log_message(MessageType::INFO, "initialized!")
             .await;
     }
 
@@ -84,25 +86,25 @@ impl Inner {
 
     pub async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
         self.client
-            .log_message(MessageType::Info, "workspace folders changed!")
+            .log_message(MessageType::INFO, "workspace folders changed!")
             .await;
     }
 
     pub async fn did_change_configuration(&self, _: DidChangeConfigurationParams) {
         self.client
-            .log_message(MessageType::Info, "configuration changed!")
+            .log_message(MessageType::INFO, "configuration changed!")
             .await;
     }
 
     pub async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
         self.client
-            .log_message(MessageType::Info, "watched files have changed!")
+            .log_message(MessageType::INFO, "watched files have changed!")
             .await;
     }
 
     pub async fn did_open(&mut self, p: DidOpenTextDocumentParams) {
         self.client
-            .log_message(MessageType::Info, "file opened!")
+            .log_message(MessageType::INFO, "file opened!")
             .await;
 
         let uri = p.text_document.uri.clone();
@@ -122,7 +124,7 @@ impl Inner {
             None => {
                 self.client
                     .log_message(
-                        MessageType::Info,
+                        MessageType::INFO,
                         format!("unable to find document in cache: {}", uri),
                     )
                     .await;
@@ -133,7 +135,7 @@ impl Inner {
         let text = buf.text_mut();
 
         self.client
-            .log_message(MessageType::Info, "file changed!")
+            .log_message(MessageType::INFO, "file changed!")
             .await;
 
         // TODO: maybe use codespan and codespan_lsp
@@ -162,12 +164,12 @@ impl Inner {
 
     pub async fn did_save(&mut self, p: DidSaveTextDocumentParams) {
         self.client
-            .log_message(MessageType::Info, "file saved!")
+            .log_message(MessageType::INFO, "file saved!")
             .await;
 
         if p.text.is_some() {
             self.client
-                .log_message(MessageType::Info, "TODO: save file with text?")
+                .log_message(MessageType::INFO, "TODO: save file with text?")
                 .await;
         } else {
             self.analyze_uri(&p.text_document.uri).await;
@@ -176,7 +178,7 @@ impl Inner {
 
     pub async fn did_close(&self, _: DidCloseTextDocumentParams) {
         self.client
-            .log_message(MessageType::Info, "file closed!")
+            .log_message(MessageType::INFO, "file closed!")
             .await;
     }
 
@@ -192,7 +194,7 @@ impl Inner {
         p: SemanticTokensParams,
     ) -> Result<Option<SemanticTokensResult>> {
         self.client
-            .log_message(MessageType::Info, "semantic tokens full")
+            .log_message(MessageType::INFO, "semantic tokens full")
             .await;
 
         let uri = &p.text_document.uri;
@@ -206,13 +208,13 @@ impl Inner {
 }
 
 async fn analyze_buf(client: &mut Client, buf: &Buffer) {
-    client.log_message(MessageType::Info, "analyzing..").await;
+    client.log_message(MessageType::INFO, "analyzing..").await;
 
     let diags = self::bufs::analyze(buf);
 
     if diags.is_empty() {
         client
-            .log_message(MessageType::Info, "no diagnostics")
+            .log_message(MessageType::INFO, "no diagnostics")
             .await;
 
         // clear diagnostics
@@ -224,7 +226,7 @@ async fn analyze_buf(client: &mut Client, buf: &Buffer) {
     }
 
     client
-        .log_message(MessageType::Info, "publish diagnostics")
+        .log_message(MessageType::INFO, "publish diagnostics")
         .await;
 
     client

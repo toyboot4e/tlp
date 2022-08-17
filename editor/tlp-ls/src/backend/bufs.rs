@@ -73,10 +73,10 @@ impl BufferSync {
 pub fn analyze(buf: &Buffer) -> Vec<lty::Diagnostic> {
     let mut diags = vec![];
 
-    let (doc, errs) = ast::parse(&buf.text);
+    let ast::ParseResult { doc, errs } = ast::parse(&buf.text);
 
     for e in errs {
-        let severity = lty::DiagnosticSeverity::Error;
+        let severity = lty::DiagnosticSeverity::ERROR;
 
         let range = buf.to_lsp_range(e.span());
 
@@ -99,7 +99,7 @@ pub fn analyze(buf: &Buffer) -> Vec<lty::Diagnostic> {
     doc.validate(&mut errs);
 
     for e in errs {
-        let severity = lty::DiagnosticSeverity::Error;
+        let severity = lty::DiagnosticSeverity::ERROR;
 
         let range = buf.to_lsp_range(e.span());
 

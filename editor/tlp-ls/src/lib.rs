@@ -1,13 +1,10 @@
-/*!
-toylisp LSP implementation (server side)
-*/
+//! ToyLisp language server implementation
 
 mod backend;
 
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
-
 use tower_lsp::{
     jsonrpc::Result,
     lsp_types::*,
@@ -78,5 +75,33 @@ impl LanguageServer for Backend {
 
     async fn completion(&self, p: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.inner.lock().await.completion(p).await
+    }
+
+    async fn document_highlight(
+        &self,
+        params: DocumentHighlightParams,
+    ) -> Result<Option<Vec<DocumentHighlight>>> {
+        panic!("highlight");
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        p: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        self.inner.lock().await.semantic_tokens_full(p).await
+    }
+
+    async fn semantic_tokens_full_delta(
+        &self,
+        params: SemanticTokensDeltaParams,
+    ) -> Result<Option<SemanticTokensFullDeltaResult>> {
+        panic!()
+    }
+
+    async fn semantic_tokens_range(
+        &self,
+        params: SemanticTokensRangeParams,
+    ) -> Result<Option<SemanticTokensRangeResult>> {
+        panic!()
     }
 }
