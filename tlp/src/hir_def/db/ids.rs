@@ -55,6 +55,7 @@ impl<T> salsa::InternKey for Id<T> {
 /// Item / expression index for AST node's pointer
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AstIdx<N: AstNode> {
+    /// NOTE: We can't use `AstPtr<N>` since it's stored in heterogeneous `Arena` in `ItemSourceMap`
     pub raw: Idx<SyntaxNodePtr>,
     _ty: PhantomData<fn() -> N>,
 }
@@ -74,6 +75,12 @@ impl<N: AstNode> AstIdx<N> {
 
 /// Interned [`AstItemLoc<T>`]
 pub type AstItemIdx<T> = Id<AstItemLoc<T>>;
+
+// impl AstItemIdx<ast::DefProc> {
+//     pub fn lookup_loc(&self, db: &dyn db::Def) -> AstItemLoc<ast::DefProc> {
+//         db.lookup_intern_ast_proc_loc(self.clone())
+//     }
+// }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct AstItemLoc<N: AstNode> {

@@ -119,7 +119,7 @@ fn bdfs(node: &cst::SyntaxNode, mut f: impl FnMut(cst::SyntaxNode) -> bool) {
 }
 
 impl ItemSourceMap {
-    /// Converts AST syntax pointer into HIR index
+    /// Maps syntax pointer to stable index
     pub fn ptr_to_idx<N: AstNode + fmt::Debug>(&self, node: &N) -> AstIdx<N> {
         let ptr = SyntaxNodePtr::new(node.syntax());
         let hash = hash_ptr(&ptr);
@@ -141,7 +141,7 @@ impl ItemSourceMap {
         AstIdx::new(raw_idx)
     }
 
-    /// Maps HIR index back to AST syntax pointer
+    /// Maps index back to syntax pointer
     pub fn idx_to_ptr<N: AstNode>(&self, id: AstIdx<N>) -> AstPtr<N> {
         // TODO: read source code
         AstPtr::try_from_raw(self.arena[id.raw].clone()).unwrap()
@@ -184,11 +184,11 @@ impl Body {
 /// Map between HIR expression / pattern `Idx` and AST pointers
 #[derive(Default, Debug, Eq, PartialEq)]
 pub struct BodySourceMap {
-    pub(crate) expr_ast_hir: FxHashMap<AstPtr<ast::Expr>, Idx<Expr>>,
-    pub(crate) expr_hir_ast: ArenaMap<Idx<Expr>, ToAst<ast::Expr>>,
+    pub expr_ast_hir: FxHashMap<AstPtr<ast::Expr>, Idx<Expr>>,
+    pub expr_hir_ast: ArenaMap<Idx<Expr>, ToAst<ast::Expr>>,
 
-    pub(crate) pat_ast_hir: FxHashMap<AstPtr<ast::Pat>, Idx<Pat>>,
-    pub(crate) pat_hir_ast: ArenaMap<Idx<Pat>, ToAst<ast::Pat>>,
+    pub pat_ast_hir: FxHashMap<AstPtr<ast::Pat>, Idx<Pat>>,
+    pub pat_hir_ast: ArenaMap<Idx<Pat>, ToAst<ast::Pat>>,
     // /// Diagnostics accumulated during body lowering. These contain `AstPtr`s and so are stored in
     // /// the source map (since they're just as volatile).
     // pub(crate) diagnostics: Vec<BodyDiagnostic>,

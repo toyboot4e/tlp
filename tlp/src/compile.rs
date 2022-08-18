@@ -11,6 +11,7 @@ use crate::{
         expr::{self, Expr},
         item::{self, Name},
     },
+    syntax::{ast, ptr::AstPtr},
     vm::code::{Chunk, OpCode},
 };
 
@@ -41,17 +42,18 @@ impl Compiler {
     }
 
     #[allow(unused)]
-    fn compile_proc(&mut self, db: &DB, proc_id: Id<HirItemLoc<item::DefProc>>) {
-        let body = db.proc_body(proc_id);
-        let proc = self::get_proc(db, proc_id);
+    fn compile_proc(&mut self, db: &DB, proc_loc_id: Id<HirItemLoc<item::DefProc>>) {
+        let (body, body_source_map) = db.proc_body_with_source_map(proc_loc_id);
 
-        let ast_idx = proc.ast_idx.clone();
-        let item_source_map = db.item_source_map(proc_id.lookup_loc(db).file);
-        let proc_ast = item_source_map.idx_to_ptr(ast_idx);
+        // Use AST to walk HIR expression in the occurence order
+        let ast_proc = self::ast_proc(db, proc_loc_id);
 
-        // for ast_expr in proc_ast.block().exprs() {
-        //     // TODO: convert AST expression into HIR expression and compile
-        // }
+        for ast_expr in ast_proc.block().exprs() {
+            let ast_ptr = AstPtr::new(&ast_expr);
+            let hir_expr_idx = body_source_map.expr_ast_hir[&ast_ptr];
+            let hir_expr = &body.exprs[hir_expr_idx];
+            self.compile_expr(db, &body, hir_expr);
+        }
     }
 
     #[allow(unused)]
@@ -125,9 +127,24 @@ fn to_oper(s: &str) -> Option<OpCode> {
     })
 }
 
-fn get_proc(db: &DB, proc_loc_id: Id<HirItemLoc<item::DefProc>>) -> item::DefProc {
+fn ast_proc(db: &DB, proc_loc_id: Id<HirItemLoc<item::DefProc>>) -> ast::DefProc {
     let proc_loc = proc_loc_id.lookup_loc(db);
+
     let items = db.file_item_list(proc_loc.file);
-    let proc = &items.procs[proc_loc.idx];
-    proc.clone()
+    let hir_proc = &items.procs[proc_loc.idx];
+
+    let item_source_map = db.item_source_map(proc_loc_id.lookup_loc(db).file);
+
+    let ast_proc = {
+        let parse = db.parse(proc_loc.file);
+        let root_syntax = parse.doc.syntax();
+
+        let ast_idx = hir_proc.ast_idx.clone();
+
+        let ast_proc_ptr = item_source_map.idx_to_ptr(ast_idx);
+
+        ast_proc_ptr.to_node(&root_syntax)
+    };
+
+    ast_proc
 }
