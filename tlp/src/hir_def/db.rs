@@ -77,13 +77,13 @@ pub trait Intern: salsa::Database {
     // AST locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_ast_block_loc(&self, loc: ids::AstLoc<ast::Block>) -> AstId<ast::Block>;
+    fn intern_ast_block_loc(&self, loc: ids::AstExprLoc<ast::Block>) -> AstExprIdx<ast::Block>;
 
     // --------------------------------------------------------------------------------
     // Item locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_item_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> ItemId<item::DefProc>;
+    fn intern_item_proc_loc(&self, proc: HirItemLoc<item::DefProc>) -> HirItemId<item::DefProc>;
 
     // --------------------------------------------------------------------------------
     // Path
@@ -113,16 +113,19 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::lower_proc_body_query)]
-    fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
+    fn proc_body(&self, proc_id: Id<HirItemLoc<item::DefProc>>) -> Arc<Body>;
 
     #[salsa::invoke(lower::lower_proc_body_with_source_map_query)]
     fn proc_body_with_source_map(
         &self,
-        proc_id: Id<ItemLoc<item::DefProc>>,
+        proc_id: Id<HirItemLoc<item::DefProc>>,
     ) -> (Arc<Body>, Arc<BodySourceMap>);
 
     #[salsa::invoke(scope::proc_expr_scope_query)]
-    fn proc_expr_scope_map(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeMap>;
+    fn proc_expr_scope_map(
+        &self,
+        proc_id: Id<HirItemLoc<item::DefProc>>,
+    ) -> Arc<scope::ExprScopeMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::AstIdMap,
+        body::ItemSourceMap,
         db::{self, vfs::*},
         item, ItemList,
     },

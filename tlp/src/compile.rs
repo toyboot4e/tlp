@@ -41,7 +41,7 @@ impl Compiler {
     }
 
     #[allow(unused)]
-    fn compile_proc(&mut self, db: &DB, proc_id: Id<ItemLoc<item::DefProc>>) {
+    fn compile_proc(&mut self, db: &DB, proc_id: Id<HirItemLoc<item::DefProc>>) {
         let body = db.proc_body(proc_id);
         let proc = self::get_proc(db, proc_id);
 
@@ -108,7 +108,7 @@ fn find_procedure_in_crate(
     db: &dyn Def,
     krate: vfs::VfsFileId,
     name: &Name,
-) -> Id<ItemLoc<item::DefProc>> {
+) -> Id<HirItemLoc<item::DefProc>> {
     let crate_data = db.crate_data(krate);
     let crate_file_data = crate_data.root_file_data();
     let item_scope = &crate_file_data.item_scope;
@@ -126,7 +126,7 @@ fn to_oper(s: &str) -> Option<OpCode> {
     })
 }
 
-fn get_proc(db: &DB, proc_loc_id: Id<ItemLoc<item::DefProc>>) -> item::DefProc {
+fn get_proc(db: &DB, proc_loc_id: Id<HirItemLoc<item::DefProc>>) -> item::DefProc {
     let proc_loc = proc_loc_id.lookup_loc(db);
     let items = db.file_item_list(proc_loc.file);
     let proc = &items.procs[proc_loc.idx];

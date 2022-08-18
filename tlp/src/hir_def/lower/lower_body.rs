@@ -17,13 +17,16 @@ use crate::{
     syntax::{ast, ptr::AstPtr},
 };
 
-pub fn lower_proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body> {
+pub fn lower_proc_body_query(
+    db: &dyn db::Def,
+    proc_id: Id<HirItemLoc<item::DefProc>>,
+) -> Arc<Body> {
     db.proc_body_with_source_map(proc_id).0
 }
 
 pub fn lower_proc_body_with_source_map_query(
     db: &dyn db::Def,
-    proc_id: Id<ItemLoc<item::DefProc>>,
+    proc_id: Id<HirItemLoc<item::DefProc>>,
 ) -> (Arc<Body>, Arc<BodySourceMap>) {
     // body = block expr
     let dummy = Idx::from_raw(u32::MAX.into());
@@ -81,7 +84,7 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_block(&mut self, ast_block: ast::Block) -> Idx<Expr> {
-        let block_loc = AstLoc {
+        let block_loc = AstExprLoc {
             file: self.file_id,
             idx: self.ast_id_map.ast_to_idx(&ast_block.clone().into()),
         };
