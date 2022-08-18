@@ -8,11 +8,8 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        body::{Body, BodySourceMap, SyntheticSyntax},
-        db::{
-            self,
-            ids::{Id, ItemLoc},
-        },
+        body::{AstIdMap, Body, BodySourceMap, SyntheticSyntax},
+        db::{self, ids::*, vfs::VfsFileId},
         expr::{self, Expr},
         item::{self, Name},
         pat,
@@ -29,10 +26,6 @@ pub fn lower_proc_body_with_source_map_query(
     proc_id: Id<ItemLoc<item::DefProc>>,
 ) -> (Arc<Body>, Arc<BodySourceMap>) {
     // body = block expr
-    let proc_loc = db.lookup_intern_proc_loc(proc_id);
-    let tree = db.file_item_list(proc_loc.file);
-    let proc = &tree[proc_loc.idx];
-
     let dummy = Idx::from_raw(u32::MAX.into());
     let body = Body {
         root_block: dummy,
@@ -40,19 +33,37 @@ pub fn lower_proc_body_with_source_map_query(
         pats: Default::default(),
     };
 
+    let (file_id, ast_id_map, proc_ast) = {
+        let proc_loc = db.lookup_intern_item_proc_loc(proc_id);
+        let tree = db.file_item_list(proc_loc.file);
+        let proc = &tree[proc_loc.idx];
+
+        let ast_id_map = db.ast_id_map(proc_loc.file);
+        let proc_ast_ptr = ast_id_map.idx_to_ast(proc.ast_idx.clone());
+        let parse = db.parse(proc_loc.file);
+        let root_syntax = parse.doc.syntax();
+        let proc_ast = proc_ast_ptr.to_node(&root_syntax);
+
+        (proc_loc.file, ast_id_map, proc_ast)
+    };
+
     let (body, map) = LowerExpr {
         db,
         body,
-        map: Default::default(),
+        source_map: Default::default(),
+        file_id,
+        ast_id_map,
     }
-    .lower_proc(proc.ast.clone());
+    .lower_proc(proc_ast);
     (Arc::new(body), Arc::new(map))
 }
 
 struct LowerExpr<'a> {
     db: &'a dyn db::Def,
     body: Body,
-    map: BodySourceMap,
+    source_map: BodySourceMap,
+    file_id: VfsFileId,
+    ast_id_map: Arc<AstIdMap>,
 }
 
 impl<'a> LowerExpr<'a> {
@@ -62,7 +73,7 @@ impl<'a> LowerExpr<'a> {
         let block = proc.block();
         self.body.root_block = self.lower_block(block);
 
-        (self.body, self.map)
+        (self.body, self.source_map)
     }
 
     fn lower_proc_params(&mut self, _proc: ast::DefProc) {
@@ -70,15 +81,28 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_block(&mut self, ast_block: ast::Block) -> Idx<Expr> {
-        let mut children = Vec::new();
+        let block_loc = AstLoc {
+            file: self.file_id,
+            idx: self.ast_id_map.ast_to_idx(&ast_block.clone().into()),
+        };
 
-        for ast_expr in ast_block.exprs() {
-            let hir_expr = self.lower_ast_expr(ast_expr);
-            children.push(hir_expr);
-        }
+        let block_id = self.db.intern_ast_block_loc(block_loc);
 
-        let children = children.into_boxed_slice();
-        let hir_block = expr::Block { children };
+        let children = {
+            let mut children = Vec::new();
+
+            for ast_expr in ast_block.exprs() {
+                let hir_expr = self.lower_ast_expr(ast_expr);
+                children.push(hir_expr);
+            }
+
+            children.into_boxed_slice()
+        };
+
+        let hir_block = expr::Block {
+            id: block_id,
+            children,
+        };
 
         let ast_ptr = AstPtr::new(&ast_block.into());
         self.alloc_expr(expr::Expr::Block(hir_block), ast_ptr)
@@ -149,8 +173,8 @@ impl<'a> LowerExpr<'a> {
     fn alloc_pat(&mut self, pat: pat::Pat, ptr: AstPtr<ast::Pat>) -> Idx<pat::Pat> {
         let idx = self.body.pats.alloc(pat);
 
-        self.map.pat_ast_hir.insert(ptr.clone(), idx);
-        self.map.pat_hir_ast.insert(idx, Ok(ptr));
+        self.source_map.pat_ast_hir.insert(ptr.clone(), idx);
+        self.source_map.pat_hir_ast.insert(idx, Ok(ptr));
 
         idx
     }
@@ -158,7 +182,9 @@ impl<'a> LowerExpr<'a> {
     fn alloc_missing_pat(&mut self) -> Idx<pat::Pat> {
         let idx = self.body.pats.alloc(pat::Pat::Missing);
 
-        self.map.pat_hir_ast.insert(idx, Err(SyntheticSyntax));
+        self.source_map
+            .pat_hir_ast
+            .insert(idx, Err(SyntheticSyntax));
 
         idx
     }
@@ -166,8 +192,8 @@ impl<'a> LowerExpr<'a> {
     fn alloc_expr(&mut self, expr: Expr, ptr: AstPtr<ast::Expr>) -> Idx<Expr> {
         let idx = self.body.exprs.alloc(expr);
 
-        self.map.expr_ast_hir.insert(ptr.clone(), idx);
-        self.map.expr_hir_ast.insert(idx, Ok(ptr));
+        self.source_map.expr_ast_hir.insert(ptr.clone(), idx);
+        self.source_map.expr_hir_ast.insert(idx, Ok(ptr));
 
         idx
     }
@@ -175,7 +201,9 @@ impl<'a> LowerExpr<'a> {
     fn alloc_missing_expr(&mut self) -> Idx<expr::Expr> {
         let idx = self.body.exprs.alloc(expr::Expr::Missing);
 
-        self.map.expr_hir_ast.insert(idx, Err(SyntheticSyntax));
+        self.source_map
+            .expr_hir_ast
+            .insert(idx, Err(SyntheticSyntax));
 
         idx
     }

@@ -46,11 +46,13 @@ impl Compiler {
         let proc = self::get_proc(db, proc_id);
 
         // TODO: use source map pattern
-        let ast = proc.ast.clone();
+        let ast_idx = proc.ast_idx.clone();
+        let ast_id_map = db.ast_id_map(proc_id.lookup_loc(db).file);
+        let ast = ast_id_map.idx_to_ast(ast_idx);
 
-        for expr in ast.block().exprs() {
-            // TODO: convert AST expression into HIR expression and compile
-        }
+        // for expr in ast.block().exprs() {
+        //     // TODO: convert AST expression into HIR expression and compile
+        // }
     }
 
     #[allow(unused)]
@@ -125,7 +127,7 @@ fn to_oper(s: &str) -> Option<OpCode> {
 }
 
 fn get_proc(db: &DB, proc_loc_id: Id<ItemLoc<item::DefProc>>) -> item::DefProc {
-    let proc_loc = db.lookup_intern_proc_loc(proc_loc_id);
+    let proc_loc = proc_loc_id.lookup_loc(db);
     let items = db.file_item_list(proc_loc.file);
     let proc = &items.procs[proc_loc.idx];
     proc.clone()

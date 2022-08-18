@@ -5,9 +5,15 @@ use std::marker::PhantomData;
 use derivative::Derivative;
 use la_arena::Idx;
 
-use crate::hir_def::{
-    db::{self, vfs::VfsFileId},
-    item,
+use crate::{
+    hir_def::{
+        db::{self, vfs::VfsFileId},
+        item,
+    },
+    syntax::{
+        ast::{self, AstNode},
+        ptr::SyntaxNodePtr,
+    },
 };
 
 /// Interned ID to a location
@@ -42,6 +48,38 @@ impl<T> salsa::InternKey for Id<T> {
     }
 }
 
+// --------------------------------------------------------------------------------
+// AST
+// --------------------------------------------------------------------------------
+
+pub type AstId<T> = Id<AstLoc<T>>;
+
+impl AstId<ast::Block> {
+    pub fn lookup_loc(&self, db: &dyn db::Def) -> AstLoc<ast::Block> {
+        db.lookup_intern_ast_block_loc(*self)
+    }
+}
+
+/// AST syntax location (file ID + item tree arena index)
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct AstLoc<N: AstNode> {
+    pub file: VfsFileId,
+    pub idx: AstIdx<N>,
+}
+
+/// New type of `Idx<SyntaxNodePtr>` with `N: AstNode` typed
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AstIdx<N: AstNode> {
+    pub raw: Idx<SyntaxNodePtr>,
+    _ty: PhantomData<fn() -> N>,
+}
+
+impl<N: AstNode> AstIdx<N> {
+    pub fn new(idx: Idx<SyntaxNodePtr>) -> Self {
+        Self {
+            raw: idx,
+            _ty: PhantomData,
+        }
     }
 }
 

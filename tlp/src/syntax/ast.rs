@@ -211,7 +211,7 @@ impl Document {
         self.syn.children().filter_map(Item::cast_node)
     }
 
-    pub fn syntax_node(&self) -> &SyntaxNode {
+    pub fn syntax(&self) -> &SyntaxNode {
         &self.syn
     }
 }
