@@ -8,7 +8,7 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        body::{AstIdMap, Body, BodySourceMap, SyntheticSyntax},
+        body::{Body, BodySourceMap, ItemSourceMap, SyntheticSyntax},
         db::{self, ids::*, vfs::VfsFileId},
         expr::{self, Expr},
         item::{self, Name},
@@ -63,7 +63,7 @@ struct LowerExpr<'a> {
     body: Body,
     source_map: BodySourceMap,
     file_id: VfsFileId,
-    ast_id_map: Arc<AstIdMap>,
+    ast_id_map: Arc<ItemSourceMap>,
 }
 
 impl<'a> LowerExpr<'a> {

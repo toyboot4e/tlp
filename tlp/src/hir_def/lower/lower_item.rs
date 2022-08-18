@@ -20,11 +20,11 @@ pub fn collect_file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<It
 
 struct ItemListCollect {
     tree: ItemList,
-    ast_id_map: Arc<AstIdMap>,
+    ast_id_map: Arc<ItemSourceMap>,
 }
 
 impl ItemListCollect {
-    fn run(file: VfsFileId, ast: ast::Document, ast_id_map: Arc<AstIdMap>) -> ItemList {
+    fn run(file: VfsFileId, ast: ast::Document, ast_id_map: Arc<ItemSourceMap>) -> ItemList {
         let mut me = Self {
             tree: ItemList::new(file),
             ast_id_map,
