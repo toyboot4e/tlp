@@ -1,4 +1,13 @@
-//! Item definition body and code blocks lowered from AST
+//! Item definition body (expressions and patterns) lowered from AST
+//!
+//! # Incremental compilation
+//!
+//! HIR uses positional index instead of source syntax location. It works great on source change
+//! that do not reorder items/expressions.
+//!
+//! # Source map pattern
+//!
+//! Those data structure that provide the positional indexes are called "source maps".
 
 use std::{
     fmt,
@@ -21,26 +30,26 @@ use crate::{
     },
 };
 
-/// Lowers AST syntax locations into stable IDs using [`Arena`]
+/// Map between AST item locations and HIR stable indices
 #[derive(Debug, Clone, Default)]
-pub struct AstIdMap {
+pub struct ItemSourceMap {
     arena: Arena<SyntaxNodePtr>,
-    // hashbrown unleashes unstable features in std hashmap
+    // `hashbrown` unleashes unstable features in std hashmap
     record: hashbrown::HashMap<Idx<SyntaxNodePtr>, (), ()>,
 }
 
-impl PartialEq for AstIdMap {
+impl PartialEq for ItemSourceMap {
     fn eq(&self, other: &Self) -> bool {
         self.arena == other.arena
     }
 }
 
-impl Eq for AstIdMap {}
+impl Eq for ItemSourceMap {}
 
-impl AstIdMap {
-    pub(crate) fn from_source(node: &cst::SyntaxNode) -> AstIdMap {
+impl ItemSourceMap {
+    pub(crate) fn from_source(node: &cst::SyntaxNode) -> ItemSourceMap {
         assert!(node.parent().is_none());
-        let mut res = AstIdMap::default();
+        let mut res = ItemSourceMap::default();
 
         // By walking the tree in breadth-first order we make sure that parents
         // get lower ids then children. That is, adding a new child does not
@@ -109,8 +118,9 @@ fn bdfs(node: &cst::SyntaxNode, mut f: impl FnMut(cst::SyntaxNode) -> bool) {
     }
 }
 
-impl AstIdMap {
-    pub fn ast_to_idx<N: AstNode + fmt::Debug>(&self, node: &N) -> AstIdx<N> {
+impl ItemSourceMap {
+    /// Maps syntax pointer to stable index
+    pub fn ptr_to_idx<N: AstNode + fmt::Debug>(&self, node: &N) -> AstIdx<N> {
         let ptr = SyntaxNodePtr::new(node.syntax());
         let hash = hash_ptr(&ptr);
 
@@ -121,8 +131,9 @@ impl AstIdMap {
         {
             Some((&idx, &())) => idx,
             None => panic!(
-                "Can't find {:?} in AstIdMap:\n{:?}",
+                "Can't find {:?} in {}:\n{:?}",
                 node,
+                std::any::type_name::<Self>(),
                 self.arena.iter().map(|(_id, i)| i).collect::<Vec<_>>(),
             ),
         };
@@ -130,7 +141,8 @@ impl AstIdMap {
         AstIdx::new(raw_idx)
     }
 
-    pub fn idx_to_ast<N: AstNode>(&self, id: AstIdx<N>) -> AstPtr<N> {
+    /// Maps index back to syntax pointer
+    pub fn idx_to_ptr<N: AstNode>(&self, id: AstIdx<N>) -> AstPtr<N> {
         // TODO: read source code
         AstPtr::try_from_raw(self.arena[id.raw].clone()).unwrap()
     }
@@ -169,19 +181,14 @@ impl Body {
     }
 }
 
-/// Map between HIR `Idx` and AST pointers
-///
-/// # Incremental compilation
-///
-/// HIR uses positional index instead of source syntax location. It works great on source change
-/// that does not change item/expression order.
+/// Map between HIR expression / pattern `Idx` and AST pointers
 #[derive(Default, Debug, Eq, PartialEq)]
 pub struct BodySourceMap {
-    pub(crate) expr_ast_hir: FxHashMap<AstPtr<ast::Expr>, Idx<Expr>>,
-    pub(crate) expr_hir_ast: ArenaMap<Idx<Expr>, ToAst<ast::Expr>>,
+    pub expr_ast_hir: FxHashMap<AstPtr<ast::Expr>, Idx<Expr>>,
+    pub expr_hir_ast: ArenaMap<Idx<Expr>, ToAst<ast::Expr>>,
 
-    pub(crate) pat_ast_hir: FxHashMap<AstPtr<ast::Pat>, Idx<Pat>>,
-    pub(crate) pat_hir_ast: ArenaMap<Idx<Pat>, ToAst<ast::Pat>>,
+    pub pat_ast_hir: FxHashMap<AstPtr<ast::Pat>, Idx<Pat>>,
+    pub pat_hir_ast: ArenaMap<Idx<Pat>, ToAst<ast::Pat>>,
     // /// Diagnostics accumulated during body lowering. These contain `AstPtr`s and so are stored in
     // /// the source map (since they're just as volatile).
     // pub(crate) diagnostics: Vec<BodyDiagnostic>,

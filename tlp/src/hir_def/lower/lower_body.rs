@@ -8,7 +8,7 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        body::{AstIdMap, Body, BodySourceMap, SyntheticSyntax},
+        body::{Body, BodySourceMap, ItemSourceMap, SyntheticSyntax},
         db::{self, ids::*, vfs::VfsFileId},
         expr::{self, Expr},
         item::{self, Name},
@@ -17,13 +17,16 @@ use crate::{
     syntax::{ast, ptr::AstPtr},
 };
 
-pub fn lower_proc_body_query(db: &dyn db::Def, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body> {
+pub fn lower_proc_body_query(
+    db: &dyn db::Def,
+    proc_id: Id<HirItemLoc<item::DefProc>>,
+) -> Arc<Body> {
     db.proc_body_with_source_map(proc_id).0
 }
 
 pub fn lower_proc_body_with_source_map_query(
     db: &dyn db::Def,
-    proc_id: Id<ItemLoc<item::DefProc>>,
+    proc_id: Id<HirItemLoc<item::DefProc>>,
 ) -> (Arc<Body>, Arc<BodySourceMap>) {
     // body = block expr
     let dummy = Idx::from_raw(u32::MAX.into());
@@ -33,18 +36,18 @@ pub fn lower_proc_body_with_source_map_query(
         pats: Default::default(),
     };
 
-    let (file_id, ast_id_map, proc_ast) = {
+    let (file_id, item_source_map, proc_ast) = {
         let proc_loc = db.lookup_intern_item_proc_loc(proc_id);
         let tree = db.file_item_list(proc_loc.file);
         let proc = &tree[proc_loc.idx];
 
-        let ast_id_map = db.ast_id_map(proc_loc.file);
-        let proc_ast_ptr = ast_id_map.idx_to_ast(proc.ast_idx.clone());
+        let item_source_map = db.item_source_map(proc_loc.file);
+        let proc_ast_ptr = item_source_map.idx_to_ptr(proc.ast_idx.clone());
         let parse = db.parse(proc_loc.file);
         let root_syntax = parse.doc.syntax();
         let proc_ast = proc_ast_ptr.to_node(&root_syntax);
 
-        (proc_loc.file, ast_id_map, proc_ast)
+        (proc_loc.file, item_source_map, proc_ast)
     };
 
     let (body, map) = LowerExpr {
@@ -52,7 +55,7 @@ pub fn lower_proc_body_with_source_map_query(
         body,
         source_map: Default::default(),
         file_id,
-        ast_id_map,
+        item_source_map,
     }
     .lower_proc(proc_ast);
     (Arc::new(body), Arc::new(map))
@@ -63,7 +66,7 @@ struct LowerExpr<'a> {
     body: Body,
     source_map: BodySourceMap,
     file_id: VfsFileId,
-    ast_id_map: Arc<AstIdMap>,
+    item_source_map: Arc<ItemSourceMap>,
 }
 
 impl<'a> LowerExpr<'a> {
@@ -81,9 +84,9 @@ impl<'a> LowerExpr<'a> {
     }
 
     fn lower_block(&mut self, ast_block: ast::Block) -> Idx<Expr> {
-        let block_loc = AstLoc {
+        let block_loc = AstExprLoc {
             file: self.file_id,
-            idx: self.ast_id_map.ast_to_idx(&ast_block.clone().into()),
+            idx: self.item_source_map.ptr_to_idx(&ast_block.clone().into()),
         };
 
         let block_id = self.db.intern_ast_block_loc(block_loc);

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::AstIdMap,
+        body::ItemSourceMap,
         db::{self, vfs::*},
         item, ItemList,
     },
@@ -14,20 +14,20 @@ use crate::{
 /// Collects declarations and imports; they're interned, but as-is
 pub fn collect_file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<ItemList> {
     let ast = db.parse(file.clone()).doc.clone();
-    let ast_id_map = db.ast_id_map(file);
-    Arc::new(ItemListCollect::run(file, ast, ast_id_map))
+    let item_source_map = db.item_source_map(file);
+    Arc::new(ItemListCollect::run(file, ast, item_source_map))
 }
 
 struct ItemListCollect {
     tree: ItemList,
-    ast_id_map: Arc<AstIdMap>,
+    item_source_map: Arc<ItemSourceMap>,
 }
 
 impl ItemListCollect {
-    fn run(file: VfsFileId, ast: ast::Document, ast_id_map: Arc<AstIdMap>) -> ItemList {
+    fn run(file: VfsFileId, ast: ast::Document, ast_id_map: Arc<ItemSourceMap>) -> ItemList {
         let mut me = Self {
             tree: ItemList::new(file),
-            ast_id_map,
+            item_source_map: ast_id_map,
         };
 
         me.collect(ast.item_nodes());
@@ -48,7 +48,7 @@ impl ItemListCollect {
     }
 
     fn lower_proc(&mut self, ast: ast::DefProc) -> item::DefProc {
-        let ast_id = self.ast_id_map.ast_to_idx(&ast);
+        let ast_id = self.item_source_map.ptr_to_idx(&ast);
         item::DefProc::from_ast(ast, ast_id)
     }
 }

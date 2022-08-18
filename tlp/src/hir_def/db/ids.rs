@@ -49,27 +49,13 @@ impl<T> salsa::InternKey for Id<T> {
 }
 
 // --------------------------------------------------------------------------------
-// AST
+// AST (common)
 // --------------------------------------------------------------------------------
 
-pub type AstId<T> = Id<AstLoc<T>>;
-
-impl AstId<ast::Block> {
-    pub fn lookup_loc(&self, db: &dyn db::Def) -> AstLoc<ast::Block> {
-        db.lookup_intern_ast_block_loc(*self)
-    }
-}
-
-/// AST syntax location (file ID + item tree arena index)
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct AstLoc<N: AstNode> {
-    pub file: VfsFileId,
-    pub idx: AstIdx<N>,
-}
-
-/// New type of `Idx<SyntaxNodePtr>` with `N: AstNode` typed
+/// Item / expression index for AST node's pointer
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AstIdx<N: AstNode> {
+    /// NOTE: We can't use `AstPtr<N>` since it's stored in heterogeneous `Arena` in `ItemSourceMap`
     pub raw: Idx<SyntaxNodePtr>,
     _ty: PhantomData<fn() -> N>,
 }
@@ -84,20 +70,61 @@ impl<N: AstNode> AstIdx<N> {
 }
 
 // --------------------------------------------------------------------------------
-// Item
+// AST item (`ItemSourceMap` index)
 // --------------------------------------------------------------------------------
 
-pub type ItemId<T> = Id<ItemLoc<T>>;
+/// Interned [`AstItemLoc<T>`]
+pub type AstItemIdx<T> = Id<AstItemLoc<T>>;
 
-impl ItemId<item::DefProc> {
-    pub fn lookup_loc(&self, db: &dyn db::Def) -> ItemLoc<item::DefProc> {
+// impl AstItemIdx<ast::DefProc> {
+//     pub fn lookup_loc(&self, db: &dyn db::Def) -> AstItemLoc<ast::DefProc> {
+//         db.lookup_intern_ast_proc_loc(self.clone())
+//     }
+// }
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct AstItemLoc<N: AstNode> {
+    pub file: VfsFileId,
+    pub idx: AstIdx<N>,
+}
+
+// --------------------------------------------------------------------------------
+// AST expression ID (`BodySourceMap` index)
+// --------------------------------------------------------------------------------
+
+/// Interned [`AstExprLoc<T>`]
+pub type AstExprIdx<T> = Id<AstExprLoc<T>>;
+
+impl AstExprIdx<ast::Block> {
+    pub fn lookup_loc(&self, db: &dyn db::Def) -> AstExprLoc<ast::Block> {
+        db.lookup_intern_ast_block_loc(*self)
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct AstExprLoc<N: AstNode> {
+    pub file: VfsFileId,
+    pub idx: AstIdx<N>,
+}
+
+// --------------------------------------------------------------------------------
+// HIR item ID (`ItemList` index)
+// --------------------------------------------------------------------------------
+
+// Item AST are lowered into `ItemList` and given (rather) stable Idx.
+
+/// Interned [`ItemLoc<T>`]
+pub type HirItemId<T> = Id<HirItemLoc<T>>;
+
+impl HirItemId<item::DefProc> {
+    pub fn lookup_loc(&self, db: &dyn db::Def) -> HirItemLoc<item::DefProc> {
         db.lookup_intern_item_proc_loc(*self)
     }
 }
 
 /// HIR item location (file ID + item tree arena index)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemLoc<T> {
+pub struct HirItemLoc<T> {
     /// Index to (TODO: what?)
     pub file: VfsFileId,
     /// Index to [`ItemList`](crate::hir_def::scope::ItemList)

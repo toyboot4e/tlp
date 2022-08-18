@@ -9,7 +9,7 @@ use crate::hir_def::{
     body::Body,
     db::{
         self,
-        ids::{Id, ItemLoc},
+        ids::{HirItemLoc, Id},
         vfs::VfsFileId,
     },
     expr::{self, Expr},
@@ -54,18 +54,18 @@ impl ItemList {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ItemScope {
     // declarations
-    procs: FxHashMap<Name, Id<ItemLoc<item::DefProc>>>,
+    procs: FxHashMap<Name, Id<HirItemLoc<item::DefProc>>>,
 }
 
 impl ItemScope {
-    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<ItemLoc<item::DefProc>>) {
+    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<HirItemLoc<item::DefProc>>) {
         // TOOD: consider upcasting or not
         // let id = DefId { loc_id: proc };
         // self.procs.insert(name, AnyDefId::from(id));
         self.procs.insert(name, proc);
     }
 
-    pub fn lookup_proc(&self, name: &Name) -> Option<Id<ItemLoc<item::DefProc>>> {
+    pub fn lookup_proc(&self, name: &Name) -> Option<Id<HirItemLoc<item::DefProc>>> {
         self.procs.get(name).cloned()
     }
 }
@@ -190,7 +190,7 @@ pub struct ScopeEntry {
 
 pub(crate) fn proc_expr_scope_query(
     db: &dyn db::Def,
-    proc_id: Id<ItemLoc<item::DefProc>>,
+    proc_id: Id<HirItemLoc<item::DefProc>>,
 ) -> Arc<ExprScopeMap> {
     let body = db.proc_body(proc_id);
     self::body_expr_scope(db, &body)

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::{AstIdMap, Body, BodySourceMap},
+        body::{Body, BodySourceMap, ItemSourceMap},
         expr, item, lower, scope, CrateData, ItemList,
     },
     syntax::ast::{self, ParseResult},
@@ -77,13 +77,13 @@ pub trait Intern: salsa::Database {
     // AST locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_ast_block_loc(&self, loc: ids::AstLoc<ast::Block>) -> AstId<ast::Block>;
+    fn intern_ast_block_loc(&self, loc: ids::AstExprLoc<ast::Block>) -> AstExprIdx<ast::Block>;
 
     // --------------------------------------------------------------------------------
     // Item locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_item_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> ItemId<item::DefProc>;
+    fn intern_item_proc_loc(&self, proc: HirItemLoc<item::DefProc>) -> HirItemId<item::DefProc>;
 
     // --------------------------------------------------------------------------------
     // Path
@@ -100,7 +100,7 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // File syntax
     // --------------------------------------------------------------------------------
 
-    fn ast_id_map(&self, file_id: VfsFileId) -> Arc<AstIdMap>;
+    fn item_source_map(&self, file_id: VfsFileId) -> Arc<ItemSourceMap>;
 
     #[salsa::invoke(lower::lower_crate_data_query)]
     fn crate_data(&self, krate: VfsFileId) -> Arc<CrateData>;
@@ -113,24 +113,27 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::lower_proc_body_query)]
-    fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
+    fn proc_body(&self, proc_id: Id<HirItemLoc<item::DefProc>>) -> Arc<Body>;
 
     #[salsa::invoke(lower::lower_proc_body_with_source_map_query)]
     fn proc_body_with_source_map(
         &self,
-        proc_id: Id<ItemLoc<item::DefProc>>,
+        proc_id: Id<HirItemLoc<item::DefProc>>,
     ) -> (Arc<Body>, Arc<BodySourceMap>);
 
     #[salsa::invoke(scope::proc_expr_scope_query)]
-    fn proc_expr_scope_map(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeMap>;
+    fn proc_expr_scope_map(
+        &self,
+        proc_id: Id<HirItemLoc<item::DefProc>>,
+    ) -> Arc<scope::ExprScopeMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;
 }
 
-fn ast_id_map(db: &dyn Def, file_id: VfsFileId) -> Arc<AstIdMap> {
+fn item_source_map(db: &dyn Def, file_id: VfsFileId) -> Arc<ItemSourceMap> {
     let parse = db.parse(file_id);
-    let map = AstIdMap::from_source(&parse.doc.syntax());
+    let map = ItemSourceMap::from_source(&parse.doc.syntax());
 
     Arc::new(map)
 }

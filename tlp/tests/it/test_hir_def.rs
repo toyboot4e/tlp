@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tlp::hir_def::{
     db::{
         self,
-        ids::{Id, ItemLoc},
+        ids::{HirItemLoc, Id},
         vfs, *,
     },
     expr::{self, Expr},
@@ -186,7 +186,7 @@ fn find_procedure_in_crate(
     db: &dyn db::Def,
     krate: vfs::VfsFileId,
     name: &Name,
-) -> Id<ItemLoc<item::DefProc>> {
+) -> Id<HirItemLoc<item::DefProc>> {
     let crate_data = db.crate_data(krate);
     let crate_file_data = crate_data.root_file_data();
     let item_scope = &crate_file_data.item_scope;
