@@ -5,8 +5,9 @@ use tower_lsp::lsp_types as lty;
 // use codespan_reporting as cr;
 
 use tlp::syntax::{
-    ast::{self, validate::Validate},
+    ast,
     span::{ByteLocation, ByteSpan, TextPos},
+    validate::Validate,
 };
 
 #[derive(Debug, Clone)]

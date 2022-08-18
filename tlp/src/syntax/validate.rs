@@ -63,6 +63,7 @@ impl Validate for Expr {
             Expr::Literal(lit) => {
                 lit.validate(errs);
             }
+            Expr::Block(_block) => {}
         }
     }
 }

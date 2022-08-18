@@ -6,7 +6,7 @@
 
 use smol_str::SmolStr;
 
-use crate::syntax::ast;
+use crate::{hir_def::db::ids::AstIdx, syntax::ast};
 
 /// Upcast of module item IDs
 pub enum ItemId {
@@ -54,12 +54,11 @@ impl Param {
 pub struct DefProc {
     pub(crate) name: Option<Name>,
     pub(crate) params: ProcParams,
-    // TODO: remove AST completely using source map pattern
-    pub ast: ast::DefProc,
+    pub ast_idx: AstIdx<ast::DefProc>,
 }
 
 impl DefProc {
-    pub fn from_ast(ast: ast::DefProc) -> Self {
+    pub fn from_ast(ast: ast::DefProc, ast_idx: AstIdx<ast::DefProc>) -> Self {
         let name = ast.name().map(|name| Name::from_str(name.token().text()));
 
         let params = match ast.params() {
@@ -67,7 +66,11 @@ impl DefProc {
             None => ProcParams::none(),
         };
 
-        Self { name, params, ast }
+        Self {
+            name,
+            params,
+            ast_idx,
+        }
     }
 
     pub fn name(&self) -> Option<&Name> {

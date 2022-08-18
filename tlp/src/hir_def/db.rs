@@ -8,15 +8,15 @@ pub mod vfs;
 use std::sync::Arc;
 
 use crate::{
-    hir_def::{body::Body, expr, item, lower, scope, CrateData, ItemList},
+    hir_def::{
+        body::{AstIdMap, Body, BodySourceMap},
+        expr, item, lower, scope, CrateData, ItemList,
+    },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
 };
 
-use self::{
-    ids::{Id, ItemLoc},
-    vfs::VfsFileId,
-};
+use self::{ids::*, vfs::VfsFileId};
 
 /// [`salsa`] database instance for the queries
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]
@@ -52,6 +52,11 @@ pub trait Source: salsa::Database {
     // fn source_files(&self, krate: CrateLoc) -> ARc<Vec<Utf8PathBuf>>;
 }
 
+fn line_index(db: &dyn Source, file: VfsFileId) -> Arc<LineIndex> {
+    let input = db.input(file);
+    Arc::new(LineIndex::new(&input))
+}
+
 /// Parses source file into AST
 #[salsa::query_group(ParseDB)]
 pub trait Parse: Source {
@@ -59,26 +64,34 @@ pub trait Parse: Source {
     fn parse(&self, file: VfsFileId) -> Arc<ParseResult>;
 }
 
+fn parse(db: &dyn Parse, file: VfsFileId) -> Arc<ParseResult> {
+    let src = db.input(file);
+    let res = ast::parse(&src);
+    Arc::new(res)
+}
+
 /// `hir_def` interner
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     // --------------------------------------------------------------------------------
-    // Locations
+    // AST locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> Id<ItemLoc<item::DefProc>>;
-    // #[salsa::interned]
-    // fn intern_block_loc(&self, proc: AstLoc<ast::Block>) -> Id<AstLoc<item::DefProc>>;
+    fn intern_ast_block_loc(&self, loc: ids::AstLoc<ast::Block>) -> AstId<ast::Block>;
+
+    // --------------------------------------------------------------------------------
+    // Item locations
+    // --------------------------------------------------------------------------------
+    #[salsa::interned]
+    fn intern_item_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> ItemId<item::DefProc>;
 
     // --------------------------------------------------------------------------------
     // Path
     // --------------------------------------------------------------------------------
+    // FIXME: use Arc-based interning
     #[salsa::interned]
     fn intern_path_data(&self, path: expr::PathData) -> Id<expr::PathData>;
 }
-
-// `AstIdMap`
-// pub trait Ast: Parse + Intern { }
 
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]
@@ -86,6 +99,8 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // --------------------------------------------------------------------------------
     // File syntax
     // --------------------------------------------------------------------------------
+
+    fn ast_id_map(&self, file_id: VfsFileId) -> Arc<AstIdMap>;
 
     #[salsa::invoke(lower::lower_crate_data_query)]
     fn crate_data(&self, krate: VfsFileId) -> Arc<CrateData>;
@@ -97,8 +112,14 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // Body
     // --------------------------------------------------------------------------------
 
-    #[salsa::invoke(lower::loewr_proc_body_query)]
+    #[salsa::invoke(lower::lower_proc_body_query)]
     fn proc_body(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<Body>;
+
+    #[salsa::invoke(lower::lower_proc_body_with_source_map_query)]
+    fn proc_body_with_source_map(
+        &self,
+        proc_id: Id<ItemLoc<item::DefProc>>,
+    ) -> (Arc<Body>, Arc<BodySourceMap>);
 
     #[salsa::invoke(scope::proc_expr_scope_query)]
     fn proc_expr_scope_map(&self, proc_id: Id<ItemLoc<item::DefProc>>) -> Arc<scope::ExprScopeMap>;
@@ -107,13 +128,9 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;
 }
 
-fn line_index(db: &dyn Source, file: VfsFileId) -> Arc<LineIndex> {
-    let input = db.input(file);
-    Arc::new(LineIndex::new(&input))
-}
+fn ast_id_map(db: &dyn Def, file_id: VfsFileId) -> Arc<AstIdMap> {
+    let parse = db.parse(file_id);
+    let map = AstIdMap::from_source(&parse.doc.syntax());
 
-fn parse(db: &dyn Parse, file: VfsFileId) -> Arc<ParseResult> {
-    let src = db.input(file);
-    let res = ast::parse(&src);
-    Arc::new(res)
+    Arc::new(map)
 }
