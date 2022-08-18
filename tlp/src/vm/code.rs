@@ -39,7 +39,7 @@ pub type Value = f64;
 #[derive(Debug, Clone, Default)]
 pub struct Chunk {
     /// Bytecode ([`OpCode`] and operands of them)
-    bytes: Vec<u8>,
+    codes: Vec<u8>,
     /// Constant table
     consts: Vec<Value>,
 }
@@ -47,7 +47,7 @@ pub struct Chunk {
 impl Chunk {
     pub fn new() -> Self {
         Self {
-            bytes: Vec::new(),
+            codes: Vec::new(),
             consts: Vec::new(),
         }
     }
@@ -56,23 +56,23 @@ impl Chunk {
 /// Reader
 impl Chunk {
     #[inline(always)]
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
+    pub fn code(&self) -> &[u8] {
+        &self.codes
     }
 
     #[inline(always)]
     pub fn read_opcode(&self, ix: usize) -> OpCode {
-        unsafe { std::mem::transmute(self.bytes[ix]) }
+        unsafe { std::mem::transmute(self.codes[ix]) }
     }
 
     #[inline(always)]
     pub fn read_u8(&self, ix: usize) -> u8 {
-        self.bytes[ix]
+        self.codes[ix]
     }
 
     #[inline(always)]
     pub fn read_u16(&self, ix: usize) -> u16 {
-        ((self.bytes[ix] as u16) << 8) | (self.bytes[ix + 1] as u16)
+        ((self.codes[ix] as u16) << 8) | (self.codes[ix + 1] as u16)
     }
 }
 
@@ -91,24 +91,24 @@ impl Chunk {
 
     #[inline(always)]
     pub fn push_code(&mut self, code: OpCode) {
-        self.bytes.push(code as u8);
+        self.codes.push(code as u8);
     }
 
     /// Push 1 byte index that refers to a constant
     #[inline(always)]
     pub fn push_ix_u8(&mut self, x: u8) {
-        self.bytes.push(OpCode::OpConst8 as u8);
-        self.bytes.push(x);
+        self.codes.push(OpCode::OpConst8 as u8);
+        self.codes.push(x);
     }
 
     /// Push 2 byte index that refers to a constant
     #[inline(always)]
     pub fn push_ix_u16(&mut self, x: u16) {
-        self.bytes.push(OpCode::OpConst16 as u8);
+        self.codes.push(OpCode::OpConst16 as u8);
         // higher 8 bits
-        self.bytes.push((x >> 8) as u8);
+        self.codes.push((x >> 8) as u8);
         // lower 8 bits
-        self.bytes.push(x as u8);
+        self.codes.push(x as u8);
     }
 }
 

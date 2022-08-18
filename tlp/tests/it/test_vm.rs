@@ -27,7 +27,7 @@ fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display) {
 fn log_chunk(chunk: &Chunk) {
     println!("");
     println!("--------------------------------------------------------------------------------");
-    for b in chunk.bytes() {
+    for b in chunk.code() {
         println!("  {:b}", b);
     }
     println!("--------------------------------------------------------------------------------");

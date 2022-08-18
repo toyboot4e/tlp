@@ -60,7 +60,7 @@ impl Vm {
 /// Run
 impl Vm {
     pub fn run(&mut self) -> Result<()> {
-        let chunk_len = self.chunk.bytes().len();
+        let chunk_len = self.chunk.code().len();
 
         while self.ip < chunk_len {
             // FIXME: use bytes
