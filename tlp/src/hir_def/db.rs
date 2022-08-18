@@ -66,12 +66,17 @@ pub trait Parse: Source {
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     // --------------------------------------------------------------------------------
-    // Locations
+    // AST locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> Id<ItemLoc<item::DefProc>>;
     // #[salsa::interned]
     // fn intern_block_loc(&self, proc: AstLoc<ast::Block>) -> Id<AstLoc<item::DefProc>>;
+
+    // --------------------------------------------------------------------------------
+    // Item locations
+    // --------------------------------------------------------------------------------
+    #[salsa::interned]
+    fn intern_item_proc_loc(&self, proc: ItemLoc<item::DefProc>) -> ItemId<item::DefProc>;
 
     // --------------------------------------------------------------------------------
     // Path
@@ -79,9 +84,6 @@ pub trait Intern: salsa::Database {
     #[salsa::interned]
     fn intern_path_data(&self, path: expr::PathData) -> Id<expr::PathData>;
 }
-
-// `AstIdMap`
-// pub trait Ast: Parse + Intern { }
 
 /// Collecter of definitions of items
 #[salsa::query_group(LowerModuleDB)]

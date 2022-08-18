@@ -10,25 +10,6 @@ use crate::hir_def::{
     item,
 };
 
-/// HIR item location
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemLoc<T> {
-    /// Index to (TODO: what?)
-    pub file: VfsFileId,
-    /// Index to [`ItemList`](crate::hir_def::scope::ItemList)
-    pub idx: Idx<T>,
-}
-
-// /// AST syntax location
-// #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-// pub struct AstLoc<T> {
-//     pub file: VfsFileId,
-//     /// FIXME: Index to AstIdMap
-//     pub idx: Idx<T>,
-//     // /// The containing module.
-//     // module: ModuleId,
-// }
-
 /// Interned ID to a location
 #[derive(Derivative)]
 #[derivative(Debug, Hash, PartialEq, Eq)]
@@ -61,13 +42,26 @@ impl<T> salsa::InternKey for Id<T> {
     }
 }
 
-impl Id<ItemLoc<item::DefProc>> {
-    // NOTE: Use `Def` database, not `Intern` database as parameter. This is because Rust doesn't
-    // have upcasting coercion (yet).
-    pub fn lookup(&self, db: &dyn db::Def) -> ItemLoc<item::DefProc> {
-        db.lookup_intern_proc_loc(*self)
     }
 }
 
-// mistake: data → ID
-//     ProcId decl::DefProc, proc "Newtype of interned ID for procedure",
+// --------------------------------------------------------------------------------
+// Item
+// --------------------------------------------------------------------------------
+
+pub type ItemId<T> = Id<ItemLoc<T>>;
+
+impl ItemId<item::DefProc> {
+    pub fn lookup_loc(&self, db: &dyn db::Def) -> ItemLoc<item::DefProc> {
+        db.lookup_intern_item_proc_loc(*self)
+    }
+}
+
+/// HIR item location (file ID + item tree arena index)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ItemLoc<T> {
+    /// Index to (TODO: what?)
+    pub file: VfsFileId,
+    /// Index to [`ItemList`](crate::hir_def::scope::ItemList)
+    pub idx: Idx<T>,
+}

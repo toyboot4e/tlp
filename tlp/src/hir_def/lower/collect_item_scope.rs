@@ -48,7 +48,7 @@ impl ModCollector {
                 None => continue,
             };
 
-            let id = db.intern_proc_loc(ItemLoc {
+            let id = db.intern_item_proc_loc(ItemLoc {
                 file: self.vfs_file_id,
                 idx: id,
             });

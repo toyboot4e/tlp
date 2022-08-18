@@ -39,7 +39,7 @@ fn main_literal() {
     let name = item::Name::from_str("main");
 
     let proc_id = file_item_scope.lookup_proc(&name).unwrap();
-    let proc_loc = proc_id.lookup(&db);
+    let proc_loc = proc_id.lookup_loc(&db);
     let tree = db.file_item_list(proc_loc.file);
     let proc_data = &tree[proc_loc.idx];
 
