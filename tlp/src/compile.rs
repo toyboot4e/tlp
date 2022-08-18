@@ -45,12 +45,11 @@ impl Compiler {
         let body = db.proc_body(proc_id);
         let proc = self::get_proc(db, proc_id);
 
-        // TODO: use source map pattern
         let ast_idx = proc.ast_idx.clone();
         let item_source_map = db.item_source_map(proc_id.lookup_loc(db).file);
-        let ast = item_source_map.hir_to_ast(ast_idx);
+        let proc_ast = item_source_map.idx_to_ptr(ast_idx);
 
-        // for expr in ast.block().exprs() {
+        // for ast_expr in proc_ast.block().exprs() {
         //     // TODO: convert AST expression into HIR expression and compile
         // }
     }

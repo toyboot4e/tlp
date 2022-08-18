@@ -42,7 +42,7 @@ pub fn lower_proc_body_with_source_map_query(
         let proc = &tree[proc_loc.idx];
 
         let item_source_map = db.item_source_map(proc_loc.file);
-        let proc_ast_ptr = item_source_map.hir_to_ast(proc.ast_idx.clone());
+        let proc_ast_ptr = item_source_map.idx_to_ptr(proc.ast_idx.clone());
         let parse = db.parse(proc_loc.file);
         let root_syntax = parse.doc.syntax();
         let proc_ast = proc_ast_ptr.to_node(&root_syntax);
@@ -86,7 +86,7 @@ impl<'a> LowerExpr<'a> {
     fn lower_block(&mut self, ast_block: ast::Block) -> Idx<Expr> {
         let block_loc = AstExprLoc {
             file: self.file_id,
-            idx: self.item_source_map.ast_to_hir(&ast_block.clone().into()),
+            idx: self.item_source_map.ptr_to_idx(&ast_block.clone().into()),
         };
 
         let block_id = self.db.intern_ast_block_loc(block_loc);

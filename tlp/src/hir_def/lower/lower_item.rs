@@ -48,7 +48,7 @@ impl ItemListCollect {
     }
 
     fn lower_proc(&mut self, ast: ast::DefProc) -> item::DefProc {
-        let ast_id = self.item_source_map.ast_to_hir(&ast);
+        let ast_id = self.item_source_map.ptr_to_idx(&ast);
         item::DefProc::from_ast(ast, ast_id)
     }
 }
