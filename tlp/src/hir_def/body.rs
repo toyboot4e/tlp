@@ -119,7 +119,7 @@ fn bdfs(node: &cst::SyntaxNode, mut f: impl FnMut(cst::SyntaxNode) -> bool) {
 }
 
 impl ItemSourceMap {
-    pub fn ast_to_idx<N: AstNode + fmt::Debug>(&self, node: &N) -> AstIdx<N> {
+    pub fn ast_to_hir<N: AstNode + fmt::Debug>(&self, node: &N) -> AstIdx<N> {
         let ptr = SyntaxNodePtr::new(node.syntax());
         let hash = hash_ptr(&ptr);
 
@@ -140,7 +140,7 @@ impl ItemSourceMap {
         AstIdx::new(raw_idx)
     }
 
-    pub fn idx_to_ast<N: AstNode>(&self, id: AstIdx<N>) -> AstPtr<N> {
+    pub fn hir_to_ast<N: AstNode>(&self, id: AstIdx<N>) -> AstPtr<N> {
         // TODO: read source code
         AstPtr::try_from_raw(self.arena[id.raw].clone()).unwrap()
     }
