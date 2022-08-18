@@ -8,7 +8,7 @@
 //! - [`Body`] owns arenas of expressions and patterns
 //!
 //! Other data structures refere to the data by [`Idx`] to the arenas. More global [`Idx`] data type
-//! is known as locations (e.g. [`ItemLoc`]).
+//! is known as locations (e.g. [`HirItemLoc`]).
 //!
 //! # Data flow
 //!
@@ -21,7 +21,7 @@
 //!
 //! [`Arena`]: la_arena::Arena
 //! [`Idx`]: la_arena::Idx
-//! [`ItemLoc`]: crate::hir_def::db::ids::ItemLoc
+//! [`HirItemLoc`]: crate::hir_def::db::ids::HirItemLoc
 //!
 //! [`FileData`]: crate::hir_def::FileData
 //! [`Body`]: crate::hir_def::body::Body

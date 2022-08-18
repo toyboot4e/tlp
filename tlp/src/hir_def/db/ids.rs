@@ -113,7 +113,7 @@ pub struct AstExprLoc<N: AstNode> {
 
 // Item AST are lowered into `ItemList` and given (rather) stable Idx.
 
-/// Interned [`ItemLoc<T>`]
+/// Interned [`HirItemLoc<T>`]
 pub type HirItemId<T> = Id<HirItemLoc<T>>;
 
 impl HirItemId<item::DefProc> {

@@ -2,6 +2,7 @@
 
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 
 use std::{ops, sync::Arc};
 
@@ -150,7 +151,7 @@ impl ExprScopeMap {
         self.scopes.alloc(ScopeData {
             parent: Some(parent),
             // block: Some(block),
-            entries: vec![],
+            entries: SmallVec::new(),
         })
     }
 
@@ -158,7 +159,7 @@ impl ExprScopeMap {
     fn append_scope(&mut self, parent: Idx<ScopeData>) -> Idx<ScopeData> {
         self.scopes.alloc(ScopeData {
             parent: Some(parent),
-            entries: vec![],
+            entries: SmallVec::new(),
         })
     }
 
@@ -174,12 +175,14 @@ impl ExprScopeMap {
     }
 }
 
+/// Scope data created by a binding pattern
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ScopeData {
     parent: Option<Idx<ScopeData>>,
     // TODO: include AST location information
     // block: Option<Id<AstLoc<ast::Block>>>,
-    entries: Vec<ScopeEntry>,
+    /// The size is always one; a binding pattern only adds one variable to scope in toylisp.
+    entries: SmallVec<[ScopeEntry; 1]>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -216,7 +219,7 @@ fn compute_expr_scopes(
     scopes: &mut ExprScopeMap,
     scope_idx: Idx<ScopeData>,
 ) -> Idx<ScopeData> {
-    // Current scope only modified by `Let` expression.
+    // Current scope is only modified by `Let` expression.
     // (Block scope creates a new scope, but it doesn't modify "current scope").
     let mut scope_idx = scope_idx;
 
@@ -258,7 +261,7 @@ fn compute_expr_scopes(
         }
 
         // --------------------------------------------------------------------------------
-        // Terminals
+        // Terminals. No children, nothing to do
         // --------------------------------------------------------------------------------
         Expr::Missing => {}
         Expr::Path(_) => {}

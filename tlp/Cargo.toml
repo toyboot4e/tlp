@@ -27,5 +27,6 @@ smol_str = "0.1.23"
 la-arena = "0.2.1"
 nonmax = "0.5.3"
 hashbrown = "0.12.3"
+smallvec = "1.9.0"
 
 # utilities
