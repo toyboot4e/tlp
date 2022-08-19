@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::{
     hir_def::{
         body::{Body, BodySourceMap, ItemSourceMap},
-        expr, item, lower, scope, CrateData, ItemList,
+        expr, item, lower, scope, CrateData, item_list::ItemList,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
@@ -74,13 +74,13 @@ fn parse(db: &dyn Parse, file: VfsFileId) -> Arc<ParseResult> {
 #[salsa::query_group(InternDB)]
 pub trait Intern: salsa::Database {
     // --------------------------------------------------------------------------------
-    // AST locations
+    // AST expression locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
     fn intern_ast_block_loc(&self, loc: ids::AstExprLoc<ast::Block>) -> AstExprIdx<ast::Block>;
 
     // --------------------------------------------------------------------------------
-    // Item locations
+    // HIR item locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
     fn intern_item_proc_loc(&self, proc: HirItemLoc<item::DefProc>) -> HirItemId<item::DefProc>;

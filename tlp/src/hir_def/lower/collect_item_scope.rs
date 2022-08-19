@@ -8,7 +8,8 @@ use la_arena::Arena;
 
 use crate::hir_def::{
     db::{self, ids::HirItemLoc, vfs::*},
-    CrateData, FileData, FileDataId, ItemScope,
+    item_list::ItemScope,
+    CrateData, FileData, FileDataId,
 };
 
 /// Collects tree of modules with `ItemScope`

@@ -127,6 +127,6 @@ impl HirItemId<item::DefProc> {
 pub struct HirItemLoc<T> {
     /// Index to (TODO: what?)
     pub file: VfsFileId,
-    /// Index to [`ItemList`](crate::hir_def::scope::ItemList)
+    /// Index to [`ItemList`](crate::hir_def::item_list::ItemList)
     pub idx: Idx<T>,
 }

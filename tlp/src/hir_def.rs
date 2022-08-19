@@ -30,11 +30,13 @@
 //! [`ExprScope`]: crate::hir_def::scope::ExprScope
 //! [`ScopeData`]: crate::hir_def::scope::ScopeData
 //! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
+//! [`Itemist`]: crate::hir_def::item_list::ItemList
 
 pub mod body;
 pub mod db;
 pub mod expr;
 pub mod item;
+pub mod item_list;
 pub mod lower;
 pub mod pat;
 pub mod scope;
@@ -43,10 +45,7 @@ use std::sync::Arc;
 
 use la_arena::{Arena, Idx};
 
-use self::{
-    db::vfs::VfsFileId,
-    scope::{ItemList, ItemScope},
-};
+use self::db::vfs::VfsFileId;
 
 /// Per-project [`FileData`] container
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,7 +85,7 @@ pub struct FileData {
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
     /// Items visible from this file (defined or imported)
-    pub item_scope: Arc<ItemScope>,
+    pub item_scope: Arc<item_list::ItemScope>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
