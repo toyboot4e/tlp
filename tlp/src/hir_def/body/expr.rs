@@ -45,7 +45,7 @@ impl_from! {
 /// Code block of S-expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
-    pub id: ids::AstExprIdx<ast::Block>,
+    pub id: ids::AstExprLocId<ast::Block>,
     // TODO: statements?
     pub children: Box<[Idx<Expr>]>,
 }

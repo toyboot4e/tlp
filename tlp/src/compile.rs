@@ -45,7 +45,7 @@ impl Compiler {
     }
 
     #[allow(unused)]
-    fn compile_proc(&mut self, db: &DB, proc_loc_id: Id<HirItemLoc<item::DefProc>>) {
+    fn compile_proc(&mut self, db: &DB, proc_loc_id: HirItemLocId<item::DefProc>) {
         let (body, body_source_map) = db.proc_body_with_source_map(proc_loc_id);
 
         // Use AST to walk HIR expression in the occurence order
@@ -131,13 +131,13 @@ fn to_oper_f32(s: &str) -> Option<OpCode> {
     })
 }
 
-fn ast_proc(db: &DB, proc_loc_id: Id<HirItemLoc<item::DefProc>>) -> ast::DefProc {
+fn ast_proc(db: &DB, proc_loc_id: HirItemLocId<item::DefProc>) -> ast::DefProc {
     let proc_loc = proc_loc_id.lookup_loc(db);
 
     let items = db.file_item_list(proc_loc.file);
     let hir_proc = &items.procs[proc_loc.idx];
 
-    let item_source_map = db.item_source_map(proc_loc_id.lookup_loc(db).file);
+    let item_source_map = db.item_source_map(proc_loc.file);
 
     let ast_proc = {
         let parse = db.parse(proc_loc.file);

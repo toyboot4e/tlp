@@ -1,6 +1,8 @@
 //! HIR patterns in [`Body`]
 //!
 //! [`Body`]: crate::hir_def::body::Body
+//!
+//! Everything that introduces a new variable into scope is a pattern ([`Pat::Bind`]).
 
 // use la_arena::Idx;
 

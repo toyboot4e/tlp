@@ -1,13 +1,8 @@
-//! Expressions and patterns lowered from AST item definition body
-//!
-//! # Incremental compilation
-//!
-//! HIR uses positional index instead of source syntax location. It works great on source change
-//! that do not reorder items/expressions.
+//! HIR expressions and patterns lowered from AST item definition body
 //!
 //! # Source map pattern
 //!
-//! Those data structure that provide the positional indexes are called "source maps".
+//! [`BodySourceMap`] records the map between HIR index and AST pointers.
 
 pub mod expr;
 pub mod expr_scope;

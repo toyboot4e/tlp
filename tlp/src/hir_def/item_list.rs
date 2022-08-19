@@ -1,4 +1,6 @@
-//! Item list
+//! HIR items
+//!
+//! Items are mailny defined just under a file, and also in each block.
 
 pub mod item;
 

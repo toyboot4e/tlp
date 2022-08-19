@@ -99,7 +99,7 @@ impl<N: AstNode> AstIdx<N> {
 // --------------------------------------------------------------------------------
 
 /// Interned [`AstItemLoc<T>`]
-pub type AstItemIdx<T> = Id<AstItemLoc<T>>;
+pub type AstItemLocId<T> = Id<AstItemLoc<T>>;
 
 // impl AstItemIdx<ast::DefProc> {
 //     pub fn lookup_loc(&self, db: &dyn db::Def) -> AstItemLoc<ast::DefProc> {
@@ -119,9 +119,9 @@ pub struct AstItemLoc<N: AstNode> {
 // --------------------------------------------------------------------------------
 
 /// Interned [`AstExprLoc<T>`]
-pub type AstExprIdx<T> = Id<AstExprLoc<T>>;
+pub type AstExprLocId<T> = Id<AstExprLoc<T>>;
 
-impl AstExprIdx<ast::Block> {
+impl AstExprLocId<ast::Block> {
     pub fn lookup_loc(&self, db: &dyn db::Def) -> AstExprLoc<ast::Block> {
         db.lookup_intern_ast_block_loc(*self)
     }
@@ -139,9 +139,9 @@ pub struct AstExprLoc<N: AstNode> {
 // --------------------------------------------------------------------------------
 
 /// Interned [`HirItemLoc<T>`]
-pub type HirItemId<T> = Id<HirItemLoc<T>>;
+pub type HirItemLocId<T> = Id<HirItemLoc<T>>;
 
-impl HirItemId<item::DefProc> {
+impl HirItemLocId<item::DefProc> {
     pub fn lookup_loc(&self, db: &dyn db::Def) -> HirItemLoc<item::DefProc> {
         db.lookup_intern_item_proc_loc(*self)
     }

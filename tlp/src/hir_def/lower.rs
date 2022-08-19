@@ -1,6 +1,10 @@
-//! Procecures for creating `hir_def` data types
+//! Convert AST into HIR data `Arena`
 //!
-//! Lowering is about converting AST data into `Arena` s.
+//! # Positional index (source map pattern)
+//!
+//! [`AstIdMap`] stores each [`SyntaxNodePtr`] in [`Arena`] and gives (rather) stable positional
+//! index. Those indices are stored in HIR types (items, expressions and patterns). It works great
+//! on source change that do not reorder items/expressions.
 
 mod collect_item_scope;
 mod lower_body;
