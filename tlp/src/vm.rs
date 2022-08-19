@@ -160,11 +160,11 @@ pub trait UnitVariant {
 impl UnitVariant for f32 {
     fn from_unit(unit: Unit) -> Self {
         let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
-        f32::from_ne_bytes(bytes)
+        f32::from_be_bytes(bytes)
     }
 
     fn into_unit(self) -> Unit {
-        let bytes = self.to_ne_bytes();
+        let bytes = self.to_be_bytes();
         [bytes[0], bytes[1], bytes[2], bytes[3], 0, 0, 0, 0]
     }
 }
