@@ -1,4 +1,4 @@
-//! Item definition body (expressions and patterns) lowered from AST
+//! Expressions and patterns lowered from AST item definition body
 //!
 //! # Incremental compilation
 //!

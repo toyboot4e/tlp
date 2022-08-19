@@ -7,17 +7,17 @@
 //! - [`ItemList`] owns arenas of definition syntaxes
 //! - [`Body`] owns arenas of expressions and patterns
 //!
-//! Other data structures refere to the data by [`Idx`] to the arenas. More global [`Idx`] data type
-//! is known as locations (e.g. [`HirItemLoc`]).
+//! Other data structures refere to the data by local [`Idx`] to the arenas. More global [`Idx`]
+//! data type is known as locations (e.g. [`HirItemLoc`]).
 //!
 //! # Data flow
 //!
-//! - For each module, lower AST into [`FileData`], i.e., [`ItemList`]
-//! - For each module, collect [`ItemList`] data into [`ItemScope`]
-//! - For each declaration, lower the code block into [`Body`]
+//! - For each file, create [`FileData`]
+//!   - Lower item ASTs into HIR [`ItemList`]
+//!   - Collect [`ItemList`] data indices into [`ItemScope`]
+//! - For each declaration, lower the AST body into HIR [`Body`]
+//!   - Create [`ExprScopeMap`] for [`Body`]
 //!   - For each (nested or root) code block, collect items into [`ItemList`]
-//! - Create [`ExprScopeMap`] for [`Body`]
-//!   - For each (nested or root) code block, collect [`ScopeData`]
 //!
 //! [`Arena`]: la_arena::Arena
 //! [`Idx`]: la_arena::Idx
