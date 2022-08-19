@@ -12,7 +12,7 @@ use crate::{
         item::{self, Name},
     },
     syntax::{ast, ptr::AstPtr},
-    vm::code::{Chunk, OpCode},
+    vm::code::{Chunk, OpCode, TypedLiteral},
 };
 
 #[derive(Debug, Clone, Error)]
@@ -63,7 +63,7 @@ impl Compiler {
                 let path = body.get_path(call.path);
                 let path_data = path.lookup(db);
 
-                // TODO: support path
+                // TODO: maybe support dot-separated path
                 let name = path_data.segments[0].clone();
 
                 match name.as_str() {
@@ -91,9 +91,9 @@ impl Compiler {
             }
             Expr::Literal(lit) => match lit {
                 expr::Literal::Float(x) => {
-                    let x = x.0 as f64;
-                    let i = self.chunk.push_const(x);
-                    self.chunk.push_ix_u8(i as u8);
+                    let literal = TypedLiteral::F32(x.0);
+                    let idx = self.chunk.store_literal(literal);
+                    self.chunk.push_ix(idx);
                 }
                 _ => todo!(),
             },
@@ -119,10 +119,10 @@ fn find_procedure_in_crate(
 
 fn to_oper(s: &str) -> Option<OpCode> {
     Some(match s {
-        "+" => OpCode::OpAdd,
-        "-" => OpCode::OpSub,
-        "*" => OpCode::OpMul,
-        "/" => OpCode::OpDiv,
+        "+" => OpCode::OpAddF32,
+        "-" => OpCode::OpSubF32,
+        "*" => OpCode::OpMulF32,
+        "/" => OpCode::OpDivF32,
         _ => return None,
     })
 }
