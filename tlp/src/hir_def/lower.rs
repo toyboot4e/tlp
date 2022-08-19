@@ -27,24 +27,24 @@ use crate::{
 
 /// Map between AST item locations and stable indices
 #[derive(Debug, Clone, Default)]
-pub struct ItemSourceMap {
+pub struct AstIdMap {
     arena: Arena<SyntaxNodePtr>,
     // `hashbrown` unleashes unstable features in std hashmap
     record: hashbrown::HashMap<Idx<SyntaxNodePtr>, (), ()>,
 }
 
-impl PartialEq for ItemSourceMap {
+impl PartialEq for AstIdMap {
     fn eq(&self, other: &Self) -> bool {
         self.arena == other.arena
     }
 }
 
-impl Eq for ItemSourceMap {}
+impl Eq for AstIdMap {}
 
-impl ItemSourceMap {
-    pub(crate) fn from_source(node: &cst::SyntaxNode) -> ItemSourceMap {
+impl AstIdMap {
+    pub(crate) fn from_source(node: &cst::SyntaxNode) -> AstIdMap {
         assert!(node.parent().is_none());
-        let mut res = ItemSourceMap::default();
+        let mut res = AstIdMap::default();
 
         // By walking the tree in breadth-first order we make sure that parents
         // get lower ids then children. That is, adding a new child does not
@@ -113,7 +113,7 @@ fn bdfs(node: &cst::SyntaxNode, mut f: impl FnMut(cst::SyntaxNode) -> bool) {
     }
 }
 
-impl ItemSourceMap {
+impl AstIdMap {
     /// Maps syntax pointer to stable index
     pub fn ptr_to_idx<N: AstNode + fmt::Debug>(&self, node: &N) -> AstIdx<N> {
         let ptr = SyntaxNodePtr::new(node.syntax());

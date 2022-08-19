@@ -75,12 +75,12 @@ impl<T> salsa::InternKey for Id<T> {
 // AST (common)
 // --------------------------------------------------------------------------------
 
-/// Stable AST node index by [`ItemSourceMap`]
+/// Stable AST node index by [`AstIdMap`]
 ///
-/// [`ItemSourceMap`]: crate::hir_def::lower::ItemSourceMap
+/// [`AstIdMap`]: crate::hir_def::lower::AstIdMap
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AstIdx<N: AstNode> {
-    /// NOTE: We can't use `AstPtr<N>` since it's stored in heterogeneous `Arena` in `ItemSourceMap`
+    /// NOTE: We can't use `AstPtr<N>` since it's stored in heterogeneous `Arena` in `AstIdMap`
     pub raw: Idx<SyntaxNodePtr>,
     _ty: PhantomData<fn() -> N>,
 }
@@ -95,7 +95,7 @@ impl<N: AstNode> AstIdx<N> {
 }
 
 // --------------------------------------------------------------------------------
-// AST item (`ItemSourceMap` index)
+// AST item (`AstIdMap` index)
 // --------------------------------------------------------------------------------
 
 /// Interned [`AstItemLoc<T>`]

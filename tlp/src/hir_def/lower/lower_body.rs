@@ -15,7 +15,7 @@ use crate::{
         db::{self, vfs::VfsFileId},
         ids::*,
         item_list::item,
-        lower::ItemSourceMap,
+        lower::AstIdMap,
     },
     syntax::{ast, ptr::AstPtr},
 };
@@ -69,7 +69,7 @@ struct LowerExpr<'a> {
     body: Body,
     source_map: BodySourceMap,
     file_id: VfsFileId,
-    item_source_map: Arc<ItemSourceMap>,
+    item_source_map: Arc<AstIdMap>,
 }
 
 impl<'a> LowerExpr<'a> {
