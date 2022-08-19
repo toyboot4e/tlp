@@ -2,6 +2,8 @@
 
 pub mod item;
 
+mod item_source_map;
+
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
 

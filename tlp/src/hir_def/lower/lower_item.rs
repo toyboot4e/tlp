@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::ItemSourceMap,
         db::{self, vfs::*},
         item_list::{item, ItemList},
+        lower::AstIdMap,
     },
     syntax::ast,
 };
@@ -20,11 +20,11 @@ pub fn collect_file_item_list_query(db: &dyn db::Def, file: VfsFileId) -> Arc<It
 
 struct ItemListCollect {
     tree: ItemList,
-    item_source_map: Arc<ItemSourceMap>,
+    item_source_map: Arc<AstIdMap>,
 }
 
 impl ItemListCollect {
-    fn run(file: VfsFileId, ast: ast::Document, ast_id_map: Arc<ItemSourceMap>) -> ItemList {
+    fn run(file: VfsFileId, ast: ast::Document, ast_id_map: Arc<AstIdMap>) -> ItemList {
         let mut me = Self {
             tree: ItemList::new(file),
             item_source_map: ast_id_map,

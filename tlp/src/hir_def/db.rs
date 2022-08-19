@@ -8,10 +8,11 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::{expr, expr_scope, Body, BodySourceMap, ItemSourceMap},
+        body::{expr, expr_scope, Body, BodySourceMap},
         ids,
         item_list::{item, ItemList},
-        lower, CrateData,
+        lower::{self, AstIdMap},
+        CrateData,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
@@ -105,7 +106,7 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // File syntax
     // --------------------------------------------------------------------------------
 
-    fn item_source_map(&self, file_id: VfsFileId) -> Arc<ItemSourceMap>;
+    fn item_source_map(&self, file_id: VfsFileId) -> Arc<AstIdMap>;
 
     #[salsa::invoke(lower::lower_crate_data_query)]
     fn crate_data(&self, krate: VfsFileId) -> Arc<CrateData>;
@@ -136,9 +137,9 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;
 }
 
-fn item_source_map(db: &dyn Def, file_id: VfsFileId) -> Arc<ItemSourceMap> {
+fn item_source_map(db: &dyn Def, file_id: VfsFileId) -> Arc<AstIdMap> {
     let parse = db.parse(file_id);
-    let map = ItemSourceMap::from_source(&parse.doc.syntax());
+    let map = AstIdMap::from_source(&parse.doc.syntax());
 
     Arc::new(map)
 }

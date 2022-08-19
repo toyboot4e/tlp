@@ -10,11 +10,12 @@ use crate::{
     hir_def::{
         body::{
             expr::{self, Expr},
-            pat, Body, BodySourceMap, ItemSourceMap, SyntheticSyntax,
+            pat, Body, BodySourceMap, SyntheticSyntax,
         },
         db::{self, vfs::VfsFileId},
         ids::*,
         item_list::item,
+        lower::AstIdMap,
     },
     syntax::{ast, ptr::AstPtr},
 };
@@ -68,7 +69,7 @@ struct LowerExpr<'a> {
     body: Body,
     source_map: BodySourceMap,
     file_id: VfsFileId,
-    item_source_map: Arc<ItemSourceMap>,
+    item_source_map: Arc<AstIdMap>,
 }
 
 impl<'a> LowerExpr<'a> {

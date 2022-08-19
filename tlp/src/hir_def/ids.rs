@@ -39,7 +39,7 @@ impl Name {
     }
 }
 
-/// Interned ID to a location
+/// Interned data ID
 #[derive(Derivative)]
 #[derivative(Debug, Hash, PartialEq, Eq)]
 pub struct Id<T> {
@@ -75,10 +75,12 @@ impl<T> salsa::InternKey for Id<T> {
 // AST (common)
 // --------------------------------------------------------------------------------
 
-/// Item / expression index for AST node's pointer
+/// Stable AST node index by [`AstIdMap`]
+///
+/// [`AstIdMap`]: crate::hir_def::lower::AstIdMap
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AstIdx<N: AstNode> {
-    /// NOTE: We can't use `AstPtr<N>` since it's stored in heterogeneous `Arena` in `ItemSourceMap`
+    /// NOTE: We can't use `AstPtr<N>` since it's stored in heterogeneous `Arena` in `AstIdMap`
     pub raw: Idx<SyntaxNodePtr>,
     _ty: PhantomData<fn() -> N>,
 }
@@ -93,7 +95,7 @@ impl<N: AstNode> AstIdx<N> {
 }
 
 // --------------------------------------------------------------------------------
-// AST item (`ItemSourceMap` index)
+// AST item (`AstIdMap` index)
 // --------------------------------------------------------------------------------
 
 /// Interned [`AstItemLoc<T>`]
@@ -105,6 +107,7 @@ pub type AstItemIdx<T> = Id<AstItemLoc<T>>;
 //     }
 // }
 
+/// [`VfsFileId`] + [`AstIdx`]
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct AstItemLoc<N: AstNode> {
     pub file: VfsFileId,
@@ -124,6 +127,7 @@ impl AstExprIdx<ast::Block> {
     }
 }
 
+/// [`VfsFileId`] + [`AstIdx`]
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct AstExprLoc<N: AstNode> {
     pub file: VfsFileId,
@@ -134,8 +138,6 @@ pub struct AstExprLoc<N: AstNode> {
 // HIR item ID (`ItemList` index)
 // --------------------------------------------------------------------------------
 
-// Item AST are lowered into `ItemList` and given (rather) stable Idx.
-
 /// Interned [`HirItemLoc<T>`]
 pub type HirItemId<T> = Id<HirItemLoc<T>>;
 
@@ -145,11 +147,15 @@ impl HirItemId<item::DefProc> {
     }
 }
 
-/// HIR item location (file ID + item tree arena index)
+/// [`VfsFileId`] + [`Idx`] ([`ItemList`] arena index)
+///
+/// [`ItemList`]: crate::hir_def::item_list::ItemList
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HirItemLoc<T> {
     /// Index to (TODO: what?)
     pub file: VfsFileId,
-    /// Index to [`ItemList`](crate::hir_def::item_list::ItemList)
+    /// Index to [`ItemList`]
+    ///
+    /// [`ItemList`]: crate::hir_def::item_list::ItemList
     pub idx: Idx<T>,
 }
