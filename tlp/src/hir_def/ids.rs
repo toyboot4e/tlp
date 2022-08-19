@@ -77,7 +77,7 @@ impl<T> salsa::InternKey for Id<T> {
 
 /// Stable AST node index by [`ItemSourceMap`]
 ///
-/// [`ItemSourceMap`]: crate::hir_def::body::ItemSourceMap
+/// [`ItemSourceMap`]: crate::hir_def::lower::ItemSourceMap
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AstIdx<N: AstNode> {
     /// NOTE: We can't use `AstPtr<N>` since it's stored in heterogeneous `Arena` in `ItemSourceMap`

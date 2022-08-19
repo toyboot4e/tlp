@@ -10,11 +10,12 @@ use crate::{
     hir_def::{
         body::{
             expr::{self, Expr},
-            pat, Body, BodySourceMap, ItemSourceMap, SyntheticSyntax,
+            pat, Body, BodySourceMap, SyntheticSyntax,
         },
         db::{self, vfs::VfsFileId},
         ids::*,
         item_list::item,
+        lower::ItemSourceMap,
     },
     syntax::{ast, ptr::AstPtr},
 };

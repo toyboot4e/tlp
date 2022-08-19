@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::ItemSourceMap,
         db::{self, vfs::*},
         item_list::{item, ItemList},
+        lower::ItemSourceMap,
     },
     syntax::ast,
 };

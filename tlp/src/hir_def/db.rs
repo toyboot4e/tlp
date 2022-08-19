@@ -8,10 +8,11 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::{expr, expr_scope, Body, BodySourceMap, ItemSourceMap},
+        body::{expr, expr_scope, Body, BodySourceMap},
         ids,
         item_list::{item, ItemList},
-        lower, CrateData,
+        lower::{self, ItemSourceMap},
+        CrateData,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
