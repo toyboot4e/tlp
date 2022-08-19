@@ -1,5 +1,9 @@
 //! Bytecode
 
+// TODO: disassemble
+
+use crate::vm::{Unit, UnitVariant};
+
 /// Instruction to the stack-based virtual machine
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
 pub enum OpCode {
@@ -16,12 +20,12 @@ pub enum OpCode {
     // OpLoadLocal,
     // OpSetLocal,
 
-    // arithmetic
-    OpNegate,
-    OpAdd,
-    OpSub,
-    OpMul,
-    OpDiv,
+    // arithmetic operations
+    OpNegateF32,
+    OpAddF32,
+    OpSubF32,
+    OpMulF32,
+    OpDivF32,
 }
 
 impl Into<u8> for OpCode {
@@ -30,30 +34,63 @@ impl Into<u8> for OpCode {
     }
 }
 
-/// Constant value FIXME: use `enum`?
-pub type Value = f64;
-
-// TODO: disassemble
-
-/// Bytecode with static context
-#[derive(Debug, Clone, Default)]
-pub struct Chunk {
-    /// Bytecode ([`OpCode`] and operands of them)
-    codes: Vec<u8>,
-    /// Constant table
-    consts: Vec<Value>,
+/// Compile-time representation of a value of any type
+#[derive(Debug, Clone)]
+pub enum TypedLiteral {
+    F32(f32),
 }
 
-impl Chunk {
-    pub fn new() -> Self {
-        Self {
-            codes: Vec::new(),
-            consts: Vec::new(),
+impl TypedLiteral {
+    pub fn into_unit(&self) -> Unit {
+        match self {
+            Self::F32(x) => x.into_unit(),
         }
     }
 }
 
-/// Reader
+/// Runtime literals
+#[derive(Debug, Clone, Default)]
+struct LiteralArena {
+    units: Vec<Unit>,
+}
+
+/// Index to a literal table
+#[derive(Debug, Clone)]
+pub struct LiteralIndex {
+    raw: usize,
+}
+
+impl LiteralArena {
+    pub fn insert(&mut self, value: TypedLiteral) -> LiteralIndex {
+        let idx = LiteralIndex {
+            raw: self.units.len(),
+        };
+
+        let unit = value.into_unit();
+        self.units.push(unit);
+
+        idx
+    }
+
+    pub fn read(&self, idx: LiteralIndex) -> Unit {
+        self.units[idx.raw]
+    }
+}
+
+/// Bytecode and constants
+#[derive(Debug, Clone, Default)]
+pub struct Chunk {
+    codes: Vec<u8>,
+    literals: LiteralArena,
+}
+
+impl Chunk {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+/// OpCoder reader
 impl Chunk {
     #[inline(always)]
     pub fn code(&self) -> &[u8] {
@@ -76,39 +113,71 @@ impl Chunk {
     }
 }
 
-/// Writer
+/// OpCode writer
 impl Chunk {
-    #[inline(always)]
-    pub fn consts(&mut self) -> &Vec<Value> {
-        &self.consts
-    }
-
-    #[inline(always)]
-    pub fn push_const(&mut self, value: Value) -> usize {
-        self.consts.push(value);
-        self.consts.len() - 1
-    }
-
     #[inline(always)]
     pub fn push_code(&mut self, code: OpCode) {
         self.codes.push(code as u8);
     }
 
-    /// Push 1 byte index that refers to a constant
+    /// Pushes a literal index
     #[inline(always)]
-    pub fn push_ix_u8(&mut self, x: u8) {
-        self.codes.push(OpCode::OpConst8 as u8);
-        self.codes.push(x);
+    pub fn push_ix(&mut self, idx: LiteralIndex) {
+        if idx.raw < 2 << 8 {
+            return self.push_idx_raw_u8(idx.raw as u8);
+        }
+
+        if idx.raw < 2 << 16 {
+            return self.push_idx_raw_u16(idx.raw as u16);
+        }
+
+        panic!("too big literal index: {}", idx.raw)
     }
 
-    /// Push 2 byte index that refers to a constant
+    /// Pushes a literal index of one byte
     #[inline(always)]
-    pub fn push_ix_u16(&mut self, x: u16) {
+    pub fn push_idx_raw_u8(&mut self, idx: u8) {
+        self.codes.push(OpCode::OpConst8 as u8);
+        self.codes.push(idx);
+    }
+
+    /// Pushes a literal index of two bytes
+    #[inline(always)]
+    pub fn push_idx_raw_u16(&mut self, idx: u16) {
         self.codes.push(OpCode::OpConst16 as u8);
         // higher 8 bits
-        self.codes.push((x >> 8) as u8);
+        self.codes.push((idx >> 8) as u8);
         // lower 8 bits
-        self.codes.push(x as u8);
+        self.codes.push(idx as u8);
+    }
+}
+
+/// Constants
+impl Chunk {
+    #[inline(always)]
+    pub fn store_literal(&mut self, value: TypedLiteral) -> LiteralIndex {
+        self.literals.insert(value)
+    }
+
+    #[inline(always)]
+    pub fn read_literal(&mut self, idx: LiteralIndex) -> Unit {
+        self.literals.read(idx)
+    }
+
+    #[inline(always)]
+    pub fn read_literal_u8(&mut self, idx_u8: u8) -> Unit {
+        let idx = LiteralIndex { raw: idx_u8.into() };
+
+        self.read_literal(idx)
+    }
+
+    #[inline(always)]
+    pub fn read_literal_u16(&mut self, idx_u16: u16) -> Unit {
+        let idx = LiteralIndex {
+            raw: idx_u16.into(),
+        };
+
+        self.read_literal(idx)
     }
 }
 
@@ -117,25 +186,25 @@ mod tests {
     use super::*;
     use crate::vm::{code::OpCode::*, Result, Vm};
 
-    /// Tests `-((64.0 - 32.0) / 16.0)` results in `2.0`
+    /// Tests `-((64.0 - 32.0) / 16.0)` equals to `2.0`
     #[test]
     fn arithmetic() -> Result<()> {
         let chunk = {
             let mut chunk = Chunk::default();
 
             // NOTE: use 2^x considering the accuracy of floating values
-            chunk.push_const(64.0);
-            chunk.push_const(32.0);
-            chunk.push_const(16.0);
+            chunk.store_literal(TypedLiteral::F32(64.0));
+            chunk.store_literal(TypedLiteral::F32(32.0));
+            chunk.store_literal(TypedLiteral::F32(16.0));
 
-            chunk.push_ix_u8(0); // 64.0
-            chunk.push_ix_u8(1); // 32.0
-            chunk.push_code(OpSub); // -
+            chunk.push_idx_raw_u8(0); // 64.0
+            chunk.push_idx_raw_u8(1); // 32.0
+            chunk.push_code(OpSubF32); // -
 
-            chunk.push_ix_u16(2); // 16.0
-            chunk.push_code(OpDiv); // /
+            chunk.push_idx_raw_u16(2); // 16.0
+            chunk.push_code(OpDivF32); // /
 
-            chunk.push_code(OpNegate); // -
+            chunk.push_code(OpNegateF32); // -
 
             chunk.push_code(OpReturn);
 
@@ -143,26 +212,13 @@ mod tests {
         };
 
         let mut vm = Vm::new(chunk);
-
         vm.run()?;
-        assert_eq!(Some(&-2.0), vm.stack().last());
+
+        assert_eq!(
+            Some(&TypedLiteral::F32(-2.0).into_unit()),
+            vm.stack().last()
+        );
 
         Ok(())
     }
 }
-
-// /// Read chunk as [`OpCode`] s
-// pub struct ChunkIter<'a> {
-//     chunk: &'a Chunk,
-//     i: usize,
-// }
-//
-// impl<'a> Iterator for ChunkIter<'a> {
-//     type Item = OpCode;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         let byte = self.bytes.get(self.i)?;
-//         todo!()
-//     }
-// }
-
-// pub enum OpCodeB { }

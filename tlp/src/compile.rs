@@ -6,13 +6,16 @@ use thiserror::Error;
 
 use crate::{
     hir_def::{
-        body::Body,
-        db::{ids::*, vfs::*, *},
-        expr::{self, Expr},
-        item::{self, Name},
+        body::{
+            expr::{self, Expr},
+            Body,
+        },
+        db::{vfs::*, *},
+        ids::*,
+        item_list::item,
     },
     syntax::{ast, ptr::AstPtr},
-    vm::code::{Chunk, OpCode},
+    vm::code::{Chunk, OpCode, TypedLiteral},
 };
 
 #[derive(Debug, Clone, Error)]
@@ -63,7 +66,7 @@ impl Compiler {
                 let path = body.get_path(call.path);
                 let path_data = path.lookup(db);
 
-                // TODO: support path
+                // TODO: maybe support dot-separated path
                 let name = path_data.segments[0].clone();
 
                 match name.as_str() {
@@ -76,7 +79,8 @@ impl Compiler {
                         let rhs = &body.exprs[call.args[1]];
                         self.compile_expr(db, body, &rhs);
 
-                        let op = self::to_oper(name.as_str()).unwrap();
+                        // TODO: Don't assume `f32` type
+                        let op = self::to_oper_f32(name.as_str()).unwrap();
                         self.chunk.push_code(op);
                     }
                     _ => {
@@ -90,10 +94,10 @@ impl Compiler {
                 todo!()
             }
             Expr::Literal(lit) => match lit {
-                expr::Literal::Float(x) => {
-                    let x = x.0 as f64;
-                    let i = self.chunk.push_const(x);
-                    self.chunk.push_ix_u8(i as u8);
+                expr::Literal::F32(x) => {
+                    let literal = TypedLiteral::F32(x.0);
+                    let idx = self.chunk.store_literal(literal);
+                    self.chunk.push_ix(idx);
                 }
                 _ => todo!(),
             },
@@ -117,12 +121,12 @@ fn find_procedure_in_crate(
     item_scope.lookup_proc(name).unwrap()
 }
 
-fn to_oper(s: &str) -> Option<OpCode> {
+fn to_oper_f32(s: &str) -> Option<OpCode> {
     Some(match s {
-        "+" => OpCode::OpAdd,
-        "-" => OpCode::OpSub,
-        "*" => OpCode::OpMul,
-        "/" => OpCode::OpDiv,
+        "+" => OpCode::OpAddF32,
+        "-" => OpCode::OpSubF32,
+        "*" => OpCode::OpMulF32,
+        "/" => OpCode::OpDivF32,
         _ => return None,
     })
 }

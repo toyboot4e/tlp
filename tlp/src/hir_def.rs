@@ -21,32 +21,28 @@
 //!
 //! [`Arena`]: la_arena::Arena
 //! [`Idx`]: la_arena::Idx
-//! [`HirItemLoc`]: crate::hir_def::db::ids::HirItemLoc
+//! [`HirItemLoc`]: crate::hir_def::ids::HirItemLoc
 //!
 //! [`FileData`]: crate::hir_def::FileData
 //! [`Body`]: crate::hir_def::body::Body
 //!
-//! [`ItemScope`]: crate::hir_def::scope::ItemScope
+//! [`ItemScope`]: crate::hir_def::item_list::ItemScope
 //! [`ExprScope`]: crate::hir_def::scope::ExprScope
-//! [`ScopeData`]: crate::hir_def::scope::ScopeData
-//! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
+//! [`ScopeData`]: crate::hir_def::body::expr_scope::ScopeData
+//! [`ExprScopeMap`]: crate::hir_def::body::expr_scope::ExprScopeMap
+//! [`ItemList`]: crate::hir_def::item_list::ItemList
 
 pub mod body;
 pub mod db;
-pub mod expr;
-pub mod item;
+pub mod ids;
+pub mod item_list;
 pub mod lower;
-pub mod pat;
-pub mod scope;
 
 use std::sync::Arc;
 
 use la_arena::{Arena, Idx};
 
-use self::{
-    db::vfs::VfsFileId,
-    scope::{ItemList, ItemScope},
-};
+use self::db::vfs::VfsFileId;
 
 /// Per-project [`FileData`] container
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,14 +75,14 @@ impl CrateData {
     }
 }
 
-/// Pre-file [`ItemScope`] with child/parent relationship
+/// Pre-file [`ItemScope`](item_list::ItemScope) with child/parent relationship
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileData {
     pub(crate) file: VfsFileId,
     pub(crate) parent: Option<FileDataId>,
     pub(crate) children: Vec<FileDataId>,
     /// Items visible from this file (defined or imported)
-    pub item_scope: Arc<ItemScope>,
+    pub item_scope: Arc<item_list::ItemScope>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

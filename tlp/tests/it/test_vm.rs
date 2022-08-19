@@ -5,7 +5,7 @@ use std::fmt::{self, Write};
 use tlp::{
     compile,
     syntax::ast,
-    vm::{code::Chunk, Vm},
+    vm::{code::Chunk, UnitVariant, Vm},
 };
 
 fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display) {
@@ -33,7 +33,7 @@ fn log_chunk(chunk: &Chunk) {
     println!("--------------------------------------------------------------------------------");
 }
 
-fn test_expr(src: &str, expected: f64) {
+fn test_expr(src: &str, expected: f32) {
     let (_doc, errs) = ast::parse(src).into_tuple();
     self::print_errors(&errs, src);
 
@@ -61,8 +61,8 @@ fn test_expr(src: &str, expected: f64) {
     let mut vm = Vm::new(chunk);
     vm.run().unwrap();
 
-    let val = vm.stack().last().unwrap();
-    assert_eq!(*val, expected);
+    let unit = vm.stack().last().unwrap();
+    assert_eq!(*unit, expected.into_unit());
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn simple_arithmetics() {
     test_expr("(+ (* 3.0 4.0) 2.0)", 14.0);
 }
 
-// #[test]
-// fn let_statement() {
-//     test_expr("(let a 10.0) (+ a 2.0)", 12.0);
-// }
+#[test]
+fn let_statement() {
+    test_expr("(let a 10.0) (+ a 2.0)", 12.0);
+}

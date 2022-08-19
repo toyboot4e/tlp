@@ -8,13 +8,36 @@ use la_arena::Idx;
 use crate::{
     hir_def::{
         db::{self, vfs::VfsFileId},
-        item,
+        item_list::item,
     },
     syntax::{
         ast::{self, AstNode},
         ptr::SyntaxNodePtr,
     },
 };
+
+/// Interned string for variable / item name
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Name {
+    // TODO: consider interning string with salsa?
+    data: smol_str::SmolStr,
+}
+
+impl Name {
+    pub fn from_str(s: &str) -> Self {
+        Self { data: s.into() }
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.data.as_str()
+    }
+
+    pub const fn missing() -> Name {
+        Name {
+            data: smol_str::SmolStr::new_inline("[missing name]"),
+        }
+    }
+}
 
 /// Interned ID to a location
 #[derive(Derivative)]
@@ -127,6 +150,6 @@ impl HirItemId<item::DefProc> {
 pub struct HirItemLoc<T> {
     /// Index to (TODO: what?)
     pub file: VfsFileId,
-    /// Index to [`ItemList`](crate::hir_def::scope::ItemList)
+    /// Index to [`ItemList`](crate::hir_def::item_list::ItemList)
     pub idx: Idx<T>,
 }

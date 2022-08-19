@@ -6,7 +6,7 @@ use crate::{
     hir_def::{
         body::ItemSourceMap,
         db::{self, vfs::*},
-        item, ItemList,
+        item_list::{item, ItemList},
     },
     syntax::ast,
 };

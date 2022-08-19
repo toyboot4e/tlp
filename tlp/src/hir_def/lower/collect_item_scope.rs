@@ -1,14 +1,16 @@
 //! Lowers module item scope into [`Name`] → `Id<Loc<T>>` maps in [`ItemScope`]
 //!
-//! [`Name`]: crate::hir_def::item::Name
+//! [`Name`]: crate::hir_def::ids::Name
 
 use std::sync::Arc;
 
 use la_arena::Arena;
 
 use crate::hir_def::{
-    db::{self, ids::HirItemLoc, vfs::*},
-    CrateData, FileData, FileDataId, ItemScope,
+    db::{self, vfs::*},
+    ids::HirItemLoc,
+    item_list::ItemScope,
+    CrateData, FileData, FileDataId,
 };
 
 /// Collects tree of modules with `ItemScope`

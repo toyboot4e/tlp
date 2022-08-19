@@ -8,9 +8,9 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        db::{self, ids::*},
-        item::Name,
-        pat,
+        body::pat,
+        db,
+        ids::{self, Name},
     },
     syntax::ast::{self, AstToken},
 };
@@ -45,7 +45,7 @@ impl_from! {
 /// Code block of S-expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
-    pub id: AstExprIdx<ast::Block>,
+    pub id: ids::AstExprIdx<ast::Block>,
     // TODO: statements?
     pub children: Box<[Idx<Expr>]>,
 }
@@ -68,8 +68,8 @@ pub enum Literal {
     String(String),
     Char(char),
     Bool(bool),
-    Int(i32),
-    Float(EqF32),
+    I32(i32),
+    F32(EqF32),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -82,11 +82,11 @@ impl From<ast::Num> for Literal {
         let text = x.syntax().text();
 
         if let Ok(x) = text.parse::<i32>() {
-            return Self::Int(x);
+            return Self::I32(x);
         }
 
         if let Ok(x) = text.parse::<f32>() {
-            return Self::Float(EqF32(x));
+            return Self::F32(EqF32(x));
         }
 
         todo!("if not a number");
@@ -95,7 +95,7 @@ impl From<ast::Num> for Literal {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Path {
-    data: Id<PathData>,
+    data: ids::Id<PathData>,
 }
 
 impl Path {

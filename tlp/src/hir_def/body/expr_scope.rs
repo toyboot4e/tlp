@@ -4,93 +4,17 @@ use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
-use std::{ops, sync::Arc};
+use std::sync::Arc;
 
 use crate::hir_def::{
-    body::Body,
-    db::{
-        self,
-        ids::{HirItemLoc, Id},
-        vfs::VfsFileId,
+    body::{
+        expr::{self, Expr},
+        pat, Body,
     },
-    expr::{self, Expr},
-    item::{self, Name},
-    pat,
+    db,
+    ids::{HirItemLoc, Id, Name},
+    item_list::item,
 };
-
-// --------------------------------------------------------------------------------
-// Item scope
-// --------------------------------------------------------------------------------
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemList {
-    pub(crate) file: VfsFileId,
-    pub(crate) procs: Arena<item::DefProc>,
-    // pub(crate) imports: Vec<Import>,
-}
-
-impl ops::Index<Idx<item::DefProc>> for ItemList {
-    type Output = item::DefProc;
-    fn index(&self, ix: Idx<item::DefProc>) -> &Self::Output {
-        &self.procs[ix]
-    }
-}
-
-impl ItemList {
-    pub(crate) fn new(file: VfsFileId) -> Self {
-        Self {
-            file,
-            procs: Default::default(),
-        }
-    }
-
-    pub fn procs(&self) -> &Arena<item::DefProc> {
-        &self.procs
-    }
-}
-
-/// Items visible in a scope (declarations and imports)
-///
-/// Built upon `ItemTree`.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ItemScope {
-    // declarations
-    procs: FxHashMap<Name, Id<HirItemLoc<item::DefProc>>>,
-}
-
-impl ItemScope {
-    pub(crate) fn declare_proc(&mut self, name: Name, proc: Id<HirItemLoc<item::DefProc>>) {
-        // TOOD: consider upcasting or not
-        // let id = DefId { loc_id: proc };
-        // self.procs.insert(name, AnyDefId::from(id));
-        self.procs.insert(name, proc);
-    }
-
-    pub fn lookup_proc(&self, name: &Name) -> Option<Id<HirItemLoc<item::DefProc>>> {
-        self.procs.get(name).cloned()
-    }
-}
-
-// --------------------------------------------------------------------------------
-// Resolver
-// --------------------------------------------------------------------------------
-
-// /// [`ItemScope`] | [`ExprScope`]
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum Scope {
-//     Item(ItemScope),
-//     Expr(ExprScope),
-// }
-
-// /// View to [`ExprScopeMap`] for one scope
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct ExprScope {
-//     //
-// }
-
-// --------------------------------------------------------------------------------
-// Expression scope
-// --------------------------------------------------------------------------------
 
 /// All stack data for a definition
 #[derive(Debug, Default, PartialEq, Eq)]

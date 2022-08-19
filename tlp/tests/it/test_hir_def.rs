@@ -3,13 +3,10 @@
 use std::sync::Arc;
 
 use tlp::hir_def::{
-    db::{
-        self,
-        ids::{HirItemLoc, Id},
-        vfs, *,
-    },
-    expr::{self, Expr},
-    item::{self, Name},
+    body::expr::{self, Expr},
+    db::{self, vfs, *},
+    ids::{HirItemLoc, Id, Name},
+    item_list::item,
 };
 
 use crate::util;
@@ -36,7 +33,7 @@ fn main_literal() {
     let file_item_scope = &file.item_scope;
 
     // 3. name
-    let name = item::Name::from_str("main");
+    let name = Name::from_str("main");
 
     let proc_id = file_item_scope.lookup_proc(&name).unwrap();
     let proc_loc = proc_id.lookup_loc(&db);
@@ -60,7 +57,7 @@ fn main_literal() {
     // 12
     assert_eq!(
         &body.exprs[exprs.next().unwrap()],
-        &Expr::Literal(expr::Literal::Int(12))
+        &Expr::Literal(expr::Literal::I32(12))
     );
 
     // (+ 1 2)
@@ -76,11 +73,11 @@ fn main_literal() {
             assert_eq!(path_data.segments[0].as_str(), "+");
             assert_eq!(
                 &body.exprs[call.args[0]],
-                &Expr::Literal(expr::Literal::Int(1)),
+                &Expr::Literal(expr::Literal::I32(1)),
             );
             assert_eq!(
                 &body.exprs[call.args[1]],
-                &Expr::Literal(expr::Literal::Int(2)),
+                &Expr::Literal(expr::Literal::I32(2)),
             );
         }
         _ => panic!("not a call node: {:?}", node),
