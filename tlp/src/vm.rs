@@ -7,7 +7,7 @@ use std::ops;
 
 use thiserror::Error;
 
-use crate::vm::code::*;
+use self::{code::*, stack::Stack};
 
 pub type Result<T, E = VmError> = std::result::Result<T, E>;
 
@@ -36,8 +36,7 @@ pub struct Vm {
     chunk: Chunk,
     /// Instuction pointer, index to the bytecode chunk
     ip: usize,
-    /// Stack of values
-    stack: Vec<Unit>,
+    stack: Stack,
 }
 
 impl Vm {
@@ -45,7 +44,7 @@ impl Vm {
         Self {
             chunk,
             ip: 0,
-            stack: Vec::with_capacity(256),
+            stack: Stack::new(),
         }
     }
 
@@ -58,8 +57,26 @@ impl Vm {
     }
 
     /// Stack bytes
-    pub fn stack(&mut self) -> &[Unit] {
-        &self.stack
+    pub fn units(&mut self) -> &[Unit] {
+        self.stack.units()
+    }
+
+    fn bump_u8(&mut self) -> u8 {
+        let b = self.chunk.read_u8(self.ip);
+        self.ip += 1;
+        b
+    }
+
+    fn bump_u16(&mut self) -> u16 {
+        let b = self.chunk.read_u16(self.ip);
+        self.ip += 2;
+        b
+    }
+
+    fn bump_opcode(&mut self) -> OpCode {
+        let code: OpCode = self.chunk.read_opcode(self.ip);
+        self.ip += 1;
+        code
     }
 }
 
@@ -69,9 +86,7 @@ impl Vm {
         let chunk_len = self.chunk.code().len();
 
         while self.ip < chunk_len {
-            // consume the next instruction
-            let code: OpCode = self.chunk.read_opcode(self.ip);
-            self.ip += 1;
+            let code = self.bump_opcode();
 
             use OpCode::*;
             match code {
@@ -80,22 +95,40 @@ impl Vm {
                     return Ok(());
                 }
 
+                // constants
                 OpConst8 => {
-                    let const_ix = self.chunk.read_u8(self.ip);
-                    self.ip += 1;
-
+                    let const_ix = self.bump_u8();
                     let unit = self.chunk.read_literal_u8(const_ix);
                     self.stack.push(unit);
                 }
 
                 OpConst16 => {
-                    let const_ix = self.chunk.read_u16(self.ip);
-                    self.ip += 2;
-
+                    let const_ix = self.bump_u16();
                     let unit = self.chunk.read_literal_u16(const_ix);
                     self.stack.push(unit);
                 }
 
+                // call frame
+                OpAllocLocals8 => {
+                    let local_capacity = self.bump_u8();
+                    let local_capacity = local_capacity as usize;
+                    self.stack.push_call_frame(local_capacity);
+                }
+
+                // locals
+                OpPushLocal8 => {
+                    let local_ix = self.bump_u8();
+                    let local = self.stack.read_local_u8(local_ix);
+                    self.stack.push(local);
+                }
+
+                OpSetLocal8 => {
+                    let local_ix = self.bump_u8();
+                    let unit = self.stack.pop().unwrap();
+                    self.stack.set_local_u8(local_ix, unit);
+                }
+
+                // builtin operators
                 OpNegateF32 => {
                     self.unit_op(|x: f32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
@@ -112,6 +145,8 @@ impl Vm {
                 OpDivF32 => {
                     self.binary_op::<f32>(OpDivF32, ops::Div::<f32>::div)?;
                 }
+
+                _ => panic!(),
             }
         }
 
@@ -161,6 +196,18 @@ impl UnitVariant for f32 {
     fn from_unit(unit: Unit) -> Self {
         let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
         f32::from_be_bytes(bytes)
+    }
+
+    fn into_unit(self) -> Unit {
+        let bytes = self.to_be_bytes();
+        [bytes[0], bytes[1], bytes[2], bytes[3], 0, 0, 0, 0]
+    }
+}
+
+impl UnitVariant for u32 {
+    fn from_unit(unit: Unit) -> Self {
+        let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
+        u32::from_be_bytes(bytes)
     }
 
     fn into_unit(self) -> Unit {

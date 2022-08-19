@@ -14,11 +14,10 @@ pub enum OpCode {
     /// Operand: two bytes index
     OpConst16,
 
-    // OpLoadGlobal,
-    // OpSetGlobal,
-
-    // OpLoadLocal,
-    // OpSetLocal,
+    // local variables (one word only)
+    OpAllocLocals8,
+    OpPushLocal8,
+    OpSetLocal8,
 
     // arithmetic operations
     OpNegateF32,
@@ -90,7 +89,6 @@ impl Chunk {
     }
 }
 
-/// OpCoder reader
 impl Chunk {
     #[inline(always)]
     pub fn code(&self) -> &[u8] {
@@ -116,19 +114,19 @@ impl Chunk {
 /// OpCode writer
 impl Chunk {
     #[inline(always)]
-    pub fn push_code(&mut self, code: OpCode) {
+    pub fn write_code(&mut self, code: OpCode) {
         self.codes.push(code as u8);
     }
 
     /// Pushes a literal index
     #[inline(always)]
-    pub fn push_ix(&mut self, idx: LiteralIndex) {
+    pub fn write_ix(&mut self, idx: LiteralIndex) {
         if idx.raw < 2 << 8 {
-            return self.push_idx_raw_u8(idx.raw as u8);
+            return self.write_idx_raw_u8(idx.raw as u8);
         }
 
         if idx.raw < 2 << 16 {
-            return self.push_idx_raw_u16(idx.raw as u16);
+            return self.write_idx_raw_u16(idx.raw as u16);
         }
 
         panic!("too big literal index: {}", idx.raw)
@@ -136,23 +134,48 @@ impl Chunk {
 
     /// Pushes a literal index of one byte
     #[inline(always)]
-    pub fn push_idx_raw_u8(&mut self, idx: u8) {
+    pub fn write_idx_raw_u8(&mut self, idx: u8) {
         self.codes.push(OpCode::OpConst8 as u8);
         self.codes.push(idx);
     }
 
     /// Pushes a literal index of two bytes
     #[inline(always)]
-    pub fn push_idx_raw_u16(&mut self, idx: u16) {
+    pub fn write_idx_raw_u16(&mut self, idx: u16) {
         self.codes.push(OpCode::OpConst16 as u8);
         // higher 8 bits
         self.codes.push((idx >> 8) as u8);
         // lower 8 bits
         self.codes.push(idx as u8);
     }
+
+    // --------------------------------------------------------------------------------
+    // Call frame
+    // --------------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn write_alloc_locals_u8(&mut self, idx: u8) {
+        self.codes.push(OpCode::OpAllocLocals8 as u8);
+        self.codes.push(idx);
+    }
+
+    // --------------------------------------------------------------------------------
+    // Locals
+    // --------------------------------------------------------------------------------
+
+    #[inline(always)]
+    pub fn write_load_local_u8(&mut self, idx: u8) {
+        self.codes.push(OpCode::OpPushLocal8 as u8);
+        self.codes.push(idx);
+    }
+
+    #[inline(always)]
+    pub fn write_set_local_u8(&mut self, idx: u8) {
+        self.codes.push(OpCode::OpSetLocal8 as u8);
+        self.codes.push(idx);
+    }
 }
 
-/// Constants
 impl Chunk {
     #[inline(always)]
     pub fn store_literal(&mut self, value: TypedLiteral) -> LiteralIndex {
@@ -197,16 +220,16 @@ mod tests {
             chunk.store_literal(TypedLiteral::F32(32.0));
             chunk.store_literal(TypedLiteral::F32(16.0));
 
-            chunk.push_idx_raw_u8(0); // 64.0
-            chunk.push_idx_raw_u8(1); // 32.0
-            chunk.push_code(OpSubF32); // -
+            chunk.write_idx_raw_u8(0); // 64.0
+            chunk.write_idx_raw_u8(1); // 32.0
+            chunk.write_code(OpSubF32); // -
 
-            chunk.push_idx_raw_u16(2); // 16.0
-            chunk.push_code(OpDivF32); // /
+            chunk.write_idx_raw_u16(2); // 16.0
+            chunk.write_code(OpDivF32); // /
 
-            chunk.push_code(OpNegateF32); // -
+            chunk.write_code(OpNegateF32); // -
 
-            chunk.push_code(OpReturn);
+            chunk.write_code(OpReturn);
 
             chunk
         };
@@ -216,7 +239,7 @@ mod tests {
 
         assert_eq!(
             Some(&TypedLiteral::F32(-2.0).into_unit()),
-            vm.stack().last()
+            vm.units().last()
         );
 
         Ok(())
