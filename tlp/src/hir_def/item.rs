@@ -54,6 +54,7 @@ impl Param {
 pub struct DefProc {
     pub(crate) name: Option<Name>,
     pub(crate) params: ProcParams,
+    // TODO: interning? include file ID?
     pub ast_idx: AstIdx<ast::DefProc>,
 }
 

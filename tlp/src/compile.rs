@@ -90,7 +90,7 @@ impl Compiler {
                 todo!()
             }
             Expr::Literal(lit) => match lit {
-                expr::Literal::Float(x) => {
+                expr::Literal::F32(x) => {
                     let literal = TypedLiteral::F32(x.0);
                     let idx = self.chunk.store_literal(literal);
                     self.chunk.push_ix(idx);

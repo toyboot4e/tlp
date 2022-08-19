@@ -60,7 +60,7 @@ fn main_literal() {
     // 12
     assert_eq!(
         &body.exprs[exprs.next().unwrap()],
-        &Expr::Literal(expr::Literal::Int(12))
+        &Expr::Literal(expr::Literal::I32(12))
     );
 
     // (+ 1 2)
@@ -76,11 +76,11 @@ fn main_literal() {
             assert_eq!(path_data.segments[0].as_str(), "+");
             assert_eq!(
                 &body.exprs[call.args[0]],
-                &Expr::Literal(expr::Literal::Int(1)),
+                &Expr::Literal(expr::Literal::I32(1)),
             );
             assert_eq!(
                 &body.exprs[call.args[1]],
-                &Expr::Literal(expr::Literal::Int(2)),
+                &Expr::Literal(expr::Literal::I32(2)),
             );
         }
         _ => panic!("not a call node: {:?}", node),
