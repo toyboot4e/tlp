@@ -1,6 +1,6 @@
 //! HIR item syntax lowered into [`ItemList`]
 //!
-//! [`ItemList`]: crate::hir_def::scope::ItemList
+//! [`ItemList`]: crate::hir_def::item_list::ItemList
 //!
 //! Macros are not expanded and imports not are resolved.
 

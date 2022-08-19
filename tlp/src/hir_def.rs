@@ -21,16 +21,16 @@
 //!
 //! [`Arena`]: la_arena::Arena
 //! [`Idx`]: la_arena::Idx
-//! [`HirItemLoc`]: crate::hir_def::db::ids::HirItemLoc
+//! [`HirItemLoc`]: crate::hir_def::ids::HirItemLoc
 //!
 //! [`FileData`]: crate::hir_def::FileData
 //! [`Body`]: crate::hir_def::body::Body
 //!
-//! [`ItemScope`]: crate::hir_def::scope::ItemScope
+//! [`ItemScope`]: crate::hir_def::item_list::ItemScope
 //! [`ExprScope`]: crate::hir_def::scope::ExprScope
-//! [`ScopeData`]: crate::hir_def::scope::ScopeData
-//! [`ExprScopeMap`]: crate::hir_def::scope::ExprScopeMap
-//! [`Itemist`]: crate::hir_def::item_list::ItemList
+//! [`ScopeData`]: crate::hir_def::body::expr_scope::ScopeData
+//! [`ExprScopeMap`]: crate::hir_def::body::expr_scope::ExprScopeMap
+//! [`ItemList`]: crate::hir_def::item_list::ItemList
 
 pub mod body;
 pub mod db;
@@ -75,7 +75,7 @@ impl CrateData {
     }
 }
 
-/// Pre-file [`ItemScope`] with child/parent relationship
+/// Pre-file [`ItemScope`](item_list::ItemScope) with child/parent relationship
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileData {
     pub(crate) file: VfsFileId,
