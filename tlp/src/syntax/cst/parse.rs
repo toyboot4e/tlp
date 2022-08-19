@@ -388,6 +388,7 @@ impl ParseState {
     fn bump_list_let(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
         assert_eq!(tk.slice(pcx.src), "let");
+
         self.maybe_bump_ws(pcx);
 
         // wrap the list
@@ -454,33 +455,10 @@ impl ParseState {
 
     /// Symbol → Path | Literal
     fn maybe_bump_symbol(&mut self, pcx: &ParseContext) -> Option<()> {
-        if self.maybe_bump_ident_or_path(pcx).is_some() || self.maybe_bump_lit(pcx).is_some() {
+        if self.maybe_bump_path(pcx).is_some() || self.maybe_bump_lit(pcx).is_some() {
             Some(())
         } else {
             None
-        }
-    }
-
-    fn maybe_bump_ident_or_path(&mut self, pcx: &ParseContext) -> Option<()> {
-        let peek0 = self.peek(pcx)?;
-        if peek0.kind != SyntaxKind::Ident {
-            return None;
-        }
-
-        let peek1 = match self.peek_n(pcx, 1) {
-            Some(x) => x,
-            None => {
-                self.bump_kind(pcx, SyntaxKind::Ident);
-                return Some(());
-            }
-        };
-
-        if matches!(peek1.kind, SyntaxKind::Colon | SyntaxKind::Dot) {
-            assert!(self.maybe_bump_path(pcx).is_some());
-            Some(())
-        } else {
-            self.bump_kind(pcx, SyntaxKind::Ident);
-            Some(())
         }
     }
 

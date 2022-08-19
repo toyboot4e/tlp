@@ -309,7 +309,7 @@ impl Call {
 
     /// Function arguments
     pub fn args(&self) -> impl Iterator<Item = Expr> {
-        // skip path
+        // skip function path
         self.syn.children().filter_map(Expr::cast_node).skip(1)
     }
 }
