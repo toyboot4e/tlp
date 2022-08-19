@@ -4,36 +4,14 @@
 //!
 //! Macros are not expanded and imports not are resolved.
 
-use smol_str::SmolStr;
-
-use crate::{hir_def::db::ids::AstIdx, syntax::ast};
+use crate::{
+    hir_def::ids::{AstIdx, Name},
+    syntax::ast,
+};
 
 /// Upcast of module item IDs
 pub enum ItemId {
     Proc(DefProc),
-}
-
-/// Declared item's name
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Name {
-    // TODO: consider interning string with salsa?
-    data: SmolStr,
-}
-
-impl Name {
-    pub fn from_str(s: &str) -> Self {
-        Self { data: s.into() }
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.data.as_str()
-    }
-
-    pub const fn missing() -> Name {
-        Name {
-            data: SmolStr::new_inline("[missing name]"),
-        }
-    }
 }
 
 /// Function parameter

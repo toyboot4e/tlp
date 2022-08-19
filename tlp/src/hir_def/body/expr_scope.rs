@@ -11,11 +11,9 @@ use crate::hir_def::{
         expr::{self, Expr},
         pat, Body,
     },
-    db::{
-        self,
-        ids::{HirItemLoc, Id},
-    },
-    item_list::item::{self, Name},
+    db,
+    ids::{HirItemLoc, Id, Name},
+    item_list::item,
 };
 
 /// All stack data for a definition

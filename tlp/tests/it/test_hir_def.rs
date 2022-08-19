@@ -4,12 +4,9 @@ use std::sync::Arc;
 
 use tlp::hir_def::{
     body::expr::{self, Expr},
-    db::{
-        self,
-        ids::{HirItemLoc, Id},
-        vfs, *,
-    },
-    item_list::item::{self, Name},
+    db::{self, vfs, *},
+    ids::{HirItemLoc, Id, Name},
+    item_list::item,
 };
 
 use crate::util;
@@ -36,7 +33,7 @@ fn main_literal() {
     let file_item_scope = &file.item_scope;
 
     // 3. name
-    let name = item::Name::from_str("main");
+    let name = Name::from_str("main");
 
     let proc_id = file_item_scope.lookup_proc(&name).unwrap();
     let proc_loc = proc_id.lookup_loc(&db);

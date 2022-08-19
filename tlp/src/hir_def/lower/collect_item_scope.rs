@@ -7,7 +7,8 @@ use std::sync::Arc;
 use la_arena::Arena;
 
 use crate::hir_def::{
-    db::{self, ids::HirItemLoc, vfs::*},
+    db::{self, vfs::*},
+    ids::HirItemLoc,
     item_list::ItemScope,
     CrateData, FileData, FileDataId,
 };

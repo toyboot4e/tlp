@@ -9,8 +9,8 @@ use la_arena::Idx;
 use crate::{
     hir_def::{
         body::pat,
-        db::{self, ids::*},
-        item_list::item::Name,
+        db,
+        ids::{self, Name},
     },
     syntax::ast::{self, AstToken},
 };
@@ -45,7 +45,7 @@ impl_from! {
 /// Code block of S-expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
-    pub id: AstExprIdx<ast::Block>,
+    pub id: ids::AstExprIdx<ast::Block>,
     // TODO: statements?
     pub children: Box<[Idx<Expr>]>,
 }
@@ -95,7 +95,7 @@ impl From<ast::Num> for Literal {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Path {
-    data: Id<PathData>,
+    data: ids::Id<PathData>,
 }
 
 impl Path {

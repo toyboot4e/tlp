@@ -16,6 +16,29 @@ use crate::{
     },
 };
 
+/// Interned string for variable / item name
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Name {
+    // TODO: consider interning string with salsa?
+    data: smol_str::SmolStr,
+}
+
+impl Name {
+    pub fn from_str(s: &str) -> Self {
+        Self { data: s.into() }
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.data.as_str()
+    }
+
+    pub const fn missing() -> Name {
+        Name {
+            data: smol_str::SmolStr::new_inline("[missing name]"),
+        }
+    }
+}
+
 /// Interned ID to a location
 #[derive(Derivative)]
 #[derivative(Debug, Hash, PartialEq, Eq)]

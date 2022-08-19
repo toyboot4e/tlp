@@ -7,12 +7,10 @@ use rustc_hash::FxHashMap;
 
 use std::ops;
 
-use crate::hir_def::db::{
-    ids::{HirItemLoc, Id},
-    vfs::VfsFileId,
+use crate::hir_def::{
+    db::vfs::VfsFileId,
+    ids::{HirItemLoc, Id, Name},
 };
-
-use self::item::Name;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemList {

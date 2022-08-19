@@ -2,7 +2,6 @@
 
 pub extern crate salsa;
 
-pub mod ids;
 pub mod vfs;
 
 use std::sync::Arc;
@@ -10,6 +9,7 @@ use std::sync::Arc;
 use crate::{
     hir_def::{
         body::{expr, expr_scope, Body, BodySourceMap, ItemSourceMap},
+        ids,
         item_list::{item, ItemList},
         lower, CrateData,
     },
@@ -17,7 +17,7 @@ use crate::{
     utils::line_index::LineIndex,
 };
 
-use self::{ids::*, vfs::VfsFileId};
+use self::vfs::VfsFileId;
 
 /// [`salsa`] database instance for the queries
 #[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]
@@ -78,20 +78,24 @@ pub trait Intern: salsa::Database {
     // AST expression locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_ast_block_loc(&self, loc: ids::AstExprLoc<ast::Block>) -> AstExprIdx<ast::Block>;
+    fn intern_ast_block_loc(&self, loc: ids::AstExprLoc<ast::Block>)
+        -> ids::AstExprIdx<ast::Block>;
 
     // --------------------------------------------------------------------------------
     // HIR item locations
     // --------------------------------------------------------------------------------
     #[salsa::interned]
-    fn intern_item_proc_loc(&self, proc: HirItemLoc<item::DefProc>) -> HirItemId<item::DefProc>;
+    fn intern_item_proc_loc(
+        &self,
+        proc: ids::HirItemLoc<item::DefProc>,
+    ) -> ids::HirItemId<item::DefProc>;
 
     // --------------------------------------------------------------------------------
     // Path
     // --------------------------------------------------------------------------------
-    // FIXME: use Arc-based interning
     #[salsa::interned]
-    fn intern_path_data(&self, path: expr::PathData) -> Id<expr::PathData>;
+    // FIXME: use Arc-based interning?
+    fn intern_path_data(&self, path: expr::PathData) -> ids::Id<expr::PathData>;
 }
 
 /// Collecter of definitions of items
@@ -114,18 +118,18 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::lower_proc_body_query)]
-    fn proc_body(&self, proc_id: Id<HirItemLoc<item::DefProc>>) -> Arc<Body>;
+    fn proc_body(&self, proc_id: ids::HirItemId<item::DefProc>) -> Arc<Body>;
 
     #[salsa::invoke(lower::lower_proc_body_with_source_map_query)]
     fn proc_body_with_source_map(
         &self,
-        proc_id: Id<HirItemLoc<item::DefProc>>,
+        proc_id: ids::HirItemId<item::DefProc>,
     ) -> (Arc<Body>, Arc<BodySourceMap>);
 
     #[salsa::invoke(expr_scope::proc_expr_scope_query)]
     fn proc_expr_scope_map(
         &self,
-        proc_id: Id<HirItemLoc<item::DefProc>>,
+        proc_id: ids::HirItemId<item::DefProc>,
     ) -> Arc<expr_scope::ExprScopeMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]

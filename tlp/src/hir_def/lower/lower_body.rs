@@ -12,8 +12,9 @@ use crate::{
             expr::{self, Expr},
             pat, Body, BodySourceMap, ItemSourceMap, SyntheticSyntax,
         },
-        db::{self, ids::*, vfs::VfsFileId},
-        item_list::item::{self, Name},
+        db::{self, vfs::VfsFileId},
+        ids::*,
+        item_list::item,
     },
     syntax::{ast, ptr::AstPtr},
 };

@@ -22,7 +22,7 @@ use la_arena::{Arena, ArenaMap, Idx};
 use rustc_hash::{FxHashMap, FxHasher};
 
 use crate::{
-    hir_def::db::ids::AstIdx,
+    hir_def::ids::AstIdx,
     syntax::{
         ast::{self, AstNode},
         cst,

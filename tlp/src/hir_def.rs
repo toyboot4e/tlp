@@ -34,6 +34,7 @@
 
 pub mod body;
 pub mod db;
+pub mod ids;
 pub mod item_list;
 pub mod lower;
 
