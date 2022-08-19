@@ -117,9 +117,9 @@ pub struct ScopeEntry {
 
 pub(crate) fn proc_expr_scope_query(
     db: &dyn db::Def,
-    proc_id: Id<HirItemLoc<item::DefProc>>,
+    proc_loc_id: Id<HirItemLoc<item::DefProc>>,
 ) -> Arc<ExprScopeMap> {
-    let body = db.proc_body(proc_id);
+    let body = db.proc_body(proc_loc_id);
     self::body_expr_scope(db, &body)
 }
 

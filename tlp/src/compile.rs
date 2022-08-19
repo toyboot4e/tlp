@@ -137,7 +137,7 @@ fn ast_proc(db: &DB, proc_loc_id: HirItemLocId<item::DefProc>) -> ast::DefProc {
     let items = db.file_item_list(proc_loc.file);
     let hir_proc = &items.procs[proc_loc.idx];
 
-    let item_source_map = db.item_source_map(proc_loc.file);
+    let ast_id_map = db.ast_id_map(proc_loc.file);
 
     let ast_proc = {
         let parse = db.parse(proc_loc.file);
@@ -145,7 +145,7 @@ fn ast_proc(db: &DB, proc_loc_id: HirItemLocId<item::DefProc>) -> ast::DefProc {
 
         let ast_idx = hir_proc.ast_idx.clone();
 
-        let ast_proc_ptr = item_source_map.idx_to_ptr(ast_idx);
+        let ast_proc_ptr = ast_id_map.idx_to_ptr(ast_idx);
 
         ast_proc_ptr.to_node(&root_syntax)
     };

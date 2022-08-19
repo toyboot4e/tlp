@@ -110,7 +110,7 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // File syntax
     // --------------------------------------------------------------------------------
 
-    fn item_source_map(&self, file_id: VfsFileId) -> Arc<AstIdMap>;
+    fn ast_id_map(&self, file_id: VfsFileId) -> Arc<AstIdMap>;
 
     #[salsa::invoke(lower::lower_crate_data_query)]
     fn crate_data(&self, krate: VfsFileId) -> Arc<CrateData>;
@@ -123,25 +123,25 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // --------------------------------------------------------------------------------
 
     #[salsa::invoke(lower::lower_proc_body_query)]
-    fn proc_body(&self, proc_id: ids::HirItemLocId<item::DefProc>) -> Arc<Body>;
+    fn proc_body(&self, proc_loc_id: ids::HirItemLocId<item::DefProc>) -> Arc<Body>;
 
     #[salsa::invoke(lower::lower_proc_body_with_source_map_query)]
     fn proc_body_with_source_map(
         &self,
-        proc_id: ids::HirItemLocId<item::DefProc>,
+        proc_loc_id: ids::HirItemLocId<item::DefProc>,
     ) -> (Arc<Body>, Arc<BodySourceMap>);
 
     #[salsa::invoke(expr_scope::proc_expr_scope_query)]
     fn proc_expr_scope_map(
         &self,
-        proc_id: ids::HirItemLocId<item::DefProc>,
+        proc_loc_id: ids::HirItemLocId<item::DefProc>,
     ) -> Arc<expr_scope::ExprScopeMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;
 }
 
-fn item_source_map(db: &dyn Def, file_id: VfsFileId) -> Arc<AstIdMap> {
+fn ast_id_map(db: &dyn Def, file_id: VfsFileId) -> Arc<AstIdMap> {
     let parse = db.parse(file_id);
     let map = AstIdMap::from_source(&parse.doc.syntax());
 

@@ -1,6 +1,6 @@
 //! IDs of lowered data types
 
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 use derivative::Derivative;
 use la_arena::Idx;
@@ -21,6 +21,12 @@ use crate::{
 pub struct Name {
     // TODO: consider interning string with salsa?
     data: smol_str::SmolStr,
+}
+
+impl fmt::Display for Name {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.data, f)
+    }
 }
 
 impl Name {
