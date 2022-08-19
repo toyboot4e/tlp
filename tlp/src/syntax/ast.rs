@@ -6,17 +6,11 @@
 //!
 //! # AST node types
 //!
-//! - Concrete node (e.g. [`Block`])
-//!   They implement [`AstNode`]. They have corresponding CST node. This is the most basic node
-//!   type.
-//!
-//! - Transparent node (e.g. [`Item`] enum, [`Expr`] enum and [`Pat`] enum)
-//!   They implement [`AstNode`]. They don't have corresponding CST node and just wraps the
-//!   underlying [`AstNode`] types.
-//!
-//! - Token wrapper node (e.g. [`Literal`] with [`LiteralKind`])
-//!   They implement [`AstNode`], but they don't have corresponding CST token. So we need
-//!   indirection from node to token, i.e., [`LiteralKind`].
+//! | Node type     | Example     | Has CST Node | Description                     |
+//! |---------------|-------------|--------------|---------------------------------|
+//! | Concrete      | [`Block`]   | Yes          | Directly mapped from CST to AST |
+//! | Transparent   | [`Pat`]     | No           | Wraps a concrete node           |
+//! | Token wrapper | [`Literal`] | Yes          | Wraps a node in `*Kind`         |
 
 pub use crate::syntax::cst::ParseError;
 
@@ -229,19 +223,19 @@ define_enum_node! {
 }
 
 define_node! {
-    /// (proc name (params?) (block)..)
+    /// "(" "proc" name "(" params? ")" block ")"
     DefProc: SyntaxKind::DefProc,
 
-    /// (let pat sexp*)
+    /// "(" "let" pat expr ")"
     Let: SyntaxKind::Let,
 
-    /// (ident args sexp*)
+    /// "(" ident args sexp* ")"
     Call: SyntaxKind::Call,
 
     /// Expressions marked as inline code block
     Block: SyntaxKind::Block,
 
-    /// Path
+    /// ident ("." ident)*
     Path: SyntaxKind::Path,
 
     /// Pattern variant
@@ -394,14 +388,14 @@ impl Param {
 }
 
 define_enum_node! {
-    /// Pattern node
+    /// Pattern node (transparent)
     Pat = PatIdent | PatPath, SyntaxKind::PatIdent | SyntaxKind::PatPath
 }
 
 define_token_wrapper! {
-    /// Literal node
+    /// Literal node (token wrapper)
     Literal: SyntaxKind::Literal,
-    // View to the [`Literal`] node
+    /// View to a [`Literal`] node token
     // TODO: use `Bool` node?
     LiteralKind = Num | Str | True | False;
 }

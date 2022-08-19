@@ -60,9 +60,9 @@ pub struct BodySourceMap {
     // pub(crate) diagnostics: Vec<BodyDiagnostic>,
 }
 
-/// Syntax pointer to an existing AST node or missing
+/// Syntax pointer to an existing AST node or missing (used by [`BodySourceMap`])
 pub type ToAst<Ast> = Result<AstPtr<Ast>, SyntheticSyntax>;
 
-/// Represents missing syntax in AST
+/// Represents missing syntax in AST (used by [`BodySourceMap`])
 #[derive(Default, Debug, Eq, PartialEq, Clone, Copy)]
 pub struct SyntheticSyntax;

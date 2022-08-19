@@ -19,7 +19,7 @@ use crate::syntax::{
 
 use rowan::{GreenNode, GreenNodeBuilder};
 
-/// Error type accumulated while lexing
+/// Parse / lexing error
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ParseError {
     // TODO: use line:column representation
