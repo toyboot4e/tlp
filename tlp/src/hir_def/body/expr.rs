@@ -8,9 +8,9 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
+        body::pat,
         db::{self, ids::*},
-        item::Name,
-        pat,
+        item_list::item::Name,
     },
     syntax::ast::{self, AstToken},
 };

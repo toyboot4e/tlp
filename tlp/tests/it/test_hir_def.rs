@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use tlp::hir_def::{
+    body::expr::{self, Expr},
     db::{
         self,
         ids::{HirItemLoc, Id},
         vfs, *,
     },
-    expr::{self, Expr},
-    item::{self, Name},
+    item_list::item::{self, Name},
 };
 
 use crate::util;

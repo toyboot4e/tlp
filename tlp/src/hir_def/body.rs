@@ -9,6 +9,10 @@
 //!
 //! Those data structure that provide the positional indexes are called "source maps".
 
+pub mod expr;
+pub mod expr_scope;
+pub mod pat;
+
 use std::{
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hash, Hasher},
@@ -18,17 +22,15 @@ use la_arena::{Arena, ArenaMap, Idx};
 use rustc_hash::{FxHashMap, FxHasher};
 
 use crate::{
-    hir_def::{
-        db::ids::AstIdx,
-        expr::{self, Expr},
-        pat::{self, Pat},
-    },
+    hir_def::db::ids::AstIdx,
     syntax::{
         ast::{self, AstNode},
         cst,
         ptr::{AstPtr, SyntaxNodePtr},
     },
 };
+
+use self::{expr::Expr, pat::Pat};
 
 /// Map between AST item locations and HIR stable indices
 #[derive(Debug, Clone, Default)]

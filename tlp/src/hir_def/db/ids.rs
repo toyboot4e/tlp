@@ -8,7 +8,7 @@ use la_arena::Idx;
 use crate::{
     hir_def::{
         db::{self, vfs::VfsFileId},
-        item,
+        item_list::item,
     },
     syntax::{
         ast::{self, AstNode},

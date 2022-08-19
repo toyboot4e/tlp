@@ -7,36 +7,16 @@ use smallvec::SmallVec;
 use std::sync::Arc;
 
 use crate::hir_def::{
-    body::Body,
+    body::{
+        expr::{self, Expr},
+        pat, Body,
+    },
     db::{
         self,
         ids::{HirItemLoc, Id},
     },
-    expr::{self, Expr},
-    item::{self, Name},
-    pat,
+    item_list::item::{self, Name},
 };
-
-// --------------------------------------------------------------------------------
-// Resolver
-// --------------------------------------------------------------------------------
-
-// /// [`ItemScope`] | [`ExprScope`]
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub enum Scope {
-//     Item(ItemScope),
-//     Expr(ExprScope),
-// }
-
-// /// View to [`ExprScopeMap`] for one scope
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct ExprScope {
-//     //
-// }
-
-// --------------------------------------------------------------------------------
-// Expression scope
-// --------------------------------------------------------------------------------
 
 /// All stack data for a definition
 #[derive(Debug, Default, PartialEq, Eq)]

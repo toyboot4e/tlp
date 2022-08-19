@@ -6,7 +6,7 @@
 
 // use crate::hir_def::{item::Name, FileData};
 
-use crate::hir_def::item::Name;
+use crate::hir_def::item_list::item::Name;
 
 // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 // pub struct ModuleId {

@@ -9,8 +9,9 @@ use std::sync::Arc;
 
 use crate::{
     hir_def::{
-        body::{Body, BodySourceMap, ItemSourceMap},
-        expr, item, lower, scope, CrateData, item_list::ItemList,
+        body::{expr, expr_scope, Body, BodySourceMap, ItemSourceMap},
+        item_list::{item, ItemList},
+        lower, CrateData,
     },
     syntax::ast::{self, ParseResult},
     utils::line_index::LineIndex,
@@ -121,11 +122,11 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
         proc_id: Id<HirItemLoc<item::DefProc>>,
     ) -> (Arc<Body>, Arc<BodySourceMap>);
 
-    #[salsa::invoke(scope::proc_expr_scope_query)]
+    #[salsa::invoke(expr_scope::proc_expr_scope_query)]
     fn proc_expr_scope_map(
         &self,
         proc_id: Id<HirItemLoc<item::DefProc>>,
-    ) -> Arc<scope::ExprScopeMap>;
+    ) -> Arc<expr_scope::ExprScopeMap>;
 
     // #[salsa::invoke(DefMap::block_def_map_query)]
     // fn block_item_list(&self, block: BlockId) -> Option<Arc<DefMap>>;

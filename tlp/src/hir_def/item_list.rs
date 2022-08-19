@@ -1,17 +1,18 @@
 //! Item list
 
+pub mod item;
+
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
 
 use std::ops;
 
-use crate::hir_def::{
-    db::{
-        ids::{HirItemLoc, Id},
-        vfs::VfsFileId,
-    },
-    item::{self, Name},
+use crate::hir_def::db::{
+    ids::{HirItemLoc, Id},
+    vfs::VfsFileId,
 };
+
+use self::item::Name;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemList {

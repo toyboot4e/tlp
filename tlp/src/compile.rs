@@ -6,10 +6,12 @@ use thiserror::Error;
 
 use crate::{
     hir_def::{
-        body::Body,
+        body::{
+            expr::{self, Expr},
+            Body,
+        },
         db::{ids::*, vfs::*, *},
-        expr::{self, Expr},
-        item::{self, Name},
+        item_list::item::{self, Name},
     },
     syntax::{ast, ptr::AstPtr},
     vm::code::{Chunk, OpCode, TypedLiteral},
@@ -76,7 +78,8 @@ impl Compiler {
                         let rhs = &body.exprs[call.args[1]];
                         self.compile_expr(db, body, &rhs);
 
-                        let op = self::to_oper(name.as_str()).unwrap();
+                        // TODO: Don't assume `f32` type
+                        let op = self::to_oper_f32(name.as_str()).unwrap();
                         self.chunk.push_code(op);
                     }
                     _ => {
@@ -117,7 +120,7 @@ fn find_procedure_in_crate(
     item_scope.lookup_proc(name).unwrap()
 }
 
-fn to_oper(s: &str) -> Option<OpCode> {
+fn to_oper_f32(s: &str) -> Option<OpCode> {
     Some(match s {
         "+" => OpCode::OpAddF32,
         "-" => OpCode::OpSubF32,

@@ -8,11 +8,12 @@ use la_arena::Idx;
 
 use crate::{
     hir_def::{
-        body::{Body, BodySourceMap, ItemSourceMap, SyntheticSyntax},
+        body::{
+            expr::{self, Expr},
+            pat, Body, BodySourceMap, ItemSourceMap, SyntheticSyntax,
+        },
         db::{self, ids::*, vfs::VfsFileId},
-        expr::{self, Expr},
-        item::{self, Name},
-        pat,
+        item_list::item::{self, Name},
     },
     syntax::{ast, ptr::AstPtr},
 };
