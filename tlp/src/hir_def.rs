@@ -85,6 +85,7 @@ pub struct FileData {
     pub item_scope: Arc<item_list::ItemScope>,
 }
 
+/// Index of [`FileData`] in [`CrateData`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FileDataId {
     // krate: CrateId,

@@ -61,7 +61,7 @@ fn test_expr(src: &str, expected: f32) {
     let mut vm = Vm::new(chunk);
     vm.run().unwrap();
 
-    let unit = vm.stack().last().unwrap();
+    let unit = vm.units().last().unwrap();
     assert_eq!(*unit, expected.into_unit());
 }
 

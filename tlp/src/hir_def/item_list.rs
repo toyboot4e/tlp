@@ -1,8 +1,8 @@
-//! Item list
+//! HIR items
+//!
+//! Items are mailny defined just under a file, and also in each block.
 
 pub mod item;
-
-mod item_source_map;
 
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
