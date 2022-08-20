@@ -110,7 +110,7 @@ Summon EoF error!
 +
 image::devlog/ls-eof.png[]
 +
-There are lots more things to, such as syncing the buffers, but now the front-end development is ready, so many works can directly improve the user experience. Let's become a toylisp user!
+There are lots more things to, such as syncing the buffers, but now the front-end development is ready, so every work could directly improve the user experience. Let's become a toylisp user!
 
 * Jul 11, 2021
 +
@@ -165,15 +165,17 @@ vfs-notify       219
 ----
 ====
 
-=== `hir_def`
+=== `hir_def` unimplemented
 
 * Aug 1, 2021
 +
-Me of this day tried to make notes about ra `hir-def`, where I failed. It looked too complex
+Me of this day tried to make notes about ra `hir-def`, but it looked too complex to wrap my head around it.
 
 * Aug 28, 2021
 +
 https://mun-lang.org/[Mun Programming Language] has https://docs.mun-lang.org/[document] where Salsa integration is explained.
+
+=== `hir_def` implemented
 
 * Aug 21, 2022
 +
@@ -188,6 +190,7 @@ Hey it took me a year to come back to toylisp. I learned incremental development
 ----
 +
 The module hierarchy shows how I understand `hir_def` today. It's basically abount items and bodies:
++
 ----
 [source]
 hir_def
@@ -205,9 +208,25 @@ hir_def
     └── lower_item.rs
 ----
 +
-Today I'm not temped to make much notes.
+Hey it looks very simple.
 
 == `hir_ty`
 
 I want to add support for basic primitive types: `i32`, `f32` and `bool`. I need to know the type of variable to apply suitable arithmetic operators, so I'll tuckple into ra `hir-ty`.
+
+* Aug 21, 2022
++
+`hir_ty` database returns `InferenceResult`, which assignes type information to every expression and pattern:
++
+[source,rust]
+----
+#[derive(Debug)]
+pub struct InferenceResult {
+    // Its's basically:
+    pub type_of_expr: ArenaMap<Idx<Expr>, Ty>,
+    pub type_of_pat: ArenaMap<Idx<Pat>, Ty>,
+}
+----
++
+First I'll try to make it. Not scared, I'm in incremental development mode.
 
