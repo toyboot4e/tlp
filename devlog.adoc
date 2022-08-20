@@ -3,6 +3,7 @@
 :snowrl: https://github.com/toyboot4e/snowrl[SnowRL]
 :cr: https://craftinginterpreters.com/contents.html[Crafting Interpreters]
 :toy-scheme: https://github.com/toyboot4e/toy-scheme[toy-scheme]
+:compilerbook: https://www.sigbus.info/compilerbook[compilerbook]
 
 :ra: https://github.com/rust-analyzer/rust-analyzer[rust-analyzer]
 :ra-arch: https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/dev/architecture.md[architecture.md]
@@ -24,11 +25,9 @@ I wanted to add scripting support for my game ({snowrl}) and {glsp} looked nice,
 
 I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs package in ELisp ({toy-scheme}), still I know little about Lisp. I'd have to struggle a lot.
 
-== Devlog (initial approach)
+== Initial, abandoned approach
 
-Compilation passes: source string → AST → bytecode.
-
-NOTE: This approach was soon abandoned.
+Compilation passes: source string → AST → bytecode. This approach was abandoned in favor of following `rust-analyzer`.
 
 [%collapsible]
 ========
@@ -61,13 +60,11 @@ I also added a simple compiler, which converts AST to bytecode. Now `(/ (- 64.0 
 
 ========
 
-== Devlog
+== Setting up frontend
 
 I started to learn from {ra}.
 
-=== Setting up frontend
-
-==== CST
+=== CST
 
 I want my ideal lang to be statically typed, and the parser should be IDE-oriented. toylisp is not that language, still it would be great if I can learn from {ra}.
 
@@ -75,15 +72,17 @@ I want my ideal lang to be statically typed, and the parser should be IDE-orient
 +
 Accoording to the doc, {ra} converts source file string into a lossless _(concrete) syntax tree_ with {rowan} footnote:[{rowan} was doing aggressive optimization: deduplication of subtree and use of thin pointers. I couldn't do better than that, so I decided to just use {rowan} instead of re-writing it.].
 +
-I didn't know the notion of CST. It's basically a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with _syntax kind_ s. One good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST even for invalid source text in toylisp grammer.
+CST is a tree representation of text (syntax), where each element footnote:[element = sub tree (node) or leaf (token)] is tagged with _syntax kind_ s. One good thing about CST is that each element is _homogeneous_ and _untyped_, so we can easily create CST even for invalid source text in a grammer.
 +
 Today I parsed simple arithmetics into CST with {rowan}. I can't run the code yet (and for a while).
 
 * Jun 25, 2021
 +
-I added a WIP AST. In context of {rowan}, an AST node is just a wrapper around a CST node with accessor methods; AST node is always backed by a CST node!
+In context of {rowan}, an AST node is just a wrapper around a CST node with accessor methods; AST node is always backed by a CST node!
++
+Today I added a basic AST.
 
-==== Language server and syntax highlighting (tree-sitter)
+=== Language server and syntax highlighting (tree-sitter)
 
 I'll develop both the language and a language server as the same time.
 
@@ -99,13 +98,11 @@ Next thing to do was syntax highlighting. But as of today, LS can't provide synt
 +
 OMG!
 +
-And every text editor uses different regular expression for highlights. But don't too worry, {tree-sitter} would be the write-once-run-everywhere syntax highlighter. (If not, well I have some contribution chance. I already sent a https://github.com/tree-sitter/tree-sitter/pull/1220[PR] to {tree-sitter} (CLI part), praise me! 😎).
-+
-Today I got WIP syntax highlighting for toylisp on Emacs with tree-sitter:
+And every text editor uses different regular expression for highlights. But don't too worry, {tree-sitter} would be the write-once-run-everywhere syntax highlighter. I made a simple `tree-sitter` project and it runs on Emacs:
 +
 image::devlog/emacs-tree-sitter-hl.png[]
 +
-E p i c o
+E p i c o !
 
 * Jul 4, 2021
 +
@@ -119,13 +116,15 @@ There are lots more things to, such as syncing the buffers, but now the front-en
 +
 I hear _semantic tokens_ of language server can provide syntax highlighting _without_ highlighting by regex. But I could not let `semantic_highlight_full` called somehow. I'll leave it for later day.
 
+== HIR
+
+=== Introducing `salsa`
+
 * Jul 17, 2021
 +
-According to the dev guide, {ra} does the following passes: AST → marco-expanded AST (?) → name-resolved IR → type-resolved IR → HIR. While the conversions, RA uses some important patterns: interning, source map pattern and queries. They are (or will be) built around {salsa}.
+{ra} is built around {salsa}. {salsa} is an incremental computation framework. I expect it be a wizard's magic, like {rowan} is!
 +
-I used to think making my own tool was straight-forward, but {rowan} already changed my mind; there are lightweight wizard's magic that works as a super nice framework. So I expect the same thing for {salsa}, too.
-+
-By the way, this is line counts of `rust-analyzer`;
+By the way, {rowan} and {salsa} are written in 4,000 lines of Rust. I also counted `rust-analyzer` source lines:
 +
 [%collapsible]
 ====
@@ -166,6 +165,49 @@ vfs-notify       219
 ----
 ====
 
-=== salsa-based HIR
+=== `hir_def`
 
-{salsa} is an incremental computation framework, written in less than 4000 lines of code. It also provides with interning implementation.
+* Aug 1, 2021
++
+Me of this day tried to make notes about ra `hir-def`, where I failed. It looked too complex
+
+* Aug 28, 2021
++
+https://mun-lang.org/[Mun Programming Language] has https://docs.mun-lang.org/[document] where Salsa integration is explained.
+
+* Aug 21, 2022
++
+Hey it took me a year to come back to toylisp. I learned incremental development from the {compilerbook} and I made up `tlp::hir_def`. Now I can run a simple toylisp program:
++
+[source,lisp]
+----
+(proc main ()
+    (let a 10)
+    (+ a 2))
+;; => 2
+----
++
+The module hierarchy shows how I understand `hir_def` today. It's basically abount items and bodies:
+----
+[source]
+hir_def
+├── body
+│   ├── expr.rs
+│   ├── expr_scope.rs
+│   └── pat.rs
+├── db
+├── ids
+├── item_list
+│   └── item.rs
+└── lower
+    ├── collect_item_scope.rs
+    ├── lower_body.rs
+    └── lower_item.rs
+----
++
+Today I'm not temped to make much notes.
+
+== `hir_ty`
+
+I want to add support for basic primitive types: `i32`, `f32` and `bool`. I need to know the type of variable to apply suitable arithmetic operators, so I'll tuckple into ra `hir-ty`.
+
