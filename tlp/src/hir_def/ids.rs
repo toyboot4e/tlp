@@ -1,6 +1,6 @@
 //! IDs of lowered data types
 
-use std::{fmt, marker::PhantomData};
+use std::{fmt, marker::PhantomData, sync::Arc};
 
 use derivative::Derivative;
 use la_arena::Idx;
@@ -162,25 +162,34 @@ pub struct HirItemLoc<T> {
     /// Original source file
     pub file: VfsFileId,
     /// Index to [`CrateData`]
-    pub file_data: FileDataIdx,
+    pub file_data: FileDataLoc,
     /// Index to [`ItemList`]
     ///
     /// [`ItemList`]: crate::hir_def::item_list::ItemList
     pub idx: Idx<T>,
 }
 
+impl<T> HirItemLoc<T> {
+    pub fn lookup_crate_data(&self, db: &dyn db::Def) -> Arc<crate::hir_def::CrateData> {
+        db.crate_data(self.file_data.krate)
+    }
+
+    pub fn lookup_item_scope(&self, db: &dyn db::Def) -> Arc<crate::hir_def::item_list::ItemScope> {
+        let krate = self.lookup_crate_data(db);
+        let file_data = krate.sub_file(self.file_data);
+        file_data.item_scope.clone()
+    }
+}
+
 // --------------------------------------------------------------------------------
 // HIR crate/module ID
 // --------------------------------------------------------------------------------
 
-/// Index of [`FileData`] in [`CrateData`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FileDataIdx {
-    // krate: CrateId,
+pub struct FileDataLoc {
+    // FIXME: use `CrateId`
+    pub krate: VfsFileId,
     // block: BlockId,
+    /// Index of [`FileData`] in [`CrateData`]
     pub idx: Idx<FileData>,
 }
-
-// impl FileDataId {
-//     pub fn lookup(&self, db: &Def) -> FileData
-// }

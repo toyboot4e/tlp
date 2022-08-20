@@ -118,6 +118,7 @@ pub trait Def: Parse + Intern + Upcast<dyn Intern> {
 
     fn ast_id_map(&self, file_id: VfsFileId) -> Arc<AstIdMap>;
 
+    // FIXME: use `CrateId` as parameter
     #[salsa::invoke(lower::lower_crate_data_query)]
     fn crate_data(&self, krate: VfsFileId) -> Arc<CrateData>;
 

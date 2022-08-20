@@ -43,12 +43,12 @@ use std::sync::Arc;
 
 use la_arena::Arena;
 
-use self::{db::vfs::VfsFileId, ids::FileDataIdx};
+use self::{db::vfs::VfsFileId, ids::FileDataLoc};
 
 /// Per-project [`FileData`] container
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
-    pub(crate) root_file_idx: FileDataIdx,
+    pub(crate) root_file_idx: FileDataLoc,
     /// Sub module files
     pub(crate) files: Arena<FileData>,
     // TODO: collect diagnostics
@@ -56,7 +56,7 @@ pub struct CrateData {
 }
 
 impl CrateData {
-    pub fn root_file_data_idx(&self) -> FileDataIdx {
+    pub fn root_file_data_idx(&self) -> FileDataLoc {
         self.root_file_idx
     }
 
@@ -64,7 +64,7 @@ impl CrateData {
         &self.files[self.root_file_idx.idx]
     }
 
-    pub fn sub_file(&self, module: FileDataIdx) -> &FileData {
+    pub fn sub_file(&self, module: FileDataLoc) -> &FileData {
         &self.files[module.idx]
     }
 }
@@ -73,8 +73,8 @@ impl CrateData {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileData {
     pub(crate) file: VfsFileId,
-    pub(crate) parent: Option<FileDataIdx>,
-    pub(crate) children: Vec<FileDataIdx>,
+    pub(crate) parent: Option<FileDataLoc>,
+    pub(crate) children: Vec<FileDataLoc>,
     /// Items visible from this file (defined or imported)
     pub item_scope: Arc<item_list::ItemScope>,
 }

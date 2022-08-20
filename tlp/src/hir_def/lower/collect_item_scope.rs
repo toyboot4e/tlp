@@ -8,7 +8,7 @@ use la_arena::Arena;
 
 use crate::hir_def::{
     db::{self, vfs::*},
-    ids::{FileDataIdx, HirItemLoc},
+    ids::{FileDataLoc, HirItemLoc},
     item_list::ItemScope,
     CrateData, FileData,
 };
@@ -25,7 +25,7 @@ pub fn lower_crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateDa
             // use dummy item scope for now
             item_scope: Default::default(),
         });
-        FileDataIdx { idx }
+        FileDataLoc { krate, idx }
     };
 
     // overwrite the dummy item scope
@@ -43,7 +43,7 @@ pub fn lower_crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateDa
 
 struct ModCollector {
     vfs_file_id: VfsFileId,
-    root: FileDataIdx,
+    root: FileDataLoc,
 }
 
 impl ModCollector {
