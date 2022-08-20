@@ -9,6 +9,7 @@ use crate::{
     hir_def::{
         db::{self, vfs::VfsFileId},
         item_list::item,
+        FileData,
     },
     syntax::{
         ast::{self, AstNode},
@@ -153,15 +154,33 @@ impl HirItemLocId<item::DefProc> {
     }
 }
 
-/// [`VfsFileId`] + [`Idx`] ([`ItemList`] arena index)
+/// [`VfsFileId`] + [`FileDataIdx`] + [`Idx`] ([`ItemList`] arena index)
 ///
 /// [`ItemList`]: crate::hir_def::item_list::ItemList
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HirItemLoc<T> {
-    /// Index to (TODO: what?)
+    /// Original source file
     pub file: VfsFileId,
+    /// Index to [`CrateData`]
+    pub file_data: FileDataIdx,
     /// Index to [`ItemList`]
     ///
     /// [`ItemList`]: crate::hir_def::item_list::ItemList
     pub idx: Idx<T>,
 }
+
+// --------------------------------------------------------------------------------
+// HIR crate/module ID
+// --------------------------------------------------------------------------------
+
+/// Index of [`FileData`] in [`CrateData`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FileDataIdx {
+    // krate: CrateId,
+    // block: BlockId,
+    pub idx: Idx<FileData>,
+}
+
+// impl FileDataId {
+//     pub fn lookup(&self, db: &Def) -> FileData
+// }

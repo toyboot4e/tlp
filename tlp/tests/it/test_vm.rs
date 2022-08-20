@@ -5,7 +5,7 @@ use std::fmt::{self, Write};
 use tlp::{
     compile,
     syntax::ast,
-    vm::{code::Chunk, Unit, UnitVariant, Vm},
+    vm::{code::Chunk, UnitVariant, Vm},
 };
 
 fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display) {
