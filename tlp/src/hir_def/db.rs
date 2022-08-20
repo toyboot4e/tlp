@@ -6,7 +6,7 @@ pub extern crate salsa;
 
 pub mod vfs;
 
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 use crate::{
     hir_def::{
@@ -23,10 +23,16 @@ use crate::{
 use self::vfs::VfsFileId;
 
 /// [`salsa`] database instance for the queries
-#[salsa::database(SourceDB, ParseDB, InternDB, LowerModuleDB)]
+#[salsa::database(SourceDB, ParseDB, InternDB, DefDB)]
 #[derive(Default)]
 pub struct DB {
     storage: salsa::Storage<Self>,
+}
+
+impl fmt::Debug for DB {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_struct("DB").finish()
+    }
 }
 
 impl salsa::Database for DB {}
@@ -104,7 +110,7 @@ pub trait Intern: salsa::Database {
 }
 
 /// Collecter of definitions of items
-#[salsa::query_group(LowerModuleDB)]
+#[salsa::query_group(DefDB)]
 pub trait Def: Parse + Intern + Upcast<dyn Intern> {
     // --------------------------------------------------------------------------------
     // File syntax
