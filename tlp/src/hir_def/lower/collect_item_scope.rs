@@ -8,34 +8,42 @@ use la_arena::Arena;
 
 use crate::hir_def::{
     db::{self, vfs::*},
-    ids::HirItemLoc,
+    ids::{FileDataLoc, HirItemLoc},
     item_list::ItemScope,
-    CrateData, FileData, FileDataId,
+    CrateData, FileData,
 };
 
 /// Collects tree of modules with `ItemScope`
 pub fn lower_crate_data_query(db: &dyn db::Def, krate: VfsFileId) -> Arc<CrateData> {
     let mut modules = Arena::<FileData>::new();
 
-    let root_scope = ModCollector { vfs_file_id: krate }.module_item_scope(db);
-
-    let root = FileDataId {
-        idx: modules.alloc(FileData {
+    let root = {
+        let idx = modules.alloc(FileData {
             file: krate.clone(),
             parent: None,
             children: Vec::new(),
-            item_scope: root_scope,
-        }),
+            // use dummy item scope for now
+            item_scope: Default::default(),
+        });
+        FileDataLoc { krate, idx }
     };
 
-    Arc::new(CrateData {
+    // overwrite the dummy item scope
+    modules[root.idx].item_scope = ModCollector {
+        vfs_file_id: krate,
         root,
+    }
+    .module_item_scope(db);
+
+    Arc::new(CrateData {
+        root_file_idx: root,
         files: modules,
     })
 }
 
 struct ModCollector {
     vfs_file_id: VfsFileId,
+    root: FileDataLoc,
 }
 
 impl ModCollector {
@@ -52,6 +60,7 @@ impl ModCollector {
 
             let id = db.intern_item_proc_loc(HirItemLoc {
                 file: self.vfs_file_id,
+                file_data: self.root,
                 idx: id,
             });
 

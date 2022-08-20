@@ -17,7 +17,7 @@ use crate::hir_def::{
 };
 
 /// All stack data for a definition
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ExprScopeMap {
     scopes: Arena<ScopeData>,
     scope_by_expr: FxHashMap<Idx<Expr>, Idx<ScopeData>>,
@@ -100,7 +100,7 @@ impl ExprScopeMap {
 }
 
 /// Scope data created by a binding pattern
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ScopeData {
     parent: Option<Idx<ScopeData>>,
     // TODO: include AST location information
@@ -109,7 +109,7 @@ pub struct ScopeData {
     entries: SmallVec<[ScopeEntry; 1]>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopeEntry {
     pub name: Name,
     pub pat: Idx<pat::Pat>,

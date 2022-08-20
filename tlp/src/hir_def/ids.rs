@@ -1,6 +1,6 @@
 //! IDs of lowered data types
 
-use std::{fmt, marker::PhantomData};
+use std::{fmt, marker::PhantomData, sync::Arc};
 
 use derivative::Derivative;
 use la_arena::Idx;
@@ -9,6 +9,7 @@ use crate::{
     hir_def::{
         db::{self, vfs::VfsFileId},
         item_list::item,
+        FileData,
     },
     syntax::{
         ast::{self, AstNode},
@@ -153,15 +154,42 @@ impl HirItemLocId<item::DefProc> {
     }
 }
 
-/// [`VfsFileId`] + [`Idx`] ([`ItemList`] arena index)
+/// [`VfsFileId`] + [`FileDataIdx`] + [`Idx`] ([`ItemList`] arena index)
 ///
 /// [`ItemList`]: crate::hir_def::item_list::ItemList
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HirItemLoc<T> {
-    /// Index to (TODO: what?)
+    /// Original source file
     pub file: VfsFileId,
+    /// Index to [`CrateData`]
+    pub file_data: FileDataLoc,
     /// Index to [`ItemList`]
     ///
     /// [`ItemList`]: crate::hir_def::item_list::ItemList
     pub idx: Idx<T>,
+}
+
+impl<T> HirItemLoc<T> {
+    pub fn lookup_crate_data(&self, db: &dyn db::Def) -> Arc<crate::hir_def::CrateData> {
+        db.crate_data(self.file_data.krate)
+    }
+
+    pub fn lookup_item_scope(&self, db: &dyn db::Def) -> Arc<crate::hir_def::item_list::ItemScope> {
+        let krate = self.lookup_crate_data(db);
+        let file_data = krate.sub_file(self.file_data);
+        file_data.item_scope.clone()
+    }
+}
+
+// --------------------------------------------------------------------------------
+// HIR crate/module ID
+// --------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FileDataLoc {
+    // FIXME: use `CrateId`
+    pub krate: VfsFileId,
+    // block: BlockId,
+    /// Index of [`FileData`] in [`CrateData`]
+    pub idx: Idx<FileData>,
 }

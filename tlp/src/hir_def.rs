@@ -37,17 +37,18 @@ pub mod db;
 pub mod ids;
 pub mod item_list;
 pub mod lower;
+pub mod resolver;
 
 use std::sync::Arc;
 
-use la_arena::{Arena, Idx};
+use la_arena::Arena;
 
-use self::db::vfs::VfsFileId;
+use self::{db::vfs::VfsFileId, ids::FileDataLoc};
 
 /// Per-project [`FileData`] container
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
-    pub(crate) root: FileDataId,
+    pub(crate) root_file_idx: FileDataLoc,
     /// Sub module files
     pub(crate) files: Arena<FileData>,
     // TODO: collect diagnostics
@@ -55,22 +56,15 @@ pub struct CrateData {
 }
 
 impl CrateData {
-    pub fn new(root: FileDataId) -> Self {
-        Self {
-            root,
-            files: Arena::default(),
-        }
-    }
-
-    pub fn root_file_data_id(&self) -> FileDataId {
-        self.root
+    pub fn root_file_data_idx(&self) -> FileDataLoc {
+        self.root_file_idx
     }
 
     pub fn root_file_data(&self) -> &FileData {
-        &self.files[self.root.idx]
+        &self.files[self.root_file_idx.idx]
     }
 
-    pub fn sub_file(&self, module: FileDataId) -> &FileData {
+    pub fn sub_file(&self, module: FileDataLoc) -> &FileData {
         &self.files[module.idx]
     }
 }
@@ -79,18 +73,10 @@ impl CrateData {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileData {
     pub(crate) file: VfsFileId,
-    pub(crate) parent: Option<FileDataId>,
-    pub(crate) children: Vec<FileDataId>,
+    pub(crate) parent: Option<FileDataLoc>,
+    pub(crate) children: Vec<FileDataLoc>,
     /// Items visible from this file (defined or imported)
     pub item_scope: Arc<item_list::ItemScope>,
-}
-
-/// Index of [`FileData`] in [`CrateData`]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FileDataId {
-    // krate: CrateId,
-    // block: BlockId,
-    pub(crate) idx: Idx<FileData>,
 }
 
 // TODO: add data for macro-expanded `ItemList` (use it for crate/block DefMap)

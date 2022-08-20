@@ -28,7 +28,7 @@ fn main_literal() {
     let krate = vfs_file_id.clone();
     let crate_data = db.crate_data(krate.clone());
 
-    let file_data_id = crate_data.root_file_data_id();
+    let file_data_id = crate_data.root_file_data_idx();
     let file = crate_data.sub_file(file_data_id);
     let file_item_scope = &file.item_scope;
 

@@ -162,7 +162,7 @@ impl Compiler {
                         let rhs = &body.exprs[rhs_idx];
                         self.compile_expr(db, body, rhs_idx, &rhs);
 
-                        // TODO: Don't assume `f32` type
+                        // FIXME: Don't assume `f32` type
                         let op = self::to_oper_f32(name.as_str()).unwrap();
                         self.chunk.write_code(op);
                     }
