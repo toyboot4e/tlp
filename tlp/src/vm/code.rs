@@ -37,12 +37,14 @@ impl Into<u8> for OpCode {
 #[derive(Debug, Clone)]
 pub enum TypedLiteral {
     F32(f32),
+    I32(i32),
 }
 
 impl TypedLiteral {
     pub fn into_unit(&self) -> Unit {
         match self {
             Self::F32(x) => x.into_unit(),
+            Self::I32(x) => x.into_unit(),
         }
     }
 }

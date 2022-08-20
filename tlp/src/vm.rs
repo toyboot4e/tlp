@@ -145,8 +145,6 @@ impl Vm {
                 OpDivF32 => {
                     self.binary_op::<f32>(OpDivF32, ops::Div::<f32>::div)?;
                 }
-
-                _ => panic!(),
             }
         }
 
@@ -208,6 +206,18 @@ impl UnitVariant for u32 {
     fn from_unit(unit: Unit) -> Self {
         let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
         u32::from_be_bytes(bytes)
+    }
+
+    fn into_unit(self) -> Unit {
+        let bytes = self.to_be_bytes();
+        [bytes[0], bytes[1], bytes[2], bytes[3], 0, 0, 0, 0]
+    }
+}
+
+impl UnitVariant for i32 {
+    fn from_unit(unit: Unit) -> Self {
+        let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
+        i32::from_be_bytes(bytes)
     }
 
     fn into_unit(self) -> Unit {

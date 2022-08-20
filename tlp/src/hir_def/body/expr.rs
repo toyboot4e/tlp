@@ -68,8 +68,8 @@ pub enum Literal {
     String(String),
     Char(char),
     Bool(bool),
-    I32(i32),
     F32(EqF32),
+    I32(i32),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -77,19 +77,19 @@ pub struct EqF32(pub f32);
 
 impl cmp::Eq for EqF32 {}
 
-impl From<ast::Num> for Literal {
-    fn from(x: ast::Num) -> Self {
+impl Literal {
+    pub fn parse(x: ast::Num) -> Result<Self, String> {
         let text = x.syntax().text();
 
         if let Ok(x) = text.parse::<i32>() {
-            return Self::I32(x);
+            return Ok(Self::I32(x));
         }
 
         if let Ok(x) = text.parse::<f32>() {
-            return Self::F32(EqF32(x));
+            return Ok(Self::F32(EqF32(x)));
         }
 
-        todo!("if not a number");
+        Err("if not a number".to_string())
     }
 }
 

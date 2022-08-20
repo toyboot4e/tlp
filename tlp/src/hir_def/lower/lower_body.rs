@@ -161,7 +161,10 @@ impl<'a> LowerExpr<'a> {
                 self.alloc_expr(expr_path.into(), ast_ptr)
             }
             ast::Expr::Literal(lit) => match lit.kind() {
-                ast::LiteralKind::Num(x) => self.alloc_expr(Expr::Literal(x.into()), ast_ptr),
+                ast::LiteralKind::Num(x) => {
+                    let literal = expr::Literal::parse(x).unwrap();
+                    self.alloc_expr(literal.into(), ast_ptr)
+                }
                 ast::LiteralKind::Str(_str) => {
                     todo!()
                 }

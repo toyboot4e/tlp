@@ -187,6 +187,11 @@ impl Compiler {
                     let idx = self.chunk.store_literal(literal);
                     self.chunk.write_ix(idx);
                 }
+                expr::Literal::I32(x) => {
+                    let literal = TypedLiteral::I32(*x);
+                    let idx = self.chunk.store_literal(literal);
+                    self.chunk.write_ix(idx);
+                }
                 _ => todo!(),
             },
             Expr::Path(path) => {
