@@ -165,7 +165,7 @@ vfs-notify       219
 ----
 ====
 
-=== `hir_def` unimplemented
+=== `hir_def` not implemented
 
 * Aug 1, 2021
 +
@@ -210,7 +210,7 @@ hir_def
 +
 Hey it looks very simple.
 
-== `hir_ty`
+=== `hir_ty`
 
 I want to add support for basic primitive types: `i32`, `f32` and `bool`. I need to know the type of variable to apply suitable arithmetic operators, so I'll tuckple into ra `hir-ty`.
 

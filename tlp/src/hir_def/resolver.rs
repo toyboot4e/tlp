@@ -54,10 +54,12 @@ pub fn resolver_for_proc_scope(
 ) -> Resolver {
     let mut r = Resolver::new();
 
+    // item scope
     let proc_loc = proc_loc_id.lookup_loc(db);
     let item_scope = proc_loc.lookup_item_scope(db);
     r = r.push_file_item_scope(item_scope);
 
+    // body scopes
     let scope_idx = match scope_idx {
         Some(idx) => idx,
         None => return r,
@@ -69,6 +71,7 @@ pub fn resolver_for_proc_scope(
     r.scopes.reserve(scope_chain.len());
 
     for scope in scope_chain.into_iter().rev() {
+        // TODO: block item list
         // if let Some(block) = scopes.block(scope) {
         //     if let Some(def_map) = db.block_def_map(block) {
         //         let root = def_map.root();
