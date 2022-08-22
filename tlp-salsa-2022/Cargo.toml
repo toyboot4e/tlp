@@ -1,0 +1,24 @@
+[package]
+name = "tlp_salsa_2022"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# std++
+env_logger = "0.9.0"
+log = "0.4.17"
+thiserror = "1.0.32"
+camino = "1.1.1"
+
+# framework
+salsa = { git = "https://github.com/salsa-rs/salsa/", package = "salsa-2022" }
+
+# utilities
+derivative = "2.2.0"
+hashbrown = "0.12.3"
+indexmap = "1.9.1"
+la-arena = "0.2.1"
+rustc-hash = "1.1.0"
+smallvec = "1.9.0"
+smol_str = "0.1.23"
+
