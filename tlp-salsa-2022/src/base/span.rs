@@ -1,6 +1,6 @@
 //! Source span based on byte offset
 
-use crate::base::{self, ln, jar::InputFile};
+use crate::base::{self, jar::InputFile, ln};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FileSpan {
@@ -49,9 +49,15 @@ impl std::fmt::Debug for Span {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// 0-based byte offset within a file.
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Offset(u32);
+
+impl Offset {
+    pub fn into_usize(self) -> usize {
+        self.0 as usize
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LineColumn {
@@ -173,12 +179,24 @@ impl std::ops::Add<u32> for Offset {
     }
 }
 
+impl std::ops::AddAssign<u32> for Offset {
+    fn add_assign(&mut self, other: u32) {
+        *self = *self + other;
+    }
+}
+
 impl std::ops::Add<usize> for Offset {
     type Output = Offset;
 
     fn add(self, other: usize) -> Offset {
         assert!(other < std::u32::MAX as usize);
         self + (other as u32)
+    }
+}
+
+impl std::ops::AddAssign<usize> for Offset {
+    fn add_assign(&mut self, other: usize) {
+        *self = *self + other;
     }
 }
 
@@ -257,4 +275,3 @@ impl U32OrUsize for usize {
         n
     }
 }
-
