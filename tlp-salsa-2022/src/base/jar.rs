@@ -2,7 +2,7 @@
 
 use salsa::DebugWithDb;
 
-use crate::base::{self, ln::LineTable};
+use crate::base::{self, ln::LineTable, span::FileSpan};
 
 #[salsa::tracked(return_ref, jar = base::Jar)]
 pub fn line_table(db: &dyn base::Db, input_file: InputFile) -> LineTable {
@@ -10,8 +10,8 @@ pub fn line_table(db: &dyn base::Db, input_file: InputFile) -> LineTable {
     LineTable::new_raw(source_text)
 }
 
-#[salsa::interned(jar = base::Jar)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[salsa::interned(jar = base::Jar)]
 pub struct Word {
     #[return_ref]
     pub string: String,
@@ -38,6 +38,50 @@ impl salsa::DebugWithDb<dyn base::Db + '_> for Word {
     }
 }
 
+/// A "spanned word" is a `Word` that also carries a span. Useful for things like
+/// argument names etc where we want to carry the span through many phases
+/// of compilation.
+#[salsa::tracked]
+pub struct SpannedWord {
+    #[id]
+    word: Word,
+    span: FileSpan,
+}
+
+impl SpannedWord {
+    pub fn as_str(self, db: &dyn crate::Db) -> &str {
+        self.word(db).as_str(db)
+    }
+}
+
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedWord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.as_str(db.as_dyn_ir_db()), f)
+    }
+}
+
+/// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
+/// a span for where the label *would have gone* had it been present (as compared to
+/// an `Option<Label>`).
+#[salsa::tracked]
+pub struct SpannedOptionalWord {
+    #[id]
+    word: Option<Word>,
+    span: FileSpan,
+}
+
+impl SpannedOptionalWord {
+    pub fn as_str(self, db: &dyn crate::Db) -> Option<&str> {
+        Some(self.word(db)?.as_str(db))
+    }
+}
+
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedOptionalWord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.as_str(db.as_dyn_ir_db()), f)
+    }
+}
+
 #[salsa::input(jar = base::Jar)]
 pub struct InputFile {
     name: Word,
@@ -58,5 +102,3 @@ impl DebugWithDb<dyn base::Db + '_> for InputFile {
             .finish()
     }
 }
-
-
