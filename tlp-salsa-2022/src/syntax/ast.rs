@@ -201,7 +201,7 @@ impl Document {
         }
     }
 
-    pub fn item_nodes(&self) -> impl Iterator<Item = Item> {
+    pub fn items(&self) -> impl Iterator<Item = Item> {
         self.syn.children().filter_map(Item::cast_node)
     }
 

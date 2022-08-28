@@ -6,6 +6,7 @@ use crate::{
         span::*,
     },
     ir,
+    syntax::ast,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -55,10 +56,12 @@ impl<Db: ?Sized + ir::IrDb> salsa::DebugWithDb<Db> for Item {
 
 #[salsa::tracked(jar = ir::Jar)]
 pub struct Proc {
+    /// Name used as `#[id]`
     #[id]
     name: SpannedWord,
     span: FileSpan,
-    // body: Option<Body>,
+    /// Unparsed body code
+    ast: ast::DefProc,
 }
 
 impl<Db: ?Sized + ir::IrDb> salsa::DebugWithDb<Db> for Proc {

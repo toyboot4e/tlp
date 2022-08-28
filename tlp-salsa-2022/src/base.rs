@@ -1,4 +1,6 @@
-//! Base source handling taken from the `dada` langauge code base
+//! Source handling
+//!
+//! Taken from the `dada` langauge code base.
 
 pub mod jar;
 pub mod ln;

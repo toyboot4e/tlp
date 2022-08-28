@@ -43,7 +43,7 @@ pub trait Validate {
 
 impl Validate for Document {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        for item in self.item_nodes() {
+        for item in self.items() {
             item.validate(errs);
         }
     }
