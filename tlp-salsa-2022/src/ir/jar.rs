@@ -5,8 +5,6 @@ use crate::{
     ir::{self, item::Item},
 };
 
-/// The result of parsing an input file like `foo.dada`, or the
-/// value from the playground. A program is a collection of files.
 #[salsa::tracked(jar = ir::Jar)]
 pub struct ParsedFile {
     #[id]

@@ -14,19 +14,19 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn span(self, db: &dyn ir::Db) -> FileSpan {
+    pub fn span(self, db: &dyn ir::IrDb) -> FileSpan {
         match self {
             Item::Proc(f) => f.span(db),
         }
     }
 
-    pub fn name(self, db: &dyn ir::Db) -> Word {
+    pub fn name(self, db: &dyn ir::IrDb) -> Word {
         match self {
             Item::Proc(f) => f.name(db).word(db.as_base_db()),
         }
     }
 
-    pub fn name_span(self, db: &dyn ir::Db) -> FileSpan {
+    pub fn name_span(self, db: &dyn ir::IrDb) -> FileSpan {
         match self {
             Item::Proc(f) => f.name(db).span(db.as_base_db()),
         }
@@ -34,7 +34,7 @@ impl Item {
 
     pub fn kind_str(self) -> &'static str {
         match self {
-            Item::Proc(_) => "function",
+            Item::Proc(_) => "procedure",
         }
     }
 }
@@ -45,7 +45,7 @@ impl From<Proc> for Item {
     }
 }
 
-impl<Db: ?Sized + ir::Db> salsa::DebugWithDb<Db> for Item {
+impl<Db: ?Sized + ir::IrDb> salsa::DebugWithDb<Db> for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         match self {
             Item::Proc(v) => std::fmt::Debug::fmt(&v.debug(db), f),
@@ -61,7 +61,7 @@ pub struct Proc {
     // body: Option<Body>,
 }
 
-impl<Db: ?Sized + ir::Db> salsa::DebugWithDb<Db> for Proc {
+impl<Db: ?Sized + ir::IrDb> salsa::DebugWithDb<Db> for Proc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         write!(f, "{}", self.name(db.as_ir_db()).as_str(db.as_base_db()))
     }

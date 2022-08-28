@@ -7,7 +7,7 @@ pub mod span;
 // TODO: include this?
 // pub mod tbl;
 
-#[salsa::jar(db = Db)]
+#[salsa::jar(db = BaseDb)]
 pub struct Jar(
     jar::InputFile,
     jar::line_table,
@@ -16,12 +16,12 @@ pub struct Jar(
     jar::SpannedOptionalWord,
 );
 
-pub trait Db: salsa::DbWithJar<Jar> {
-    fn as_base_db(&self) -> &dyn Db;
+pub trait BaseDb: salsa::DbWithJar<Jar> {
+    fn as_base_db(&self) -> &dyn BaseDb;
 }
 
-impl<T: salsa::DbWithJar<Jar>> Db for T {
-    fn as_base_db(&self) -> &dyn Db {
+impl<T: salsa::DbWithJar<Jar>> BaseDb for T {
+    fn as_base_db(&self) -> &dyn BaseDb {
         self
     }
 }

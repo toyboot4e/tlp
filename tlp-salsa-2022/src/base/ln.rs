@@ -7,13 +7,13 @@ use crate::base::{
 };
 
 /// Converts a character index `position` into a line and column tuple.
-pub fn line_column(db: &dyn base::Db, input_file: InputFile, position: Offset) -> LineColumn {
+pub fn line_column(db: &dyn base::BaseDb, input_file: InputFile, position: Offset) -> LineColumn {
     let table = jar::line_table(db, input_file);
     table.line_column(position)
 }
 
 /// Given a line/column tuple, returns a character index.
-pub fn offset(db: &dyn base::Db, input_file: InputFile, position: LineColumn) -> Offset {
+pub fn offset(db: &dyn base::BaseDb, input_file: InputFile, position: LineColumn) -> Offset {
     let table = jar::line_table(db, input_file);
     table.offset(position)
 }
