@@ -96,7 +96,7 @@ fn is_ident_start(c: u8) -> bool {
 impl<'s> Lexer<'s> {
     fn consume_span(&mut self) -> Span {
         let sp = self.sp.clone();
-        self.sp.end = self.sp.start;
+        self.sp.start = self.sp.end;
         sp
     }
 
@@ -107,14 +107,14 @@ impl<'s> Lexer<'s> {
 
     /// The predicate returns if we should continue scanning reading a byte
     fn advance_if(&mut self, p: impl Fn(u8) -> bool) -> Option<()> {
-        if self.sp.start.into_usize() >= self.src.len() {
+        if self.sp.end.into_usize() >= self.src.len() {
             return None;
         }
 
-        let peek = self.src[self.sp.start.into_usize()];
+        let peek = self.src[self.sp.end.into_usize()];
 
         if p(peek) {
-            self.sp.start += 1u32;
+            self.sp.end += 1u32;
             Some(())
         } else {
             None
@@ -123,21 +123,21 @@ impl<'s> Lexer<'s> {
 
     /// The predicate returns if we should continue scanning reading a byte
     fn advance_while(&mut self, p: impl Fn(u8) -> bool) {
-        while self.sp.start.into_usize() < self.src.len() {
-            let peek = self.src[self.sp.start.into_usize()];
+        while self.sp.end.into_usize() < self.src.len() {
+            let peek = self.src[self.sp.end.into_usize()];
 
             if !p(peek) {
                 return;
             }
 
-            self.sp.start += 1u32;
+            self.sp.end += 1u32;
         }
     }
 
     fn advance_until(&mut self, p: impl Fn(u8) -> bool) {
-        while self.sp.start.into_usize() < self.src.len() {
-            let peek = self.src[self.sp.start.into_usize()];
-            self.sp.start += 1u32;
+        while self.sp.end.into_usize() < self.src.len() {
+            let peek = self.src[self.sp.end.into_usize()];
+            self.sp.end += 1u32;
 
             if p(peek) {
                 return;
@@ -160,7 +160,7 @@ macro_rules! apply_syntax {
 
 impl<'s> Lexer<'s> {
     pub fn run(mut self) -> (Vec<Token>, Vec<LexError>) {
-        while self.sp.end.into_usize() < self.src.len() {
+        while self.sp.start.into_usize() < self.src.len() {
             self.process_forward();
         }
 
@@ -202,7 +202,7 @@ impl<'s> Lexer<'s> {
 impl<'s> Lexer<'s> {
     /// Byte tokens: `():.-`
     fn lex_one_byte(&mut self) -> Option<Token> {
-        let c = self.src[self.sp.start.into_usize()];
+        let c = self.src[self.sp.end.into_usize()];
 
         let kind = match c {
             b'(' => SyntaxKind::LParen,
@@ -210,7 +210,7 @@ impl<'s> Lexer<'s> {
             b':' => SyntaxKind::Colon,
             b'.' => SyntaxKind::Dot,
             b'-' => {
-                if let Some(c2) = self.src.get(self.sp.start.into_usize() + 1usize) {
+                if let Some(c2) = self.src.get(self.sp.end.into_usize() + 1usize) {
                     if self::is_num_body(*c2) {
                         return None;
                     }
@@ -220,7 +220,7 @@ impl<'s> Lexer<'s> {
             _ => return None,
         };
 
-        self.sp.start += 1u32;
+        self.sp.end += 1u32;
         Some(self.consume_span_as(kind))
     }
 
@@ -239,12 +239,12 @@ impl<'s> Lexer<'s> {
     /// [0-9]<num>*
     fn lex_num(&mut self) -> Option<Token> {
         self.advance_if(self::is_num_start)?;
-        while self.sp.start.into_usize() < self.src.len() {
-            let b = self.src[self.sp.start.into_usize()];
+        while self.sp.end.into_usize() < self.src.len() {
+            let b = self.src[self.sp.end.into_usize()];
 
             // consider method call
             if b == b'.' {
-                let peek = self.sp.start + 1u32;
+                let peek = self.sp.end + 1u32;
                 if peek.into_usize() < self.src.len()
                     && !self::is_num_body(self.src[peek.into_usize()])
                 {
@@ -256,7 +256,7 @@ impl<'s> Lexer<'s> {
                 break;
             }
 
-            self.sp.start += 1u32;
+            self.sp.end += 1u32;
         }
         Some(self.consume_span_as(SyntaxKind::Num))
     }

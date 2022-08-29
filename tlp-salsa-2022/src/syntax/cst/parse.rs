@@ -17,6 +17,8 @@ use crate::{
 
 use rowan::{GreenNode, GreenNodeBuilder};
 
+// FIXME: make self-contained error type
+
 /// Parse / lexing error
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ParseError {
@@ -145,16 +147,16 @@ impl ParseState {
     }
 
     fn peek_n<'pcx>(&mut self, pcx: &'pcx ParseContext, n: usize) -> Option<&'pcx Token> {
-        pcx.tks.get(self.tsp.start.into_usize() + n)
+        pcx.tks.get(self.tsp.end.into_usize() + n)
     }
 
     /// Consume the next element as a token
     fn bump<'pcx>(&mut self, pcx: &'pcx ParseContext) -> &'pcx Token {
-        let tk = &pcx.tks[self.tsp.start.into_usize()];
+        let tk = &pcx.tks[self.tsp.end.into_usize()];
         self.builder.token(tk.kind.into(), tk.slice(pcx.src));
 
-        self.tsp.start += 1u32;
-        self.tsp.end = self.tsp.start;
+        self.tsp.end += 1u32;
+        self.tsp.start = self.tsp.end;
         tk
     }
 
@@ -423,14 +425,14 @@ impl ParseState {
         match self.peek(pcx) {
             Some(tk) => {
                 self.errs.push(ParseError::Unexpected {
-                    at: tk.sp.end,
+                    at: tk.sp.start,
                     expected: "symbol".to_string(),
                     found: format!("{:?}", tk),
                 });
 
                 // Discard this token so that we won't enter infinite loop
-                self.tsp.start += 1u32;
-                self.tsp.end = self.tsp.start;
+                self.tsp.end += 1u32;
+                self.tsp.start = self.tsp.end;
             }
             None => {
                 self.errs.push(ParseError::Unexpected {
@@ -456,8 +458,8 @@ impl ParseState {
     /// Path node
     // TODO: refactor
     fn maybe_bump_path(&mut self, pcx: &ParseContext) -> Option<()> {
-        let end = if self.tsp.start.into_usize() > 0 {
-            pcx.tks[self.tsp.start.into_usize() - 1].sp.start
+        let start = if self.tsp.end.into_usize() > 0 {
+            pcx.tks[self.tsp.end.into_usize() - 1].sp.end
         } else {
             Offset::default()
         };
@@ -495,8 +497,8 @@ impl ParseState {
 
             // ident
             if self.maybe_bump_kind(pcx, SyntaxKind::Ident).is_none() {
-                let start = match self.peek(pcx) {
-                    Some(tk) => tk.sp.end,
+                let end = match self.peek(pcx) {
+                    Some(tk) => tk.sp.start,
                     None => pcx.src.len().into(),
                 };
 
