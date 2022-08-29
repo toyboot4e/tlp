@@ -19,7 +19,7 @@ impl<T: salsa::DbWithJar<Jar> + crate::base::BaseDb> IrDb for T {
 }
 
 #[salsa::tracked(return_ref, jar = Jar)]
-pub fn parse(db: &dyn IrDb, file: base::jar::InputFile) -> jar::ParsedFile {
+fn parse(db: &dyn IrDb, file: base::jar::InputFile) -> jar::ParsedFile {
     let mut items = Vec::new();
 
     let src = file.source_text(db.as_base_db());
@@ -42,4 +42,15 @@ pub fn parse(db: &dyn IrDb, file: base::jar::InputFile) -> jar::ParsedFile {
     }
 
     jar::ParsedFile::new(db, file, items)
+}
+
+/// Extensions
+impl base::jar::InputFile {
+    pub fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile {
+        self::parse(db, self)
+    }
+
+    pub fn items(self, db: &dyn IrDb) -> &[item::Item] {
+        self::parse(db, self).items(db)
+    }
 }
