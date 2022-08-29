@@ -1,5 +1,5 @@
 [package]
-name = "tlp_salsa_2022"
+name = "tlp"
 version = "0.1.0"
 edition = "2021"
 
