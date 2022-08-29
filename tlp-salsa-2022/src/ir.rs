@@ -6,7 +6,7 @@ pub mod jar;
 use crate::{base, syntax::ast};
 
 #[salsa::jar(db = IrDb)]
-pub struct IrJar(parse, jar::ParsedFile, item::Proc);
+pub struct IrJar(parse, jar::ParsedFile, item::Proc, jar::Body);
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + crate::base::BaseDb {
     fn as_ir_db(&self) -> &dyn IrDb;
@@ -54,3 +54,4 @@ impl base::jar::InputFile {
         self::parse(db, self).items(db)
     }
 }
+

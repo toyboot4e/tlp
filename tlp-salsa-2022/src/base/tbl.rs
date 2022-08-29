@@ -2,6 +2,7 @@
 
 pub mod alloc_table;
 pub mod intern_table;
+pub mod origin_table;
 
 pub mod prelude {
     pub use crate::base::tbl::InternAllocKey;
@@ -98,6 +99,8 @@ macro_rules! id {
     }
 }
 
+pub use id;
+
 /// Declares a struct containing a group of alloc/interning tables, along with methods for accessing them.
 ///
 /// Example:
@@ -120,14 +123,14 @@ macro_rules! tables {
         $(#[$attr])*
         $vis struct $n {
             $(
-                $f: dada_id::table_types::$tty<$k, $v>,
+                $f: $crate::base::tbl::table_types::$tty<$k, $v>,
             )*
         }
 
         impl Default for $n {
             fn default() -> Self {
                 Self {
-                    $($f: <dada_id::table_types::$tty<$k,$v>>::default(),)*
+                    $($f: <$crate::base::tbl::table_types::$tty<$k,$v>>::default(),)*
                 }
             }
         }
@@ -157,23 +160,23 @@ macro_rules! tables {
             where
                 V: $crate::base::tbl::InternValue<Table = Self>,
             {
-                dada_id::InternValue::add(value, self)
+                $crate::base::tbl::InternValue::add(value, self)
             }
         }
 
         $(
-            dada_id::tables!{
+            $crate::base::tbl::tables!{
                 @field_impl[$n] $f: $tty $k => $v
             }
         )*
     };
 
     (@field_impl[$n:ident] $f:ident: alloc $k:ty => $v:ty) => {
-        dada_id::tables!{
+        $crate::base::tbl::tables!{
             @any_field_impl[$n] $f: $k => $v
         }
 
-        impl dada_id::InternAllocKey for $k {
+        impl $crate::base::tbl::InternAllocKey for $k {
             fn max_key(table: &Self::Table) -> $k {
                 table.$f.next_key()
             }
@@ -185,7 +188,7 @@ macro_rules! tables {
     };
 
     (@field_impl[$n:ident] $f:ident: intern $k:ty => $v:ty) => {
-        dada_id::tables!{
+        $crate::base::tbl::tables!{
             @any_field_impl[$n] $f: $k => $v
         }
     };
@@ -200,7 +203,7 @@ macro_rules! tables {
             }
         }
 
-        impl dada_id::InternKey for $k {
+        impl $crate::base::tbl::InternKey for $k {
             type Table = $n;
             type Value = $v;
 
@@ -209,8 +212,9 @@ macro_rules! tables {
             }
         }
     };
-
 }
+
+pub use tables;
 
 pub trait InternValue {
     type Table;
