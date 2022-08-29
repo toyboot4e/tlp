@@ -9,7 +9,7 @@ use crate::{
     ir::item::Item,
 };
 
-#[salsa::db(base::Jar, ir::Jar)]
+#[salsa::db(base::BaseJar, ir::IrJar)]
 #[derive(Default)]
 pub struct Db {
     storage: salsa::Storage<Self>,

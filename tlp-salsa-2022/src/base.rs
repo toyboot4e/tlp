@@ -10,7 +10,7 @@ pub mod span;
 // pub mod tbl;
 
 #[salsa::jar(db = BaseDb)]
-pub struct Jar(
+pub struct BaseJar(
     jar::InputFile,
     jar::line_table,
     jar::Word,
@@ -18,11 +18,11 @@ pub struct Jar(
     jar::SpannedOptionalWord,
 );
 
-pub trait BaseDb: salsa::DbWithJar<Jar> {
+pub trait BaseDb: salsa::DbWithJar<BaseJar> {
     fn as_base_db(&self) -> &dyn BaseDb;
 }
 
-impl<T: salsa::DbWithJar<Jar>> BaseDb for T {
+impl<T: salsa::DbWithJar<BaseJar>> BaseDb for T {
     fn as_base_db(&self) -> &dyn BaseDb {
         self
     }

@@ -5,7 +5,7 @@ use crate::{
     ir::{self, item::Item},
 };
 
-#[salsa::tracked(jar = ir::Jar)]
+#[salsa::tracked(jar = ir::IrJar)]
 pub struct ParsedFile {
     #[id]
     input_file: InputFile,

@@ -6,19 +6,19 @@ pub mod jar;
 use crate::{base, syntax::ast};
 
 #[salsa::jar(db = IrDb)]
-pub struct Jar(parse, jar::ParsedFile, item::Proc);
+pub struct IrJar(parse, jar::ParsedFile, item::Proc);
 
-pub trait IrDb: salsa::DbWithJar<Jar> + crate::base::BaseDb {
+pub trait IrDb: salsa::DbWithJar<IrJar> + crate::base::BaseDb {
     fn as_ir_db(&self) -> &dyn IrDb;
 }
 
-impl<T: salsa::DbWithJar<Jar> + crate::base::BaseDb> IrDb for T {
+impl<T: salsa::DbWithJar<IrJar> + crate::base::BaseDb> IrDb for T {
     fn as_ir_db(&self) -> &dyn IrDb {
         self
     }
 }
 
-#[salsa::tracked(return_ref, jar = Jar)]
+#[salsa::tracked(return_ref, jar = IrJar)]
 fn parse(db: &dyn IrDb, file: base::jar::InputFile) -> jar::ParsedFile {
     let mut items = Vec::new();
 

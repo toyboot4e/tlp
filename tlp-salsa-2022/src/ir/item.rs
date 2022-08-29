@@ -55,7 +55,7 @@ impl<Db: ?Sized + ir::IrDb> salsa::DebugWithDb<Db> for Item {
     }
 }
 
-#[salsa::tracked(jar = ir::Jar)]
+#[salsa::tracked(jar = ir::IrJar)]
 pub struct Proc {
     /// Name used as `#[id]`
     #[id]

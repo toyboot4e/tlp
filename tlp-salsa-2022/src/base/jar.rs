@@ -4,13 +4,13 @@ use salsa::DebugWithDb;
 
 use crate::base::{self, ln::LineTable, span::FileSpan};
 
-#[salsa::tracked(return_ref, jar = base::Jar)]
+#[salsa::tracked(return_ref, jar = base::BaseJar)]
 pub fn line_table(db: &dyn base::BaseDb, input_file: InputFile) -> LineTable {
     let source_text = input_file.source_text(db);
     LineTable::new_raw(source_text)
 }
 
-#[salsa::input(jar = base::Jar)]
+#[salsa::input(jar = base::BaseJar)]
 pub struct InputFile {
     name: Word,
     #[return_ref]
@@ -31,7 +31,7 @@ impl DebugWithDb<dyn base::BaseDb + '_> for InputFile {
     }
 }
 
-#[salsa::interned(jar = base::Jar)]
+#[salsa::interned(jar = base::BaseJar)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Word {
     #[return_ref]
@@ -62,7 +62,7 @@ impl salsa::DebugWithDb<dyn base::BaseDb + '_> for Word {
 /// A "spanned word" is a `Word` that also carries a span. Useful for things like
 /// argument names etc where we want to carry the span through many phases
 /// of compilation.
-#[salsa::tracked(jar = base::Jar)]
+#[salsa::tracked(jar = base::BaseJar)]
 pub struct SpannedWord {
     #[id]
     word: Word,
@@ -84,7 +84,7 @@ impl<Db: ?Sized + base::BaseDb> salsa::DebugWithDb<Db> for SpannedWord {
 /// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
 /// a span for where the label *would have gone* had it been present (as compared to
 /// an `Option<Label>`).
-#[salsa::tracked(jar = base::Jar)]
+#[salsa::tracked(jar = base::BaseJar)]
 pub struct SpannedOptionalWord {
     #[id]
     word: Option<Word>,
