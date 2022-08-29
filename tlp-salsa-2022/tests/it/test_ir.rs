@@ -1,4 +1,4 @@
-use tlp::Db;
+use tlp::{ir::InputFileExt, Db};
 
 #[test]
 fn items() {

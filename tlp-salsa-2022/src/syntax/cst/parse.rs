@@ -5,14 +5,12 @@
 //! - Parse function users are responsibile of bumping white spaces. Parse functions do not call
 //! `maybe_bump_ws` at the beginning.
 
+use base::span::{Offset, Span};
 use thiserror::Error;
 
-use crate::{
-    base::span::{Offset, Span},
-    syntax::cst::{
-        lex::{self, LexError, Token},
-        SyntaxKind, SyntaxNode,
-    },
+use crate::syntax::cst::{
+    lex::{self, LexError, Token},
+    SyntaxKind, SyntaxNode,
 };
 
 use rowan::{GreenNode, GreenNodeBuilder};

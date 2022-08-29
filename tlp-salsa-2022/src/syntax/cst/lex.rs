@@ -1,11 +1,9 @@
 //! Lexer / tokenizer
 
+use base::span::{Offset, Span};
 use thiserror::Error;
 
-use crate::{
-    base::span::{Offset, Span},
-    syntax::cst::SyntaxKind,
-};
+use crate::syntax::cst::SyntaxKind;
 
 /// Text span with syntactic kind
 #[derive(Debug, Clone, PartialEq)]

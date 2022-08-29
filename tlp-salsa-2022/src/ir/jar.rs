@@ -2,14 +2,13 @@
 
 use salsa::DebugWithDb;
 
-use crate::{
-    base::{
-        jar::{InputFile, Word},
-        span::Span,
-        tbl::{id, origin_table::origin_table, tables, InternKey},
-    },
-    ir::{item::Item, IrDb, IrJar},
+use base::{
+    jar::{InputFile, Word},
+    span::Span,
+    tbl::{id, origin_table::origin_table, tables, InternKey},
 };
+
+use crate::ir::{item::Item, IrDb, IrJar};
 
 pub struct InIrDb<'me, T: ?Sized> {
     this: &'me T,

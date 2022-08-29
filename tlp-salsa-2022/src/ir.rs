@@ -3,16 +3,16 @@
 pub mod item;
 pub mod jar;
 
-use crate::{base, syntax::ast};
+use crate::syntax::ast;
 
 #[salsa::jar(db = IrDb)]
 pub struct IrJar(parse, jar::ParsedFile, item::Proc, jar::Body);
 
-pub trait IrDb: salsa::DbWithJar<IrJar> + crate::base::BaseDb {
+pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
     fn as_ir_db(&self) -> &dyn IrDb;
 }
 
-impl<T: salsa::DbWithJar<IrJar> + crate::base::BaseDb> IrDb for T {
+impl<T: salsa::DbWithJar<IrJar> + base::BaseDb> IrDb for T {
     fn as_ir_db(&self) -> &dyn IrDb {
         self
     }
@@ -45,12 +45,18 @@ fn parse(db: &dyn IrDb, file: base::jar::InputFile) -> jar::ParsedFile {
 }
 
 /// Extensions
-impl base::jar::InputFile {
-    pub fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile {
+pub trait InputFileExt {
+    fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile;
+    fn items(self, db: &dyn IrDb) -> &[item::Item];
+}
+
+/// Extensions
+impl InputFileExt for base::jar::InputFile {
+    fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile {
         self::parse(db, self)
     }
 
-    pub fn items(self, db: &dyn IrDb) -> &[item::Item] {
+    fn items(self, db: &dyn IrDb) -> &[item::Item] {
         self::parse(db, self).items(db)
     }
 }

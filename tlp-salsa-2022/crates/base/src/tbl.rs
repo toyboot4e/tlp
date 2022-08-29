@@ -5,16 +5,21 @@ pub mod intern_table;
 pub mod origin_table;
 
 pub mod prelude {
-    pub use crate::base::tbl::InternAllocKey;
-    pub use crate::base::tbl::InternKey;
-    pub use crate::base::tbl::InternValue;
+    pub use crate::tbl::InternAllocKey;
+    pub use crate::tbl::InternKey;
+    pub use crate::tbl::InternValue;
 }
 
 /// This module is used by the `tables` macro.
 pub mod table_types {
     #![allow(non_camel_case_types)]
-    pub type alloc<K, V> = crate::base::tbl::alloc_table::AllocTable<K, V>;
-    pub type intern<K, V> = crate::base::tbl::intern_table::InternTable<K, V>;
+    pub type alloc<K, V> = crate::tbl::alloc_table::AllocTable<K, V>;
+    pub type intern<K, V> = crate::tbl::intern_table::InternTable<K, V>;
+}
+
+/// Dependencies exported for macros
+pub mod deps {
+    pub use typed_index_collections;
 }
 
 /// Declares a struct usable as an id within a table.
@@ -123,21 +128,21 @@ macro_rules! tables {
         $(#[$attr])*
         $vis struct $n {
             $(
-                $f: $crate::base::tbl::table_types::$tty<$k, $v>,
+                $f: $crate::tbl::table_types::$tty<$k, $v>,
             )*
         }
 
         impl Default for $n {
             fn default() -> Self {
                 Self {
-                    $($f: <$crate::base::tbl::table_types::$tty<$k,$v>>::default(),)*
+                    $($f: <$crate::tbl::table_types::$tty<$k,$v>>::default(),)*
                 }
             }
         }
 
         impl<K> std::ops::Index<K> for $n
         where
-            K: $crate::base::tbl::InternKey<Table = Self>,
+            K: $crate::tbl::InternKey<Table = Self>,
         {
             type Output = K::Value;
 
@@ -148,7 +153,7 @@ macro_rules! tables {
 
         impl<K> std::ops::IndexMut<K> for $n
         where
-            K: $crate::base::tbl::InternAllocKey<Table = Self>,
+            K: $crate::tbl::InternAllocKey<Table = Self>,
         {
             fn index_mut(&mut self, key: K) -> &mut Self::Output {
                 K::data_mut(key, self)
@@ -158,25 +163,25 @@ macro_rules! tables {
         impl $n {
             pub fn add<V>(&mut self, value: V) -> V::Key
             where
-                V: $crate::base::tbl::InternValue<Table = Self>,
+                V: $crate::tbl::InternValue<Table = Self>,
             {
-                $crate::base::tbl::InternValue::add(value, self)
+                $crate::tbl::InternValue::add(value, self)
             }
         }
 
         $(
-            $crate::base::tbl::tables!{
+            $crate::tbl::tables!{
                 @field_impl[$n] $f: $tty $k => $v
             }
         )*
     };
 
     (@field_impl[$n:ident] $f:ident: alloc $k:ty => $v:ty) => {
-        $crate::base::tbl::tables!{
+        $crate::tbl::tables!{
             @any_field_impl[$n] $f: $k => $v
         }
 
-        impl $crate::base::tbl::InternAllocKey for $k {
+        impl $crate::tbl::InternAllocKey for $k {
             fn max_key(table: &Self::Table) -> $k {
                 table.$f.next_key()
             }
@@ -188,13 +193,13 @@ macro_rules! tables {
     };
 
     (@field_impl[$n:ident] $f:ident: intern $k:ty => $v:ty) => {
-        $crate::base::tbl::tables!{
+        $crate::tbl::tables!{
             @any_field_impl[$n] $f: $k => $v
         }
     };
 
     (@any_field_impl[$n:ident] $f:ident: $k:ty => $v:ty) => {
-        impl $crate::base::tbl::InternValue for $v {
+        impl $crate::tbl::InternValue for $v {
             type Table = $n;
             type Key = $k;
 
@@ -203,7 +208,7 @@ macro_rules! tables {
             }
         }
 
-        impl $crate::base::tbl::InternKey for $k {
+        impl $crate::tbl::InternKey for $k {
             type Table = $n;
             type Value = $v;
 

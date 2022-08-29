@@ -9,13 +9,13 @@ macro_rules! origin_table {
         $pub struct $table {
             $(
                 $(#[$field_attr])*
-                $field: typed_index_collections::TiVec<$key, $origins>,
+                $field: $crate::tbl::deps::typed_index_collections::TiVec<$key, $origins>,
             )*
         }
 
         impl<K> std::ops::Index<K> for $table
         where
-            K: $crate::base::tbl::origin_table::HasOriginIn<$table>,
+            K: $crate::tbl::origin_table::HasOriginIn<$table>,
         {
             type Output = K::Origin;
 
@@ -27,21 +27,21 @@ macro_rules! origin_table {
         impl $table {
             $pub fn get<K>(&self, k: K) -> K::Origin
             where
-                K: $crate::base::tbl::origin_table::HasOriginIn<Self>,
+                K: $crate::tbl::origin_table::HasOriginIn<Self>,
             {
                 <K::Origin>::clone(K::origin_in(k, self))
             }
 
             $pub fn push<K>(&mut self, k: K, s: K::Origin)
             where
-                K: $crate::base::tbl::origin_table::PushOriginIn<Self>,
+                K: $crate::tbl::origin_table::PushOriginIn<Self>,
             {
                 K::push_origin_in(k, self, s)
             }
         }
 
         $(
-            impl $crate::base::tbl::origin_table::HasOriginIn<$table> for $key {
+            impl $crate::tbl::origin_table::HasOriginIn<$table> for $key {
                 type Origin = $origins;
 
                 fn origin_in(self, table: &$table) -> &Self::Origin {
@@ -49,7 +49,7 @@ macro_rules! origin_table {
                 }
             }
 
-            impl $crate::base::tbl::origin_table::PushOriginIn<$table> for $key {
+            impl $crate::tbl::origin_table::PushOriginIn<$table> for $key {
                 type Origin = $origins;
 
                 fn push_origin_in(self, table: &mut $table, origin: Self::Origin) {

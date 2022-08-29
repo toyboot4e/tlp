@@ -1,11 +1,9 @@
 //! Syntactic validation of AST
 
+use base::span::{Offset, Span};
 use thiserror::Error;
 
-use crate::{
-    base::span::{Offset, Span},
-    syntax::{ast::*, cst::*},
-};
+use crate::syntax::{ast::*, cst::*};
 
 #[derive(Debug, Clone, Error)]
 pub enum SyntaxError {

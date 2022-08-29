@@ -1,6 +1,6 @@
 //! Source span based on byte offset
 
-use crate::base::{self, jar::InputFile, ln};
+use crate::{jar::InputFile, ln};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FileSpan {
@@ -10,7 +10,7 @@ pub struct FileSpan {
 }
 
 impl FileSpan {
-    pub fn snippet<'db>(&self, db: &'db dyn base::BaseDb) -> &'db str {
+    pub fn snippet<'db>(&self, db: &'db dyn crate::BaseDb) -> &'db str {
         &self.input_file.source_text(db)[usize::from(self.start)..usize::from(self.end)]
     }
 
@@ -20,7 +20,7 @@ impl FileSpan {
     }
 }
 
-impl<Db: ?Sized + base::BaseDb> salsa::DebugWithDb<Db> for FileSpan {
+impl<Db: ?Sized + crate::BaseDb> salsa::DebugWithDb<Db> for FileSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_base_db();
         let start = ln::line_column(db, self.input_file, self.start);
@@ -133,7 +133,7 @@ impl Span {
         }
     }
 
-    pub fn snippet<'db>(&self, db: &'db dyn base::BaseDb, input_file: InputFile) -> &'db str {
+    pub fn snippet<'db>(&self, db: &'db dyn crate::BaseDb, input_file: InputFile) -> &'db str {
         self.in_file(input_file).snippet(db)
     }
 

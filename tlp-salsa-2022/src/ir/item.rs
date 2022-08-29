@@ -1,14 +1,11 @@
 //! Item
 
-use crate::{
-    base::{
-        self,
-        jar::{SpannedWord, Word},
-        span::*,
-    },
-    ir,
-    syntax::ast,
+use base::{
+    jar::{SpannedWord, Word},
+    span::*,
 };
+
+use crate::{ir, syntax::ast};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Item {

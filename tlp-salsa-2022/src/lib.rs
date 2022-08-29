@@ -1,13 +1,11 @@
 //! toylisp
 
-pub mod base;
 pub mod ir;
 pub mod syntax;
 
-use crate::{
-    base::{jar::*, span::*},
-    ir::item::Item,
-};
+use base::{jar::*, span::*};
+
+use crate::ir::{InputFileExt, item::Item};
 
 #[salsa::db(base::BaseJar, ir::IrJar)]
 #[derive(Default)]
