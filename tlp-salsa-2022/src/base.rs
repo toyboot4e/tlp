@@ -5,9 +5,7 @@
 pub mod jar;
 pub mod ln;
 pub mod span;
-
-// TODO: include this?
-// pub mod tbl;
+pub mod tbl;
 
 #[salsa::jar(db = BaseDb)]
 pub struct BaseJar(
