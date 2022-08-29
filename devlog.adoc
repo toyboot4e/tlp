@@ -12,6 +12,7 @@
 :rowan: https://github.com/rust-analyzer/rowan/[rowan]
 :rowan-s: https://github.com/rust-analyzer/rowan/blob/master/examples/s_expressions.rs[s_expressions.rs]
 :salsa: https://github.com/salsa-rs/salsa[salsa]
+:dada: https://github.com/dada-lang/dada[dada]
 
 :tower-lsp: https://github.com/ebkalderon/tower-lsp[tower-lsp]
 :lspower: https://github.com/silvanshade/lspower[lspower]
@@ -210,7 +211,7 @@ hir_def
 +
 Hey it looks very simple.
 
-=== `hir_ty`
+=== (Not) Looking into `hir_ty`
 
 I want to add support for basic primitive types: `i32`, `f32` and `bool`. I need to know the type of variable to apply suitable arithmetic operators, so I'll tuckple into ra `hir-ty`.
 
@@ -229,4 +230,41 @@ pub struct InferenceResult {
 ----
 +
 First I'll try to make it. Not scared, I'm in incremental development mode.
+
+=== `salsa-2022`
+
+* Aug 29, 2022
++
+`salsa-2022` is coming! https://github.com/salsa-rs/salsa/issues/305[Tracking issue]. The only advanced code base based on it out there is {dada}. I looked into {dada} and got the basic idea of `salsa-2022`.
++
+In the context of `rust-analyzer`, `salsa-2022` *much* simplifies the `hir_def` crate. *We don't have to keep holding `ItemTree`*. Each `Item` is indexed by their `name` as `#[id]`. And that's it. The item IDs keep pointing to the same item. It's even stable on items reordered.
++
+Accessing ID-relevant data is trivial. I'm re-implementing `hir_def` alternative (just called `ir`), and here's a simple test case:
++
+[source,rust]
+----
+use tlp::Db;
+
+#[test]
+fn items() {
+    let db = &mut Db::default();
+
+    let src = r"(proc f ())
+                (proc g ())
+                (proc h ())";
+
+    let f = db.new_input_file("main.tlp", src.to_string());
+    let items = f.items(db);
+
+    assert_eq!(
+        &items
+            .iter()
+            .map(|i| i.name(db).as_str(db))
+            .collect::<Vec<_>>(),
+        &["f", "g", "h"],
+    );
+}
+----
++
+It's ridiculously easy! I'm not sure about the details, but it looks like promising. I'm liking `salsa-2022`.
 
