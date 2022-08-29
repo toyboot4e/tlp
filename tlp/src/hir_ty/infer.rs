@@ -102,15 +102,23 @@ impl<'a> Infer<'a> {
 
 /// Infer expression types
 impl<'a> Infer<'a> {
-    pub fn infer_expr(&mut self, expr_idx: Idx<Expr>) {
+    pub fn infer_expr(&mut self, expr_idx: Idx<Expr>) -> Ty {
         let expr = &self.body.exprs[expr_idx];
         match expr {
             Expr::Block(block) => {
                 todo!()
             }
             Expr::Literal(lit) => todo!("{:?}", lit),
-            Expr::Let(let_) => todo!("{:?}", let_),
+            Expr::Let(let_) => {
+                let input_ty = self.infer_expr(let_.rhs);
+                self.infer_pat(pat, &input_ty);
+                TyKind::Scalar(Scalar::Bool).intern(Interner)
+            }
             _ => todo!("{:?}", expr),
         }
+    }
+
+    pub fn infer_pat(&mut self, pat: Idx<Pat>, expected: &Ty) -> Ty {
+        todo!()
     }
 }
