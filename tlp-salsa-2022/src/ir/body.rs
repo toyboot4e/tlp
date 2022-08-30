@@ -6,36 +6,7 @@ use base::{
     tbl::{id, origin_table::origin_table, tables},
 };
 
-use crate::ir::{IrDb, IrJar};
-
-pub struct InIrDb<'me, T: ?Sized> {
-    this: &'me T,
-    db: &'me dyn IrDb,
-}
-
-impl<'me, T> InIrDb<'me, T> {
-    pub fn db(&self) -> &'me dyn IrDb {
-        self.db
-    }
-}
-
-impl<'me, T: ?Sized> std::ops::Deref for InIrDb<'me, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.this
-    }
-}
-
-pub trait InIrDbExt {
-    fn in_ir_db<'me>(&'me self, db: &'me dyn IrDb) -> InIrDb<'me, Self>;
-}
-
-impl<T: ?Sized> InIrDbExt for T {
-    fn in_ir_db<'me>(&'me self, db: &'me dyn IrDb) -> InIrDb<'me, Self> {
-        InIrDb { this: self, db }
-    }
-}
+use crate::ir::IrJar;
 
 #[salsa::tracked(jar = IrJar)]
 pub struct Body {
@@ -43,12 +14,6 @@ pub struct Body {
     data: BodyData,
     #[return_ref]
     spans: BodySpans,
-}
-
-impl InIrDb<'_, Body> {
-    fn tables(&self) -> &BodyTables {
-        &self.data(self.db()).tables
-    }
 }
 
 /// Body AST
