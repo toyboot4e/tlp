@@ -2,11 +2,12 @@
 
 pub mod item;
 pub mod jar;
+pub mod body;
 
 use crate::syntax::ast;
 
 #[salsa::jar(db = IrDb)]
-pub struct IrJar(parse, jar::ParsedFile, item::Proc, jar::Body);
+pub struct IrJar(parse, jar::ParsedFile, item::Proc, body::Body);
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
     fn as_ir_db(&self) -> &dyn IrDb;

@@ -1,5 +1,7 @@
 //! toylisp
 
+pub extern crate base;
+
 pub mod ir;
 pub mod syntax;
 

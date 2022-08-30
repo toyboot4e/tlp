@@ -10,15 +10,11 @@ pub mod prelude {
     pub use crate::tbl::InternValue;
 }
 
-/// This module is used by the `tables` macro.
+/// This module is used by macros.
 pub mod table_types {
     #![allow(non_camel_case_types)]
     pub type alloc<K, V> = crate::tbl::alloc_table::AllocTable<K, V>;
     pub type intern<K, V> = crate::tbl::intern_table::InternTable<K, V>;
-}
-
-/// Dependencies exported for macros
-pub mod deps {
     pub use typed_index_collections;
 }
 

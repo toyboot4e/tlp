@@ -9,7 +9,7 @@ macro_rules! origin_table {
         $pub struct $table {
             $(
                 $(#[$field_attr])*
-                $field: $crate::tbl::deps::typed_index_collections::TiVec<$key, $origins>,
+                $field: $crate::tbl::table_types::typed_index_collections::TiVec<$key, $origins>,
             )*
         }
 
