@@ -1,7 +1,5 @@
 //! Jar ingredients
 
-use salsa::DebugWithDb;
-
 use crate::{ln::LineTable, span::FileSpan};
 
 #[salsa::tracked(return_ref, jar = crate::BaseJar)]
@@ -20,14 +18,6 @@ pub struct InputFile {
 impl InputFile {
     pub fn name_str(self, db: &dyn crate::BaseDb) -> &str {
         self.name(db).string(db)
-    }
-}
-
-impl DebugWithDb<dyn crate::BaseDb + '_> for InputFile {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::BaseDb) -> std::fmt::Result {
-        f.debug_tuple("SourceFile")
-            .field(&self.name(db).debug(db))
-            .finish()
     }
 }
 
@@ -53,12 +43,6 @@ impl Word {
     }
 }
 
-impl salsa::DebugWithDb<dyn crate::BaseDb + '_> for Word {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::BaseDb) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self.string(db), f)
-    }
-}
-
 /// A "spanned word" is a `Word` that also carries a span. Useful for things like
 /// argument names etc where we want to carry the span through many phases
 /// of compilation.
@@ -75,12 +59,6 @@ impl SpannedWord {
     }
 }
 
-impl<Db: ?Sized + crate::BaseDb> salsa::DebugWithDb<Db> for SpannedWord {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.as_str(db.as_base_db()), f)
-    }
-}
-
 /// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
 /// a span for where the label *would have gone* had it been present (as compared to
 /// an `Option<Label>`).
@@ -94,11 +72,5 @@ pub struct SpannedOptionalWord {
 impl SpannedOptionalWord {
     pub fn as_str(self, db: &dyn crate::BaseDb) -> Option<&str> {
         Some(self.word(db)?.as_str(db))
-    }
-}
-
-impl<Db: ?Sized + crate::BaseDb> salsa::DebugWithDb<Db> for SpannedOptionalWord {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.as_str(db.as_base_db()), f)
     }
 }

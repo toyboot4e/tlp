@@ -44,14 +44,6 @@ impl From<Proc> for Item {
     }
 }
 
-impl<Db: ?Sized + ir::IrDb> salsa::DebugWithDb<Db> for Item {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        match self {
-            Item::Proc(v) => std::fmt::Debug::fmt(&v.debug(db), f),
-        }
-    }
-}
-
 #[salsa::tracked(jar = ir::IrJar)]
 pub struct Proc {
     /// Name used as `#[id]`
@@ -91,11 +83,5 @@ impl Proc {
         };
 
         Some(Proc::new(db, name, file_span, ast))
-    }
-}
-
-impl<Db: ?Sized + ir::IrDb> salsa::DebugWithDb<Db> for Proc {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        write!(f, "{}", self.name(db.as_ir_db()).as_str(db.as_base_db()))
     }
 }

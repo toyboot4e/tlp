@@ -15,11 +15,7 @@ pub struct Db {
     storage: salsa::Storage<Self>,
 }
 
-impl salsa::Database for Db {
-    fn salsa_runtime(&self) -> &salsa::Runtime {
-        self.storage.runtime()
-    }
-}
+impl salsa::Database for Db {}
 
 // TODO: Send
 // impl salsa::ParallelDatabase for Db {

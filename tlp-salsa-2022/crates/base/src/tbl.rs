@@ -21,9 +21,10 @@ pub mod table_types {
 /// Declares a struct usable as an id within a table.
 #[macro_export]
 macro_rules! id {
-    ($v:vis struct $n:ident) => {
+    ($(#[$meta:meta])* $vis:vis struct $n:ident ;) => {
         #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        $v struct $n(salsa::Id);
+        $(#[$meta])*
+        $vis struct $n(salsa::Id);
 
         impl $n {
             pub fn zero() -> Self {

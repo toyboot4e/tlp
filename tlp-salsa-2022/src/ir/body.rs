@@ -1,11 +1,9 @@
 //! Body
 
-use salsa::DebugWithDb;
-
 use base::{
     jar::Word,
     span::Span,
-    tbl::{id, origin_table::origin_table, tables, InternKey},
+    tbl::{id, origin_table::origin_table, tables},
 };
 
 use crate::ir::{IrDb, IrJar};
@@ -47,14 +45,6 @@ pub struct Body {
     spans: BodySpans,
 }
 
-impl DebugWithDb<dyn IrDb> for Body {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn IrDb) -> std::fmt::Result {
-        f.debug_struct("syntax::Tree")
-            .field("info", &self.data(db).debug(&self.in_ir_db(db)))
-            .finish()
-    }
-}
-
 impl InIrDb<'_, Body> {
     fn tables(&self) -> &BodyTables {
         &self.data(self.db()).tables
@@ -71,14 +61,6 @@ pub struct BodyData {
     // pub parameter_decls: Vec<LocalVariableDecl>,
     /// The root block expression
     pub root_expr: Expr,
-}
-
-impl DebugWithDb<InIrDb<'_, Body>> for BodyData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Body>) -> std::fmt::Result {
-        f.debug_struct("syntax::Tree")
-            .field("root_expr", &self.root_expr.debug(db)) // FIXME
-            .finish()
-    }
 }
 
 tables! {
@@ -106,14 +88,12 @@ origin_table! {
     }
 }
 
-id!(pub struct Expr);
-
-impl DebugWithDb<InIrDb<'_, Body>> for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Body>) -> std::fmt::Result {
-        f.debug_tuple(&format!("{self:?}"))
-            .field(&self.data(db.tables()).debug(db))
-            .finish()
-    }
+id! {
+    /// ID of [`ExprData`] that implements [`InternAllocKey`] and [`InternKey`]
+    ///
+    /// [`InternAllocKey`]: base::tbl::InternAllocKey
+    /// [`InternKey`]: base::tbl::InternKey
+    pub struct Expr;
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -123,41 +103,13 @@ pub enum ExprData {
     Error,
 }
 
-impl DebugWithDb<InIrDb<'_, Body>> for ExprData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Body>) -> std::fmt::Result {
-        match self {
-            ExprData::Id(w) => f
-                .debug_tuple("Id")
-                .field(&w.debug(db.db().as_base_db()))
-                .finish(),
-            ExprData::Error => f.debug_tuple("Error").finish(),
-        }
-    }
-}
-
 // id!(pub struct LocalVariableDecl);
-//
-// impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDecl {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-//         DebugWithDb::fmt(self.data(db.tables()), f, db)
-//     }
-// }
 //
 // #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 // pub struct LocalVariableDeclData {
 //     pub atomic: Atomic,
 //     pub name: Word,
 //     pub ty: Option<crate::ty::Ty>,
-// }
-//
-// impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-//         f.debug_struct("LocalVariableDeclData")
-//             .field("atomic", &self.atomic)
-//             .field("name", &self.name.debug(db.db()))
-//             .field("ty", &self.ty.debug(db.db()))
-//             .finish()
-//     }
 // }
 //
 // #[derive(PartialEq, Eq, Clone, Hash, Debug)]
@@ -168,22 +120,8 @@ impl DebugWithDb<InIrDb<'_, Body>> for ExprData {
 //
 // id!(pub struct NamedExpr);
 //
-// impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-//         DebugWithDb::fmt(self.data(db.tables()), f, db)
-//     }
-// }
-//
 // #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 // pub struct NamedExprData {
 //     pub name: SpannedOptionalWord,
 //     pub expr: Expr,
-// }
-//
-// impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-//         f.debug_tuple(&format!("{:?}", self.name.word(db.db()).debug(db.db())))
-//             .field(&self.expr.debug(db))
-//             .finish()
-//     }
 // }
