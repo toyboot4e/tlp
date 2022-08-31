@@ -17,15 +17,6 @@ pub struct Db {
 
 impl salsa::Database for Db {}
 
-// TODO: Send
-// impl salsa::ParallelDatabase for Db {
-//     fn snapshot(&self) -> salsa::Snapshot<Self> {
-//         salsa::Snapshot::new(Db {
-//             storage: self.storage.snapshot(),
-//         })
-//     }
-// }
-
 impl Db {
     pub fn new_input_file(&mut self, name: impl ToString, source_text: String) -> InputFile {
         let name = Word::intern(self, name);

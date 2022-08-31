@@ -56,8 +56,18 @@ origin_table! {
 id! {
     /// ID of [`ExprData`] that implements [`InternAllocKey`] and [`InternKey`]
     ///
+    /// # Trait methods
+    ///
+    /// - [`InternKey::data`] -> [`&ExprData`]
+    /// - [`InternAllocKey::data_mut`] -> [`&mut ExprData`]
+    /// - [`InternAllocKey:::max_key`] -> [`Self`]
+    ///
     /// [`InternAllocKey`]: base::tbl::InternAllocKey
     /// [`InternKey`]: base::tbl::InternKey
+    ///
+    /// [`InternValue::data`]: base::tbl::InternKey::data
+    /// [`InternAllocKey:::max_key`]: base::tbl::InternAllocKey::max_key
+    /// [`InternAllocKey::data_mut`]: base::tbl::InternAllocKey::data_mut
     pub struct Expr;
 }
 

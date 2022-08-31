@@ -50,7 +50,7 @@ pub struct Proc {
     #[id]
     name: SpannedWord,
     span: FileSpan,
-    /// Unparsed body code
+    /// Lazily analyzed body AST
     ast: ast::DefProc,
 }
 
