@@ -6,7 +6,13 @@ pub mod jar;
 pub mod lower;
 
 #[salsa::jar(db = IrDb)]
-pub struct IrJar(jar::ParsedFile, lower::parse, item::Proc, body::Body);
+pub struct IrJar(
+    jar::ParsedFile,
+    lower::lower_items,
+    lower::lower_body,
+    item::Proc,
+    body::Body,
+);
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
     fn as_ir_db(&self) -> &dyn IrDb;
@@ -27,10 +33,10 @@ pub trait InputFileExt {
 /// Extensions
 impl InputFileExt for base::jar::InputFile {
     fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile {
-        lower::parse(db, self)
+        lower::lower_items(db, self)
     }
 
     fn items(self, db: &dyn IrDb) -> &[item::Item] {
-        lower::parse(db, self).items(db)
+        lower::lower_items(db, self).items(db)
     }
 }

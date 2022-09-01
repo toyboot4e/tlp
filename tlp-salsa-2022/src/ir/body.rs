@@ -25,7 +25,7 @@ pub struct BodyData {
     // /// Parameter declarations
     // pub parameter_decls: Vec<LocalVariableDecl>,
     /// The root block expression
-    pub root_expr: Expr,
+    pub root_block: Expr,
 }
 
 tables! {
@@ -73,6 +73,7 @@ id! {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum ExprData {
+    Block(Vec<Expr>),
     Id(Word),
     /// parse or other error
     Error,
