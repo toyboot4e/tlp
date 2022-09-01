@@ -4,9 +4,8 @@ pub mod expr;
 pub mod pat;
 
 use base::{
-    jar::Word,
     span::Span,
-    tbl::{id, origin_table::origin_table, tables},
+    tbl::{origin_table::origin_table, tables},
 };
 
 use crate::ir::IrJar;

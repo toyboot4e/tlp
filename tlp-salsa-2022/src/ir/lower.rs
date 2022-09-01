@@ -11,7 +11,7 @@ use crate::{
         body::{
             self,
             expr::{self, Expr, ExprData},
-            pat::{self, Pat, PatData},
+            pat::{Pat, PatData},
             SyntheticSyntax,
         },
         item,
@@ -150,7 +150,7 @@ impl<'a> LowerBody<'a> {
         }
     }
 
-    fn lower_ast_pat(&mut self, ast_pat: ast::Pat) -> Pat {
+    fn lower_ast_pat(&mut self, _ast_pat: ast::Pat) -> Pat {
         todo!()
     }
 }

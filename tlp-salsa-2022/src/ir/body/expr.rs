@@ -122,8 +122,7 @@ impl Literal {
     }
 }
 
-// FIXME: Is it proper salsa struct?
-#[salsa::tracked(jar = IrJar)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub struct Path {
     segments: Box<[Word]>,
 }
@@ -134,6 +133,7 @@ impl Path {
             .components()
             .map(|c| Word::new(db.as_base_db(), c.text().to_string()))
             .collect();
-        Self::new(db, segments)
+
+        Self { segments }
     }
 }

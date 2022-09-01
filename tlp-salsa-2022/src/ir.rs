@@ -12,8 +12,6 @@ pub struct IrJar(
     lower::lower_body,
     item::Proc,
     body::Body,
-    // TODO: is it proper?
-    body::expr::Path,
 );
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
