@@ -8,12 +8,17 @@ use base::{
 
 use crate::{
     ir::{
-        body::{self, Expr, ExprData},
+        body::{
+            self,
+            expr::{self, Expr, ExprData},
+            pat::{self, Pat, PatData},
+            SyntheticSyntax,
+        },
         item,
         jar::ParsedFile,
         IrDb, IrJar,
     },
-    syntax::ast,
+    syntax::ast::{self, AstNode},
 };
 
 #[salsa::tracked(return_ref, jar = IrJar)]
@@ -85,27 +90,108 @@ impl<'a> LowerBody<'a> {
         self.root_block = Some(block);
     }
 
-    fn alloc<D, K>(&mut self, data: D, span: Span) -> K
+    fn lower_block(&mut self, ast_block: ast::Block) -> Expr {
+        let block = {
+            let mut children = Vec::new();
+
+            for ast_expr in ast_block.exprs() {
+                let expr = self.lower_ast_expr(ast_expr);
+                children.push(expr);
+            }
+
+            expr::Block {
+                children: children.into_boxed_slice(),
+            }
+        };
+
+        let block_data = ExprData::Block(block);
+        let span = Span::from_rowan_range(ast_block.syn.text_range());
+        self.alloc(block_data, Ok(span))
+    }
+}
+
+/// [`Expr`] and [`Pat`]
+impl<'a> LowerBody<'a> {
+    fn lower_ast_expr(&mut self, ast_expr: ast::Expr) -> Expr {
+        let span = Ok(Span::from_rowan_range(ast_expr.syntax().text_range()));
+
+        match ast_expr {
+            // expressions
+            ast::Expr::Call(call) => {
+                let path = self.lower_ast_expr(call.path().into());
+                let args = call.args().map(|expr| self.lower_ast_expr(expr)).collect();
+
+                let expr = expr::Call { path, args };
+                self.alloc(ExprData::Call(expr), span)
+            }
+            ast::Expr::Let(let_) => {
+                let pat = self.lower_opt_ast_pat(let_.pat());
+                let rhs = self.lower_opt_ast_expr(let_.rhs());
+                let let_ = expr::Let { pat, rhs };
+                self.alloc(ExprData::Let(let_), span)
+            }
+            ast::Expr::Path(ast_path) => {
+                let path = expr::Path::parse(self.db, ast_path);
+                self.alloc(ExprData::Path(path), span)
+            }
+            ast::Expr::Literal(lit) => match lit.kind() {
+                ast::LiteralKind::Num(x) => {
+                    let literal = expr::Literal::parse(x).unwrap();
+                    self.alloc(ExprData::Literal(literal), span)
+                }
+                ast::LiteralKind::Str(_str) => {
+                    todo!()
+                }
+                ast::LiteralKind::True(_) | ast::LiteralKind::False(_) => {
+                    todo!()
+                }
+            },
+            ast::Expr::Block(block) => self.lower_block(block),
+        }
+    }
+
+    fn lower_ast_pat(&mut self, ast_pat: ast::Pat) -> Pat {
+        todo!()
+    }
+}
+
+/// Allocators
+impl<'a> LowerBody<'a> {
+    fn alloc<D, K>(&mut self, data: D, span: Result<Span, SyntheticSyntax>) -> K
     where
         D: std::hash::Hash + Eq + std::fmt::Debug,
         D: InternValue<Table = body::BodyTables, Key = K>,
         D: InternValue<Table = body::BodyTables, Key = K>,
-        K: PushOriginIn<body::BodySpans, Origin = Span> + salsa::AsId,
+        K: PushOriginIn<body::BodySpans, Origin = Result<Span, SyntheticSyntax>> + salsa::AsId,
     {
         let key = self.tables.add(data);
         self.spans.push(key, span);
         key
     }
-}
 
-impl<'a> LowerBody<'a> {
-    fn lower_block(&mut self, ast_block: ast::Block) -> Expr {
-        let block_data = ExprData::Block(Vec::new());
-        let span = Span::from_rowan_range(ast_block.syn.text_range());
-        let block = self.alloc(block_data, span);
+    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Expr>) -> Expr {
+        match expr {
+            Some(expr) => self.lower_ast_expr(expr),
+            None => self.alloc_missing_expr(),
+        }
+    }
 
-        // TODO: loop
+    fn lower_opt_ast_pat(&mut self, pat: Option<ast::Pat>) -> Pat {
+        match pat {
+            Some(pat) => self.lower_ast_pat(pat),
+            None => self.alloc_missing_pat(),
+        }
+    }
 
-        block
+    fn alloc_missing_expr(&mut self) -> Expr {
+        let expr = self.tables.add(ExprData::Missing);
+        self.spans.push(expr, Err(SyntheticSyntax));
+        expr
+    }
+
+    fn alloc_missing_pat(&mut self) -> Pat {
+        let pat = self.tables.add(PatData::Missing);
+        self.spans.push(pat, Err(SyntheticSyntax));
+        pat
     }
 }

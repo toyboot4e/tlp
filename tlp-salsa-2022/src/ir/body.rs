@@ -1,5 +1,8 @@
 //! Body
 
+pub mod expr;
+pub mod pat;
+
 use base::{
     jar::Word,
     span::Span,
@@ -7,6 +10,11 @@ use base::{
 };
 
 use crate::ir::IrJar;
+
+use self::{
+    expr::{Expr, ExprData},
+    pat::{Pat, PatData},
+};
 
 #[salsa::tracked(jar = IrJar)]
 pub struct Body {
@@ -34,10 +42,15 @@ tables! {
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct BodyTables {
         exprs: alloc Expr => ExprData,
+        pats: alloc Pat => PatData,
         // named_exprs: alloc NamedExpr => NamedExprData,
         // local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
     }
 }
+
+/// Represents missing span
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub struct SyntheticSyntax;
 
 origin_table! {
     /// Side table that contains the spans for everything in a syntax tree.
@@ -47,57 +60,9 @@ origin_table! {
     /// method in the `dada_parse` prelude.
     #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
     pub struct BodySpans {
-        expr_spans: Expr => Span,
+        expr_spans: Expr => Result<Span, SyntheticSyntax>,
+        pat_spans: Pat => Result<Span, SyntheticSyntax>,
         // named_expr_spans: NamedExpr => Span,
         // local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
     }
 }
-
-id! {
-    /// ID of [`ExprData`] that implements [`InternAllocKey`] and [`InternKey`]
-    ///
-    /// # Trait methods
-    ///
-    /// - [`InternKey::data`] -> [`&ExprData`]
-    /// - [`InternAllocKey::data_mut`] -> [`&mut ExprData`]
-    /// - [`InternAllocKey:::max_key`] -> [`Self`]
-    ///
-    /// [`InternAllocKey`]: base::tbl::InternAllocKey
-    /// [`InternKey`]: base::tbl::InternKey
-    ///
-    /// [`InternValue::data`]: base::tbl::InternKey::data
-    /// [`InternAllocKey:::max_key`]: base::tbl::InternAllocKey::max_key
-    /// [`InternAllocKey::data_mut`]: base::tbl::InternAllocKey::data_mut
-    pub struct Expr;
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-pub enum ExprData {
-    Block(Vec<Expr>),
-    Id(Word),
-    /// parse or other error
-    Error,
-}
-
-// id!(pub struct LocalVariableDecl);
-//
-// #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-// pub struct LocalVariableDeclData {
-//     pub atomic: Atomic,
-//     pub name: Word,
-//     pub ty: Option<crate::ty::Ty>,
-// }
-//
-// #[derive(PartialEq, Eq, Clone, Hash, Debug)]
-// pub struct LocalVariableDeclSpan {
-//     pub atomic_span: Span,
-//     pub name_span: Span,
-// }
-//
-// id!(pub struct NamedExpr);
-//
-// #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-// pub struct NamedExprData {
-//     pub name: SpannedOptionalWord,
-//     pub expr: Expr,
-// }
