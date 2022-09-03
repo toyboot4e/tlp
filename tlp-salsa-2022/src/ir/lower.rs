@@ -1,7 +1,7 @@
 //! Lowers code block into [`Body`]
 
 use base::{
-    jar::InputFile,
+    jar::{InputFile, Word},
     span::Span,
     tbl::{origin_table::PushOriginIn, InternValue},
 };
@@ -150,8 +150,17 @@ impl<'a> LowerBody<'a> {
         }
     }
 
-    fn lower_ast_pat(&mut self, _ast_pat: ast::Pat) -> Pat {
-        todo!()
+    fn lower_ast_pat(&mut self, ast_pat: ast::Pat) -> Pat {
+        let span = Span::from_rowan_range(ast_pat.syntax().text_range());
+
+        match ast_pat {
+            ast::Pat::PatPath(_) => todo!(),
+            ast::Pat::PatIdent(ident) => {
+                let name = Word::intern(self.db.as_base_db(), ident.ident_token().text());
+                let pat = PatData::Bind { name };
+                self.alloc(pat, Ok(span))
+            }
+        }
     }
 }
 

@@ -40,3 +40,9 @@ impl InputFileExt for base::jar::InputFile {
         lower::lower_items(db, self).items(db)
     }
 }
+
+impl item::Proc {
+    pub fn body(&self, db: &dyn IrDb) -> body::Body {
+        lower::lower_body(db, *self)
+    }
+}
