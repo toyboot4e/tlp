@@ -48,10 +48,10 @@ impl From<Proc> for Item {
 pub struct Proc {
     /// Name used as `#[id]`
     #[id]
-    name: SpannedWord,
-    span: FileSpan,
+    pub name: SpannedWord,
+    pub span: FileSpan,
     /// Lazily analyzed body AST
-    ast: ast::DefProc,
+    pub ast: ast::DefProc,
 }
 
 impl Proc {

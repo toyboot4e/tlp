@@ -10,9 +10,9 @@ pub(crate) fn line_table(db: &dyn crate::BaseDb, input_file: InputFile) -> LineT
 
 #[salsa::input(jar = crate::BaseJar)]
 pub struct InputFile {
-    name: Word,
+    pub name: Word,
     #[return_ref]
-    source_text: String,
+    pub source_text: String,
 }
 
 impl InputFile {
@@ -49,8 +49,8 @@ impl Word {
 #[salsa::tracked(jar = crate::BaseJar)]
 pub struct SpannedWord {
     #[id]
-    word: Word,
-    span: FileSpan,
+    pub word: Word,
+    pub span: FileSpan,
 }
 
 impl SpannedWord {
@@ -65,8 +65,8 @@ impl SpannedWord {
 #[salsa::tracked(jar = crate::BaseJar)]
 pub struct SpannedOptionalWord {
     #[id]
-    word: Option<Word>,
-    span: FileSpan,
+    pub word: Option<Word>,
+    pub span: FileSpan,
 }
 
 impl SpannedOptionalWord {

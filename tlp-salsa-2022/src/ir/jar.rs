@@ -8,9 +8,9 @@ use crate::ir::{item::Item, IrJar};
 #[salsa::tracked(jar = IrJar)]
 pub struct ParsedFile {
     #[id]
-    input_file: InputFile,
+    pub input_file: InputFile,
 
     /// The items found in the file.
     #[return_ref]
-    items: Vec<Item>,
+    pub items: Vec<Item>,
 }

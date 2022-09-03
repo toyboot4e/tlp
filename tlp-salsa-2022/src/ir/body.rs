@@ -18,9 +18,9 @@ use self::{
 #[salsa::tracked(jar = IrJar)]
 pub struct Body {
     #[return_ref]
-    data: BodyData,
+    pub data: BodyData,
     #[return_ref]
-    spans: BodySpans,
+    pub spans: BodySpans,
 }
 
 /// Body AST
