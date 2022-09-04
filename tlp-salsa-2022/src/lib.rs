@@ -4,10 +4,11 @@ pub extern crate base;
 
 pub mod ir;
 pub mod syntax;
+pub mod vm;
 
 use base::{jar::*, span::*};
 
-use crate::ir::{InputFileExt, item::Item};
+use crate::ir::{item::Item, InputFileExt};
 
 #[salsa::db(base::BaseJar, ir::IrJar)]
 #[derive(Default)]
