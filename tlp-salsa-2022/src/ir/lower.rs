@@ -72,6 +72,7 @@ struct LowerBody<'a> {
     root_block: Option<Expr>,
 }
 
+/// # Components
 impl<'a> LowerBody<'a> {
     pub fn into_body(self) -> body::Body {
         let data = body::BodyData {
@@ -110,7 +111,7 @@ impl<'a> LowerBody<'a> {
     }
 }
 
-/// [`Expr`] and [`Pat`]
+/// # [`Expr`]
 impl<'a> LowerBody<'a> {
     fn lower_ast_expr(&mut self, ast_expr: ast::Expr) -> Expr {
         let span = Ok(Span::from_rowan_range(ast_expr.syntax().text_range()));
@@ -127,6 +128,7 @@ impl<'a> LowerBody<'a> {
             ast::Expr::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
                 let rhs = self.lower_opt_ast_expr(let_.rhs());
+
                 let let_ = expr::Let { pat, rhs };
                 self.alloc(ExprData::Let(let_), span)
             }
@@ -150,6 +152,16 @@ impl<'a> LowerBody<'a> {
         }
     }
 
+    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Expr>) -> Expr {
+        match expr {
+            Some(expr) => self.lower_ast_expr(expr),
+            None => self.alloc_missing_expr(),
+        }
+    }
+}
+
+/// # [`Pat`]
+impl<'a> LowerBody<'a> {
     fn lower_ast_pat(&mut self, ast_pat: ast::Pat) -> Pat {
         let span = Span::from_rowan_range(ast_pat.syntax().text_range());
 
@@ -162,9 +174,16 @@ impl<'a> LowerBody<'a> {
             }
         }
     }
+
+    fn lower_opt_ast_pat(&mut self, pat: Option<ast::Pat>) -> Pat {
+        match pat {
+            Some(pat) => self.lower_ast_pat(pat),
+            None => self.alloc_missing_pat(),
+        }
+    }
 }
 
-/// Allocators
+/// # Allocators
 impl<'a> LowerBody<'a> {
     fn alloc<D, K>(&mut self, data: D, span: Result<Span, SyntheticSyntax>) -> K
     where
@@ -176,20 +195,6 @@ impl<'a> LowerBody<'a> {
         let key = self.tables.add(data);
         self.spans.push(key, span);
         key
-    }
-
-    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Expr>) -> Expr {
-        match expr {
-            Some(expr) => self.lower_ast_expr(expr),
-            None => self.alloc_missing_expr(),
-        }
-    }
-
-    fn lower_opt_ast_pat(&mut self, pat: Option<ast::Pat>) -> Pat {
-        match pat {
-            Some(pat) => self.lower_ast_pat(pat),
-            None => self.alloc_missing_pat(),
-        }
     }
 
     fn alloc_missing_expr(&mut self) -> Expr {

@@ -3,7 +3,7 @@ use std::{cmp, hash};
 use base::{jar::Word, tbl::id};
 
 use crate::{
-    ir::{body::pat::Pat, IrDb, IrJar},
+    ir::{body::pat::Pat, IrDb},
     syntax::ast::{self, AstToken},
 };
 
@@ -56,6 +56,21 @@ impl_from! {
 pub struct Block {
     // TODO: statements?
     pub children: Box<[Expr]>,
+}
+
+impl Block {
+    pub fn iter(&self) -> impl Iterator<Item = &Expr> {
+        self.children.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Block {
+    type Item = &'a Expr;
+    type IntoIter = std::slice::Iter<'a, Expr>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.children.into_iter()
+    }
 }
 
 /// Code block of S-expressions

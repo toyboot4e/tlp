@@ -45,4 +45,14 @@ impl item::Proc {
     pub fn body(&self, db: &dyn IrDb) -> body::Body {
         lower::lower_body(db, *self)
     }
+
+    pub fn body_data<'db>(&self, db: &'db dyn IrDb) -> &'db body::BodyData {
+        let body = lower::lower_body(db, *self);
+        body.data(db)
+    }
+
+    pub fn body_spans<'db>(&self, db: &'db dyn IrDb) -> &'db body::BodySpans {
+        let body = lower::lower_body(db, *self);
+        body.spans(db)
+    }
 }

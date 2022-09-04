@@ -1,6 +1,13 @@
 use tlp::{
-    base::BaseDb,
-    ir::{item::Item, InputFileExt},
+    base::{jar::Word, BaseDb},
+    ir::{
+        body::{
+            expr::{self, ExprData},
+            pat::{self, PatData},
+        },
+        item::Item,
+        InputFileExt,
+    },
     Db,
 };
 
@@ -41,5 +48,33 @@ fn body() {
 
     assert_eq!(proc.name(db).as_str(db.as_base_db()), "main");
 
-    let body = proc.body(db);
+    let body = proc.body_data(db);
+    let exprs = body
+        .root_block()
+        .iter()
+        .map(|x| &body.tables[*x])
+        .collect::<Vec<_>>();
+
+    match &exprs[0] {
+        ExprData::Let(let_) => {
+            let pat = &body.tables[let_.pat];
+
+            assert_eq!(
+                pat,
+                &PatData::Bind {
+                    name: Word::intern(db.as_base_db(), "x")
+                }
+            );
+
+            let rhs = &body.tables[let_.rhs];
+            match rhs {
+                ExprData::Literal(lit) => match lit {
+                    expr::Literal::I32(x) => assert_eq!(*x, 3),
+                    _ => unreachable!(),
+                },
+                _ => unreachable!(),
+            };
+        }
+        _ => unreachable!(),
+    }
 }

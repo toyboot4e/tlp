@@ -35,6 +35,15 @@ pub struct BodyData {
     pub root_block: Expr,
 }
 
+impl BodyData {
+    pub fn root_block(&self) -> &expr::Block {
+        match &self.tables[self.root_block] {
+            expr::ExprData::Block(x) => x,
+            _ => unreachable!()
+        }
+    }
+}
+
 tables! {
     /// Tables that store the data for expr in the AST.
     /// You can use `tables[expr]` (etc) to access the data.
