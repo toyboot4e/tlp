@@ -39,7 +39,7 @@ impl BodyData {
     pub fn root_block(&self) -> &expr::Block {
         match &self.tables[self.root_block] {
             expr::ExprData::Block(x) => x,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -49,8 +49,8 @@ tables! {
     /// You can use `tables[expr]` (etc) to access the data.
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct BodyTables {
-        exprs: alloc Expr => ExprData,
-        pats: alloc Pat => PatData,
+        pub exprs: alloc Expr => ExprData,
+        pub pats: alloc Pat => PatData,
         // named_exprs: alloc NamedExpr => NamedExprData,
         // local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
     }

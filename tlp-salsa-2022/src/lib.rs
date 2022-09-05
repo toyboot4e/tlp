@@ -4,6 +4,7 @@ pub extern crate base;
 
 pub mod ir;
 pub mod syntax;
+pub mod compile;
 pub mod vm;
 
 use base::{jar::*, span::*};

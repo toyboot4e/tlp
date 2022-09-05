@@ -47,6 +47,12 @@ impl<K: salsa::AsId, V> AllocTable<K, V> {
     pub fn all_keys(&self) -> impl Iterator<Item = K> {
         (0..self.vec.len()).map(|i| K::from_id(salsa::Id::from(i)))
     }
+
+    pub fn enumerate(&self) -> impl Iterator<Item = (K, &V)> {
+        self.vec
+            .iter_enumerated()
+            .map(|(k, v)| (K::from_id(salsa::Id::from(k)), v))
+    }
 }
 
 impl<K: salsa::AsId, V> std::ops::Index<K> for AllocTable<K, V> {

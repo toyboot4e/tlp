@@ -2,10 +2,13 @@
 
 use std::fmt::{self, Write};
 
+use base::jar::Word;
+
 use tlp::{
     compile,
     syntax::ast,
     vm::{code::Chunk, UnitVariant, Vm},
+    Db,
 };
 
 fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display) {
@@ -38,21 +41,13 @@ fn test_expr(src: &str, expected: impl UnitVariant) {
     self::print_errors(&errs, src);
 
     let chunk = {
-        use std::sync::Arc;
+        let mut db = Db::default();
 
-        use tlp::hir_def::db::*;
+        let src = format!("(proc main () {} )", src);
+        let file = db.new_input_file("main.tlp", src.clone());
 
-        let mut db = DB::default();
-        let mut vfs = vfs::Vfs::default();
-
-        let path = "main.tlp".into();
-        let krate = vfs.intern(path);
-
-        let src = &format!("(proc main () {} )", src);
-        db.set_input(krate.clone(), Arc::new(String::from(src)));
-
-        let (chunk, errs) = compile::compile(&db, krate);
-        self::print_errors(&errs, src);
+        let (chunk, errs) = compile::compile(&db, file);
+        self::print_errors(&errs, &src);
         chunk
     };
 

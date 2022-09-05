@@ -119,13 +119,13 @@ pub use id;
 macro_rules! tables {
     ($(#[$attr:meta])* $vis:vis struct $n:ident {
         $(
-            $f:ident: $tty:ident $k:ty => $v:ty,
+            $f_vis:vis $f:ident: $tty:ident $k:ty => $v:ty,
         )*
     }) => {
         $(#[$attr])*
         $vis struct $n {
             $(
-                $f: $crate::tbl::table_types::$tty<$k, $v>,
+                $f_vis $f: $crate::tbl::table_types::$tty<$k, $v>,
             )*
         }
 

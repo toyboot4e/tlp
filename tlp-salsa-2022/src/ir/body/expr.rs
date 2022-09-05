@@ -35,6 +35,15 @@ pub enum ExprData {
     Path(Path),
 }
 
+impl ExprData {
+    pub fn into_path(self) -> Path {
+        match self {
+            Self::Path(x) => x,
+            _ => panic!("unable to unwrap `ExprData` as path"),
+        }
+    }
+}
+
 macro_rules! impl_from {
     ( $ty:ty = $( $ty_from:ident )|* ; ) => {
         $(
@@ -139,7 +148,7 @@ impl Literal {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub struct Path {
-    segments: Box<[Word]>,
+    pub segments: Box<[Word]>,
 }
 
 impl Path {
