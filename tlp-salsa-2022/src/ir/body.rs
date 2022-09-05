@@ -1,6 +1,7 @@
 //! Body
 
 pub mod expr;
+pub mod expr_scope;
 pub mod pat;
 
 use base::{
