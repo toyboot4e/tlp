@@ -20,12 +20,19 @@ pub enum OpCode {
     OpPushLocalUnit8,
     OpSetLocalUnit8,
 
-    // arithmetic operations
+    // `f32` arithmetic operations
     OpNegateF32,
     OpAddF32,
     OpSubF32,
     OpMulF32,
     OpDivF32,
+
+    // `i32` arithmetic operations
+    OpNegateI32,
+    OpAddI32,
+    OpSubI32,
+    OpMulI32,
+    OpDivI32,
 }
 
 impl OpCode {
@@ -58,6 +65,11 @@ impl OpCode {
             OpSubF32 => "sub-f32",
             OpMulF32 => "mul-f32",
             OpDivF32 => "div-f32",
+            OpNegateI32 => "neg-i32",
+            OpAddI32 => "add-i32",
+            OpSubI32 => "sub-i32",
+            OpMulI32 => "mul-i32",
+            OpDivI32 => "div-i32",
         }
     }
 }

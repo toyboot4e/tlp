@@ -70,15 +70,6 @@ fn simple_arithmetics() {
 
 #[test]
 fn let_statement() {
-    // frame8      Some(1)
-    // load-const8 Some(0)
-    // set-local8  Some(0)
-    // push-local8 Some(0)
-    // load-const8 Some(1)
-    // add-f32
-    // ret
     test_expr("(let a 10.0) (+ a 2.0)", 12.0);
-
-    // TODO: integers
-    // test_expr("(let a 10) (+ a 2)", 12);
+    test_expr("(let a 10) (+ a 2)", 12);
 }

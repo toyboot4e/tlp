@@ -128,7 +128,7 @@ impl Vm {
                     self.stack.set_local_u8(local_ix, unit);
                 }
 
-                // builtin operators
+                // `f32` operators (builtin)
                 OpNegateF32 => {
                     self.unit_op(|x: f32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
@@ -144,6 +144,24 @@ impl Vm {
                 }
                 OpDivF32 => {
                     self.binary_op::<f32>(OpDivF32, ops::Div::<f32>::div)?;
+                }
+
+                // `i32` operators (builtin)
+                OpNegateI32 => {
+                    self.unit_op(|x: i32| -x)
+                        .map_err(|_| VmError::NothingToNegate)?;
+                }
+                OpAddI32 => {
+                    self.binary_op::<i32>(OpAddI32, ops::Add::<i32>::add)?;
+                }
+                OpSubI32 => {
+                    self.binary_op::<i32>(OpSubI32, ops::Sub::<i32>::sub)?;
+                }
+                OpMulI32 => {
+                    self.binary_op::<i32>(OpMulI32, ops::Mul::<i32>::mul)?;
+                }
+                OpDivI32 => {
+                    self.binary_op::<i32>(OpDivI32, ops::Div::<i32>::div)?;
                 }
             }
         }
