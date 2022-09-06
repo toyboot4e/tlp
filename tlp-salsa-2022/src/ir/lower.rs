@@ -14,9 +14,10 @@ use crate::{
             pat::{Pat, PatData},
             SyntheticSyntax,
         },
-        item,
+        item::{self, Item},
+        item_scope::{ItemScope, ItemScopeData},
         jar::ParsedFile,
-        IrDb, IrJar,
+        InputFileExt, IrDb, IrJar,
     },
     syntax::ast::{self, AstNode},
 };
@@ -37,7 +38,7 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
                     None => continue,
                 };
 
-                item::Item::Proc(proc)
+                Item::Proc(proc)
             }
         };
 
@@ -208,4 +209,23 @@ impl<'a> LowerBody<'a> {
         self.spans.push(pat, Err(SyntheticSyntax));
         pat
     }
+}
+
+#[salsa::tracked(jar = IrJar)]
+pub(crate) fn lower_item_scope(db: &dyn IrDb, file: InputFile) -> ItemScope {
+    let items = file.items(db);
+    let mut scope = ItemScopeData::default();
+
+    for item in items {
+        let proc = match item {
+            Item::Proc(x) => x,
+            // TODO: imports
+            // TODO: imports
+        };
+
+        let name = proc.name(db);
+        scope.declare_proc(name.word(db.as_base_db()), *proc);
+    }
+
+    ItemScope::new(db, scope)
 }

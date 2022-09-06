@@ -1,9 +1,6 @@
 //! Resolve expressions by name
 
-// TODO: replace `Arc` with `salsa` struct ID?
-use std::sync::Arc;
-
-use la_arena::{Arena, Idx};
+use la_arena::Idx;
 
 use crate::ir::{
     body::{
@@ -12,13 +9,13 @@ use crate::ir::{
     },
     item,
     item_scope::ItemScope,
-    IrDb,
+    InputFileExt, IrDb,
 };
 
 /// `Item` | `Expr`
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Scope {
-    Item(Arc<ItemScope>),
+    Item(ItemScope),
     Expr(ExprScope),
 }
 
@@ -26,7 +23,7 @@ enum Scope {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExprScope {
     proc: item::Proc,
-    map: Arc<ExprScopeMap>,
+    map: ExprScopeMap,
     idx: Idx<ScopeData>,
 }
 
@@ -38,23 +35,21 @@ pub struct Resolver {
     scopes: Vec<Scope>,
 }
 
-pub fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr_id: Idx<Expr>) -> Resolver {
-    todo!("calc expr scope")
-    // let scopes = db.proc_expr_scope_map(proc);
-    // let scope = scopes.scope_for_expr(expr_id);
-    // self::resolver_for_proc_scope(db, proc, scope)
+pub fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
+    let scopes = proc.expr_scopes(db).data(db);
+    let scope = scopes.scope_for_expr(expr);
+    self::resolver_for_proc_scope(db, proc, scope)
 }
 
 pub fn resolver_for_proc_scope(
     db: &dyn IrDb,
-    proc_loc_id: item::Proc,
+    proc: item::Proc,
     scope_idx: Option<Idx<ScopeData>>,
 ) -> Resolver {
     let mut r = Resolver::new();
 
     // item scope
-    // let item_scope = proc.item_scope(db);
-    let item_scope: Arc<ItemScope> = todo!("item scope for proc");
+    let item_scope = proc.span(db).input_file.item_scope(db);
     r = r.push_file_item_scope(item_scope);
 
     // body scopes
@@ -63,9 +58,8 @@ pub fn resolver_for_proc_scope(
         None => return r,
     };
 
-    // let scopes = db.proc_expr_scope_map(proc_loc_id);
-    let scopes: Arc<ExprScopeMap> = todo!("expr scope map");
-    let scope_chain = scopes.scope_chain(scope_idx).collect::<Vec<_>>();
+    let scopes = proc.expr_scopes(db);
+    let scope_chain = scopes.data(db).scope_chain(scope_idx).collect::<Vec<_>>();
 
     r.scopes.reserve(scope_chain.len());
 
@@ -81,7 +75,7 @@ pub fn resolver_for_proc_scope(
         //     }
         // }
 
-        r = r.push_proc_expr_scope(proc_loc_id, Arc::clone(&scopes), scope);
+        r = r.push_proc_expr_scope(proc, scopes, scope);
     }
 
     r
@@ -100,7 +94,7 @@ impl Resolver {
         self
     }
 
-    fn push_file_item_scope(self, item_scope: Arc<ItemScope>) -> Self {
+    fn push_file_item_scope(self, item_scope: ItemScope) -> Self {
         self.push_scope(Scope::Item(item_scope))
     }
 
@@ -109,7 +103,7 @@ impl Resolver {
     fn push_proc_expr_scope(
         self,
         proc: item::Proc,
-        map: Arc<ExprScopeMap>,
+        map: ExprScopeMap,
         idx: Idx<ScopeData>,
     ) -> Self {
         self.push_scope(Scope::Expr(ExprScope { proc, map, idx }))

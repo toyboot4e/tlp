@@ -72,20 +72,19 @@ impl CallFrame {
     }
 
     /// Resolves pattern to local variable offset
-    pub fn resolve_path(&self, db: &Db, expr: Expr, path: &expr::Path) -> Option<usize> {
+    pub fn resolve_path(&self, db: &Db, path_expr: Expr, path: &expr::Path) -> Option<usize> {
         // FIXME: solve path
         let name = &path.segments[0];
-        todo!("scope")
 
-        // let binding_pat_id = {
-        //     let expr_scopes = db.proc_expr_scope_map(self.proc);
-        //     let scope_id = expr_scopes.scope_for_expr(path_expr_idx)?;
-        //     let entry = expr_scopes.resolve_name_in_scope_chain(scope_id, name)?;
+        let binding_pat = {
+            let expr_scopes = self.proc.expr_scopes(db).data(db);
+            let scope_id = expr_scopes.scope_for_expr(path_expr)?;
+            let entry = expr_scopes.resolve_name_in_scope_chain(scope_id, *name)?;
 
-        //     entry.pat
-        // };
+            entry.pat
+        };
 
-        // self.locals.get(binding_pat_id).map(|x| *x)
+        self.locals.get(&binding_pat).map(|x| *x)
     }
 }
 

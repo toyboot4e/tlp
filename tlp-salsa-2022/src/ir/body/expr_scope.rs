@@ -1,7 +1,5 @@
 //! Item / expression scopes collected from [`Body`]
 
-use std::sync::Arc;
-
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
@@ -12,22 +10,26 @@ use crate::ir::{
     body::{
         expr::{self, Expr, ExprData},
         pat::{self, Pat, PatData},
-        Body, BodyData,
+        BodyData,
     },
-    item,
-    item_scope::ItemScope,
-    IrDb,
+    item, IrDb, IrJar,
 };
+
+#[salsa::tracked(jar = IrJar)]
+pub struct ExprScopeMap {
+    #[return_ref]
+    pub data: ExprScopeMapData,
+}
 
 /// All stack data for a definition
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ExprScopeMap {
+pub struct ExprScopeMapData {
     scopes: Arena<ScopeData>,
     scope_by_expr: FxHashMap<Expr, Idx<ScopeData>>,
 }
 
 /// Accessors
-impl ExprScopeMap {
+impl ExprScopeMapData {
     pub fn entries(&self, scope: Idx<ScopeData>) -> &[ScopeEntry] {
         &self.scopes[scope].entries
     }
@@ -60,7 +62,7 @@ impl ExprScopeMap {
 }
 
 /// Builder methods
-impl ExprScopeMap {
+impl ExprScopeMapData {
     fn alloc_root_scope(&mut self) -> Idx<ScopeData> {
         self.scopes.alloc(ScopeData::default())
     }
@@ -118,21 +120,23 @@ pub struct ScopeEntry {
     pub pat: pat::Pat,
 }
 
-pub(crate) fn proc_expr_scope_query(db: &dyn IrDb, proc: item::Proc) -> Arc<ExprScopeMap> {
+// TODO: move to `lower` module
+#[salsa::tracked(jar = IrJar)]
+pub(crate) fn proc_expr_scope_query(db: &dyn IrDb, proc: item::Proc) -> ExprScopeMap {
     let body = proc.body(db);
     let body_data = body.data(db);
-    self::body_expr_scope(db, &body_data)
+    let data = self::body_expr_scope(db, &body_data);
+    ExprScopeMap::new(db, data)
 }
 
-#[allow(unused)]
-fn body_expr_scope(db: &dyn IrDb, body_data: &BodyData) -> Arc<ExprScopeMap> {
-    let mut scopes = ExprScopeMap::default();
+fn body_expr_scope(db: &dyn IrDb, body_data: &BodyData) -> ExprScopeMapData {
+    let mut scopes = ExprScopeMapData::default();
 
     // start with the root block expression
     let root_scope = scopes.alloc_root_scope();
     self::compute_expr_scopes(body_data.root_block, body_data, &mut scopes, root_scope);
 
-    Arc::new(scopes)
+    scopes
 }
 
 /// Walks through body expressions, creates scopes and tracks the scope for each expression
@@ -141,7 +145,7 @@ fn body_expr_scope(db: &dyn IrDb, body_data: &BodyData) -> Arc<ExprScopeMap> {
 fn compute_expr_scopes(
     expr: expr::Expr,
     body_data: &BodyData,
-    scopes: &mut ExprScopeMap,
+    scopes: &mut ExprScopeMapData,
     scope_idx: Idx<ScopeData>,
 ) -> Idx<ScopeData> {
     // Current scope is only modified by `Let` expression.
@@ -200,7 +204,7 @@ fn compute_expr_scopes(
 fn compute_block_scopes(
     exprs: &[expr::Expr],
     body_data: &BodyData,
-    scopes: &mut ExprScopeMap,
+    scopes: &mut ExprScopeMapData,
     scope_idx: Idx<ScopeData>,
 ) -> Idx<ScopeData> {
     let mut scope_idx = scope_idx;

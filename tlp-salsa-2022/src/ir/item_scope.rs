@@ -4,16 +4,22 @@ use rustc_hash::FxHashMap;
 
 use base::jar::Word;
 
-use crate::ir::item;
+use crate::ir::{item, IrJar};
+
+#[salsa::tracked(jar = IrJar)]
+pub struct ItemScope {
+    #[return_ref]
+    pub data: ItemScopeData,
+}
 
 /// Items visible in a scope (declarations and imports)
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ItemScope {
+pub struct ItemScopeData {
     // Declarations
     procs: FxHashMap<Word, item::Proc>,
 }
 
-impl ItemScope {
+impl ItemScopeData {
     pub(crate) fn declare_proc(&mut self, name: Word, proc: item::Proc) {
         // TOOD: consider upcasting or not
         // let id = DefId { loc_id: proc };
