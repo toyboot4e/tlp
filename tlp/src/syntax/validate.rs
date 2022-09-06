@@ -1,16 +1,17 @@
 //! Syntactic validation of AST
 
+use base::span::{Offset, Span};
 use thiserror::Error;
 
-use crate::syntax::{ast::*, cst::*, span::*};
+use crate::syntax::{ast::*, cst::*};
 
 #[derive(Debug, Clone, Error)]
 pub enum SyntaxError {
     #[error("Missing token {kind:?}")]
-    MissingToken { at: TextPos, kind: SyntaxKind },
+    MissingToken { at: Offset, kind: SyntaxKind },
     #[error("Expected `{expected}`, found `{found}`")]
     Unexpected {
-        sp: ByteSpan,
+        sp: Span,
         found: String,
         expected: String,
     },
@@ -21,12 +22,15 @@ pub enum SyntaxError {
 }
 
 impl SyntaxError {
-    pub fn span(&self) -> ByteSpan {
+    pub fn span(&self) -> Span {
         match self {
-            Self::MissingToken { at, .. } => ByteSpan::at(*at),
+            Self::MissingToken { at, .. } => Span {
+                start: *at,
+                end: (*at + 1u32).into(),
+            },
             Self::Unexpected { sp, .. } => *sp,
-            Self::FnName { f } => f.text_range().into(),
-            Self::FnParamsMissing { f } => f.text_range().into(),
+            Self::FnName { f } => Span::from_rowan_range(f.text_range()),
+            Self::FnParamsMissing { f } => Span::from_rowan_range(f.text_range()),
         }
     }
 }
@@ -37,7 +41,7 @@ pub trait Validate {
 
 impl Validate for Document {
     fn validate(&self, errs: &mut Vec<SyntaxError>) {
-        for item in self.item_nodes() {
+        for item in self.items() {
             item.validate(errs);
         }
     }
@@ -115,7 +119,7 @@ impl Validate for Params {
         for e in elems {
             if e.kind() != SyntaxKind::Ident {
                 errs.push(SyntaxError::Unexpected {
-                    sp: e.text_range().into(),
+                    sp: Span::from_rowan_range(e.text_range()),
                     found: format!("{:?}", e.kind()),
                     expected: format!("{:?}", SyntaxKind::Ident),
                 });

@@ -1,0 +1,11 @@
+[package]
+name = "base"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indexmap = "1.9.1"
+rowan = "0.15.8"
+salsa = { git = "https://github.com/salsa-rs/salsa/", package = "salsa-2022" }
+typed-index-collections = "3.0.3"
+

@@ -83,7 +83,7 @@ impl Vm {
 /// Run
 impl Vm {
     pub fn run(&mut self) -> Result<()> {
-        let chunk_len = self.chunk.code().len();
+        let chunk_len = self.chunk.bytes().len();
 
         while self.ip < chunk_len {
             let code = self.bump_opcode();
@@ -109,20 +109,20 @@ impl Vm {
                 }
 
                 // call frame
-                OpAllocLocals8 => {
+                OpAllocFrame8 => {
                     let local_capacity = self.bump_u8();
                     let local_capacity = local_capacity as usize;
                     self.stack.push_call_frame(local_capacity);
                 }
 
                 // locals
-                OpPushLocal8 => {
+                OpPushLocalUnit8 => {
                     let local_ix = self.bump_u8();
                     let local = self.stack.read_local_u8(local_ix);
                     self.stack.push(local);
                 }
 
-                OpSetLocal8 => {
+                OpSetLocalUnit8 => {
                     let local_ix = self.bump_u8();
                     let unit = self.stack.pop().unwrap();
                     self.stack.set_local_u8(local_ix, unit);

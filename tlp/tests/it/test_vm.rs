@@ -5,7 +5,11 @@ use std::fmt::{self, Write};
 use tlp::{
     compile,
     syntax::ast,
-    vm::{code::Chunk, UnitVariant, Vm},
+    vm::{
+        code::{Chunk, OpCode, OpCodeOperands},
+        UnitVariant, Vm,
+    },
+    Db,
 };
 
 fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display) {
@@ -27,9 +31,10 @@ fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display) {
 fn log_chunk(chunk: &Chunk) {
     println!("");
     println!("--------------------------------------------------------------------------------");
-    for b in chunk.code() {
-        println!("  {:b}", b);
-    }
+
+    let s = chunk.disassemble().unwrap();
+    println!("{}", s);
+
     println!("--------------------------------------------------------------------------------");
 }
 
@@ -38,25 +43,17 @@ fn test_expr(src: &str, expected: impl UnitVariant) {
     self::print_errors(&errs, src);
 
     let chunk = {
-        use std::sync::Arc;
+        let mut db = Db::default();
 
-        use tlp::hir_def::db::*;
+        let src = format!("(proc main () {} )", src);
+        let file = db.new_input_file("main.tlp", src.clone());
 
-        let mut db = DB::default();
-        let mut vfs = vfs::Vfs::default();
-
-        let path = "main.tlp".into();
-        let krate = vfs.intern(path);
-
-        let src = &format!("(proc main () {} )", src);
-        db.set_input(krate.clone(), Arc::new(String::from(src)));
-
-        let (chunk, errs) = compile::compile(&db, krate);
-        self::print_errors(&errs, src);
+        let (chunk, errs) = compile::compile(&db, file);
+        self::print_errors(&errs, &src);
         chunk
     };
 
-    // log_chunk(&chunk);
+    log_chunk(&chunk);
 
     let mut vm = Vm::new(chunk);
     vm.run().unwrap();
@@ -73,6 +70,15 @@ fn simple_arithmetics() {
 
 #[test]
 fn let_statement() {
+    // frame8      Some(1)
+    // load-const8 Some(0)
+    // set-local8  Some(0)
+    // push-local8 Some(0)
+    // load-const8 Some(1)
+    // add-f32
+    // ret
     test_expr("(let a 10.0) (+ a 2.0)", 12.0);
-    test_expr("(let a 10) (+ a 2)", 12);
+
+    // TODO: integers
+    // test_expr("(let a 10) (+ a 2)", 12);
 }

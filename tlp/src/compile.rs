@@ -2,22 +2,22 @@
 
 pub mod scope;
 
-use la_arena::{ArenaMap, Idx};
+use rustc_hash::FxHashMap;
 use thiserror::Error;
 
+use base::jar::{InputFile, Word};
+
 use crate::{
-    hir_def::{
+    ir::{
         body::{
-            expr::{self, Expr},
-            pat::Pat,
-            Body,
+            expr::{self, Expr, ExprData},
+            pat::{Pat, PatData},
+            Body, BodyData,
         },
-        db::{vfs::*, *},
-        ids::*,
-        item_list::item,
+        item,
     },
-    syntax::{ast, ptr::AstPtr},
     vm::code::{Chunk, OpCode, TypedLiteral},
+    Db,
 };
 
 #[derive(Debug, Clone, Error)]
@@ -27,10 +27,10 @@ pub enum CompileError {
     #[error("unexisting method call")]
     UnexistingMethodCall,
     #[error("can't resolve patern with name `{name}`")]
-    CantResolvePattern { name: Name },
+    CantResolvePattern { name: String },
 }
 
-pub fn compile(db: &DB, krate: VfsFileId) -> (Chunk, Vec<CompileError>) {
+pub fn compile(db: &Db, krate: InputFile) -> (Chunk, Vec<CompileError>) {
     let mut compiler = Compiler::default();
     compiler.compile_crate(db, krate);
     (compiler.chunk, compiler.errs)
@@ -39,55 +39,52 @@ pub fn compile(db: &DB, krate: VfsFileId) -> (Chunk, Vec<CompileError>) {
 /// Compile-time call frame information
 #[derive(Debug)]
 struct CallFrame {
-    proc_loc_id: HirItemLocId<item::DefProc>,
-    locals: ArenaMap<Idx<Pat>, usize>,
+    proc: item::Proc,
+    // TODO: consider using Vec-based map
+    locals: FxHashMap<Pat, usize>,
     locals_capacity: usize,
 }
 
 impl CallFrame {
-    pub fn new(db: &DB, proc_loc_id: HirItemLocId<item::DefProc>) -> Self {
-        let body = db.proc_body(proc_loc_id);
+    pub fn new(db: &Db, proc: item::Proc) -> Self {
+        let body = proc.body(db);
+        let body_data = body.data(db);
 
-        let bind_pats = body
-            .pats
-            .iter()
-            .filter(|(_, p)| matches!(p, Pat::Bind { .. }))
-            .map(|(idx, _)| idx);
+        let pats = &body_data.tables.pats;
+        let bind_pats = pats
+            .enumerate()
+            .filter(|(_, data)| matches!(data, PatData::Bind { .. }))
+            .map(|(pat, _)| pat);
 
-        let mut locals = ArenaMap::default();
+        let mut locals = FxHashMap::default();
         let mut locals_capacity = 0;
-        for (i, idx) in bind_pats.enumerate() {
-            locals.insert(idx, i);
+
+        for (pat, data) in bind_pats.enumerate() {
+            locals.insert(data, pat);
             locals_capacity += 1;
         }
 
         Self {
-            proc_loc_id,
+            proc,
             locals,
             locals_capacity,
         }
     }
 
     /// Resolves pattern to local variable offset
-    pub fn resolve_path(
-        &self,
-        db: &DB,
-        path_expr_idx: Idx<expr::Expr>,
-        path: &expr::Path,
-    ) -> Option<usize> {
-        let path_data = path.lookup(db);
+    pub fn resolve_path(&self, db: &Db, path_expr: Expr, path: &expr::Path) -> Option<usize> {
         // FIXME: solve path
-        let name = &path_data.segments[0];
+        let name = &path.segments[0];
 
-        let binding_pat_id = {
-            let expr_scopes = db.proc_expr_scope_map(self.proc_loc_id);
-            let scope_id = expr_scopes.scope_for_expr(path_expr_idx)?;
-            let entry = expr_scopes.resolve_name_in_scope_chain(scope_id, name)?;
+        let binding_pat = {
+            let expr_scopes = self.proc.expr_scopes(db).data(db);
+            let scope_id = expr_scopes.scope_for_expr(path_expr)?;
+            let entry = expr_scopes.resolve_name_in_scope_chain(scope_id, *name)?;
 
             entry.pat
         };
 
-        self.locals.get(binding_pat_id).map(|x| *x)
+        self.locals.get(&binding_pat).map(|x| *x)
     }
 }
 
@@ -100,18 +97,20 @@ struct Compiler {
 }
 
 impl Compiler {
-    pub fn compile_crate(&mut self, db: &DB, krate: VfsFileId) {
-        let main_proc_id = self::find_procedure_in_crate(db, krate, &Name::from_str("main"));
-        self.compile_proc(db, main_proc_id);
+    pub fn compile_crate(&mut self, db: &Db, krate: InputFile) {
+        let main_proc = self::find_procedure_by_name(db, krate, "main");
+        self.compile_proc(db, main_proc);
     }
 
     #[allow(unused)]
-    fn compile_proc(&mut self, db: &DB, proc_loc_id: HirItemLocId<item::DefProc>) {
-        let (body, body_source_map) = db.proc_body_with_source_map(proc_loc_id);
+    fn compile_proc(&mut self, db: &Db, proc: item::Proc) {
+        let body = proc.body(db);
+        let body_data = body.data(db);
 
         // push frame
         {
-            let call_frame = CallFrame::new(db, proc_loc_id);
+            let call_frame = CallFrame::new(db, proc);
+
             // FIXME:
             self.chunk
                 .write_alloc_locals_u8(call_frame.locals_capacity as u8);
@@ -120,14 +119,9 @@ impl Compiler {
 
         // body
         {
-            // Use AST to walk HIR expression in the occurence order
-            let ast_proc = self::ast_proc(db, proc_loc_id);
-
-            for ast_expr in ast_proc.block().exprs() {
-                let ast_ptr = AstPtr::new(&ast_expr);
-                let hir_expr_idx = body_source_map.expr_ast_hir[&ast_ptr];
-                let hir_expr = &body.exprs[hir_expr_idx];
-                self.compile_expr(db, &body, hir_expr_idx, hir_expr);
+            for &expr in body_data.root_block() {
+                let expr_data = &body_data.tables[expr];
+                self.compile_expr(db, &body_data, expr, expr_data);
             }
         }
 
@@ -137,16 +131,15 @@ impl Compiler {
     }
 
     #[allow(unused)]
-    fn compile_expr(&mut self, db: &DB, body: &Body, expr_idx: Idx<Expr>, expr: &Expr) {
-        match expr {
-            Expr::Call(call) => {
-                let path = body.get_path(call.path);
-                let path_data = path.lookup(db);
+    fn compile_expr(&mut self, db: &Db, body_data: &BodyData, expr: Expr, expr_data: &ExprData) {
+        match expr_data {
+            ExprData::Call(call) => {
+                let path = body_data.tables[call.path].clone().into_path();
 
                 // TODO: maybe support dot-separated path
-                let name = path_data.segments[0].clone();
+                let name = path.segments[0].clone();
 
-                match name.as_str() {
+                match name.as_str(db) {
                     "+" | "-" | "*" | "/" => {
                         assert_eq!(
                             call.args.len(),
@@ -155,15 +148,15 @@ impl Compiler {
                         );
 
                         let lhs_idx = call.args[0];
-                        let lhs = &body.exprs[lhs_idx];
-                        self.compile_expr(db, body, lhs_idx, &lhs);
+                        let lhs = &body_data.tables[lhs_idx];
+                        self.compile_expr(db, body_data, lhs_idx, &lhs);
 
                         let rhs_idx = call.args[1];
-                        let rhs = &body.exprs[rhs_idx];
-                        self.compile_expr(db, body, rhs_idx, &rhs);
+                        let rhs = &body_data.tables[rhs_idx];
+                        self.compile_expr(db, body_data, rhs_idx, &rhs);
 
                         // FIXME: Don't assume `f32` type
-                        let op = self::to_oper_f32(name.as_str()).unwrap();
+                        let op = self::to_oper_f32(name.as_str(db)).unwrap();
                         self.chunk.write_code(op);
                     }
                     _ => {
@@ -171,17 +164,17 @@ impl Compiler {
                     }
                 };
             }
-            Expr::Let(let_) => {
+            ExprData::Let(let_) => {
                 let rhs_idx = let_.rhs;
-                let rhs = &body.exprs[rhs_idx];
-                let rhs = self.compile_expr(db, body, rhs_idx, rhs);
+                let rhs = &body_data.tables[rhs_idx];
+                let rhs = self.compile_expr(db, body_data, rhs_idx, rhs);
 
-                let local_idx = self.call_frame.as_ref().unwrap().locals[let_.pat];
+                let local_idx = self.call_frame.as_ref().unwrap().locals[&let_.pat];
                 let local_idx = local_idx as u8;
 
                 self.chunk.write_set_local_u8(local_idx);
             }
-            Expr::Literal(lit) => match lit {
+            ExprData::Literal(lit) => match lit {
                 expr::Literal::F32(x) => {
                     let literal = TypedLiteral::F32(x.0);
                     let idx = self.chunk.store_literal(literal);
@@ -194,13 +187,12 @@ impl Compiler {
                 }
                 _ => todo!(),
             },
-            Expr::Path(path) => {
-                // let ast_id_map = db.ast_id_map(
+            ExprData::Path(path) => {
                 let local_idx = self
                     .call_frame
                     .as_ref()
                     .unwrap()
-                    .resolve_path(db, expr_idx, path)
+                    .resolve_path(db, expr, path)
                     .unwrap();
 
                 self.chunk.write_load_local_u8(local_idx as u8);
@@ -213,16 +205,18 @@ impl Compiler {
     }
 }
 
-fn find_procedure_in_crate(
-    db: &dyn Def,
-    krate: vfs::VfsFileId,
-    name: &Name,
-) -> Id<HirItemLoc<item::DefProc>> {
-    let crate_data = db.crate_data(krate);
-    let crate_file_data = crate_data.root_file_data();
-    let item_scope = &crate_file_data.item_scope;
+fn find_procedure_by_name(db: &Db, file: InputFile, name: &str) -> item::Proc {
+    let item = db
+        .items(file)
+        .iter()
+        .find(|f| f.name(db).as_str(db) == name)
+        .unwrap()
+        .clone();
 
-    item_scope.lookup_proc(name).unwrap()
+    match item {
+        item::Item::Proc(x) => x,
+        _ => panic!(),
+    }
 }
 
 fn to_oper_f32(s: &str) -> Option<OpCode> {
@@ -233,26 +227,4 @@ fn to_oper_f32(s: &str) -> Option<OpCode> {
         "/" => OpCode::OpDivF32,
         _ => return None,
     })
-}
-
-fn ast_proc(db: &DB, proc_loc_id: HirItemLocId<item::DefProc>) -> ast::DefProc {
-    let proc_loc = proc_loc_id.lookup_loc(db);
-
-    let items = db.file_item_list(proc_loc.file);
-    let hir_proc = &items.procs[proc_loc.idx];
-
-    let ast_id_map = db.ast_id_map(proc_loc.file);
-
-    let ast_proc = {
-        let parse = db.parse(proc_loc.file);
-        let root_syntax = parse.doc.syntax();
-
-        let ast_idx = hir_proc.ast_idx.clone();
-
-        let ast_proc_ptr = ast_id_map.idx_to_ptr(ast_idx);
-
-        ast_proc_ptr.to_node(&root_syntax)
-    };
-
-    ast_proc
 }

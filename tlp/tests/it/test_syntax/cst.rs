@@ -45,7 +45,8 @@ fn run_test(test: Test) -> Result<(), TestError> {
     if !errs.is_empty() {
         let s = errs
             .iter()
-            .map(|e| format!("{}", e.with_loc(&test.code)))
+            // FIXME: print with location
+            .map(|e| format!("{}", e))
             .collect::<Vec<_>>()
             .join("\n");
         panic!("{}\nsource: {}", s, test.code);

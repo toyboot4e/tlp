@@ -1,18 +1,16 @@
 //! Lexer / tokenizer
 
+use base::span::{Offset, Span};
 use thiserror::Error;
 
-use crate::syntax::{
-    cst::SyntaxKind,
-    span::{ByteSpan, TextPos},
-};
+use crate::syntax::cst::SyntaxKind;
 
 /// Text span with syntactic kind
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: SyntaxKind,
     // TODO: prefer `&str`?
-    pub sp: ByteSpan,
+    pub sp: Span,
 }
 
 impl Token {
@@ -26,17 +24,17 @@ impl Token {
 pub enum LexError {
     // TODO: use line:column representation on print
     #[error("It doesn't make any sense: {sp:?}")]
-    Unreachable { sp: ByteSpan },
+    Unreachable { sp: Span },
     // TODO: while what?
     #[error("Unexpected end of file")]
-    Eof { at: TextPos },
+    Eof { at: Offset },
 }
 
 impl LexError {
-    pub fn span(&self) -> ByteSpan {
+    pub fn span(&self) -> Span {
         match self {
             Self::Unreachable { sp } => sp.clone(),
-            Self::Eof { at: pos } => ByteSpan::at(*pos),
+            Self::Eof { at: pos } => Span::from(*pos, 1u32),
         }
     }
 }
@@ -45,7 +43,7 @@ impl LexError {
 pub fn from_str<'s>(src: &'s str) -> (Vec<Token>, Vec<LexError>) {
     let l = Lexer {
         src: src.as_bytes(),
-        sp: Default::default(),
+        sp: Span::from(0u32, 0u32),
         tks: vec![],
         errs: vec![],
     };
@@ -59,7 +57,7 @@ struct Lexer<'s> {
     /// ASCII characteres while lexing, and all of them are single byte. Single byte characters in
     /// UTF-8 are all a byte starting with `0`.
     src: &'s [u8],
-    sp: ByteSpan,
+    sp: Span,
     tks: Vec<Token>,
     errs: Vec<LexError>,
 }
@@ -94,9 +92,9 @@ fn is_ident_start(c: u8) -> bool {
 
 /// Lexing utilities
 impl<'s> Lexer<'s> {
-    fn consume_span(&mut self) -> ByteSpan {
+    fn consume_span(&mut self) -> Span {
         let sp = self.sp.clone();
-        self.sp.lo = self.sp.hi;
+        self.sp.start = self.sp.end;
         sp
     }
 
@@ -107,14 +105,14 @@ impl<'s> Lexer<'s> {
 
     /// The predicate returns if we should continue scanning reading a byte
     fn advance_if(&mut self, p: impl Fn(u8) -> bool) -> Option<()> {
-        if self.sp.hi >= self.src.len() {
+        if self.sp.end.into_usize() >= self.src.len() {
             return None;
         }
 
-        let peek = self.src[self.sp.hi];
+        let peek = self.src[self.sp.end.into_usize()];
 
         if p(peek) {
-            self.sp.hi += 1;
+            self.sp.end += 1u32;
             Some(())
         } else {
             None
@@ -123,21 +121,21 @@ impl<'s> Lexer<'s> {
 
     /// The predicate returns if we should continue scanning reading a byte
     fn advance_while(&mut self, p: impl Fn(u8) -> bool) {
-        while self.sp.hi < self.src.len() {
-            let peek = self.src[self.sp.hi];
+        while self.sp.end.into_usize() < self.src.len() {
+            let peek = self.src[self.sp.end.into_usize()];
 
             if !p(peek) {
                 return;
             }
 
-            self.sp.hi += 1;
+            self.sp.end += 1u32;
         }
     }
 
     fn advance_until(&mut self, p: impl Fn(u8) -> bool) {
-        while self.sp.hi < self.src.len() {
-            let peek = self.src[self.sp.hi];
-            self.sp.hi += 1;
+        while self.sp.end.into_usize() < self.src.len() {
+            let peek = self.src[self.sp.end.into_usize()];
+            self.sp.end += 1u32;
 
             if p(peek) {
                 return;
@@ -160,7 +158,7 @@ macro_rules! apply_syntax {
 
 impl<'s> Lexer<'s> {
     pub fn run(mut self) -> (Vec<Token>, Vec<LexError>) {
-        while self.sp.lo < self.src.len() {
+        while self.sp.start.into_usize() < self.src.len() {
             self.process_forward();
         }
 
@@ -202,7 +200,7 @@ impl<'s> Lexer<'s> {
 impl<'s> Lexer<'s> {
     /// Byte tokens: `():.-`
     fn lex_one_byte(&mut self) -> Option<Token> {
-        let c = self.src[self.sp.hi];
+        let c = self.src[self.sp.end.into_usize()];
 
         let kind = match c {
             b'(' => SyntaxKind::LParen,
@@ -210,7 +208,7 @@ impl<'s> Lexer<'s> {
             b':' => SyntaxKind::Colon,
             b'.' => SyntaxKind::Dot,
             b'-' => {
-                if let Some(c2) = self.src.get(self.sp.hi + 1) {
+                if let Some(c2) = self.src.get(self.sp.end.into_usize() + 1usize) {
                     if self::is_num_body(*c2) {
                         return None;
                     }
@@ -220,7 +218,7 @@ impl<'s> Lexer<'s> {
             _ => return None,
         };
 
-        self.sp.hi += 1;
+        self.sp.end += 1u32;
         Some(self.consume_span_as(kind))
     }
 
@@ -239,13 +237,15 @@ impl<'s> Lexer<'s> {
     /// [0-9]<num>*
     fn lex_num(&mut self) -> Option<Token> {
         self.advance_if(self::is_num_start)?;
-        while self.sp.hi < self.src.len() {
-            let b = self.src[self.sp.hi];
+        while self.sp.end.into_usize() < self.src.len() {
+            let b = self.src[self.sp.end.into_usize()];
 
             // consider method call
             if b == b'.' {
-                let peek = self.sp.hi + 1;
-                if peek < self.src.len() && !self::is_num_body(self.src[peek]) {
+                let peek = self.sp.end + 1u32;
+                if peek.into_usize() < self.src.len()
+                    && !self::is_num_body(self.src[peek.into_usize()])
+                {
                     break;
                 }
             }
@@ -254,7 +254,7 @@ impl<'s> Lexer<'s> {
                 break;
             }
 
-            self.sp.hi += 1;
+            self.sp.end += 1u32;
         }
         Some(self.consume_span_as(SyntaxKind::Num))
     }
@@ -264,7 +264,9 @@ impl<'s> Lexer<'s> {
         self.advance_if(|b| b == b'"')?;
         self.advance_while(|b| b != b'"');
         if self.advance_if(|b| b == b'"').is_none() {
-            self.errs.push(LexError::Eof { at: self.src.len() });
+            self.errs.push(LexError::Eof {
+                at: self.src.len().into(),
+            });
             // No early return; allow non-terminated string at EoF
         }
 

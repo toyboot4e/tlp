@@ -5,26 +5,24 @@
 //! - Parse function users are responsibile of bumping white spaces. Parse functions do not call
 //! `maybe_bump_ws` at the beginning.
 
-use std::fmt;
-
+use base::span::{Offset, Span};
 use thiserror::Error;
 
-use crate::syntax::{
-    cst::{
-        lex::{self, LexError, Token},
-        SyntaxKind, SyntaxNode,
-    },
-    span::{ByteLocation, ByteSpan, TextPos},
+use crate::syntax::cst::{
+    lex::{self, LexError, Token},
+    SyntaxKind, SyntaxNode,
 };
 
 use rowan::{GreenNode, GreenNodeBuilder};
+
+// FIXME: make self-contained error type
 
 /// Parse / lexing error
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ParseError {
     // TODO: use line:column representation
     #[error("It doesn't make any sense: {sp:?}")]
-    Unreachable { sp: ByteSpan },
+    Unreachable { sp: Span },
     #[error("LexError: {err}")]
     LexError {
         #[from]
@@ -34,51 +32,51 @@ pub enum ParseError {
     #[error("Expected {expected}, found {found}")]
     Unexpected {
         // TODO: add text length
-        at: TextPos,
+        at: Offset,
         expected: String,
         found: String,
     },
     #[error("Unterminated string")]
-    UnterminatedString { sp: ByteSpan },
+    UnterminatedString { sp: Span },
     #[error("Path must end with identifier")]
-    PathNotEndWithIdent { sp: ByteSpan },
+    PathNotEndWithIdent { sp: Span },
 }
 
 /// API for showing diagnostics via LSP
 impl ParseError {
-    pub fn span(&self) -> ByteSpan {
+    pub fn span(&self) -> Span {
         match self {
             Self::Unreachable { sp } => sp.clone(),
             Self::LexError { err } => err.span(),
-            Self::Unexpected { at: pos, .. } => ByteSpan::at(*pos),
+            Self::Unexpected { at: pos, .. } => Span::from(*pos, 1u32),
             Self::UnterminatedString { sp } => *sp,
             Self::PathNotEndWithIdent { sp } => *sp,
         }
     }
 
-    pub fn with_loc(&self, src: &str) -> ParseErrorWithLocation {
-        ParseErrorWithLocation {
-            err: self.clone(),
-            loc: ByteLocation::from_pos(self.span().lo, src),
-        }
-    }
+    // pub fn with_loc(&self, src: &str) -> ParseErrorWithLocation {
+    //     ParseErrorWithLocation {
+    //         err: self.clone(),
+    //         loc: LineColumn::from_pos(self.span().end, src),
+    //     }
+    // }
 }
 
-/// Display of [`ParseError`] with prefix `ln:col`
-///
-/// NOTE: In text editors, diagnostics are automatically displayed with `line:column`information, so
-/// this type is only for termianl output.
-#[derive(Debug, Clone)]
-pub struct ParseErrorWithLocation {
-    err: ParseError,
-    loc: ByteLocation,
-}
-
-impl fmt::Display for ParseErrorWithLocation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{} {}", self.loc.ln, self.loc.col, self.err)
-    }
-}
+// /// Display of [`ParseError`] with prefix `ln:col`
+// ///
+// /// NOTE: In text editors, diagnostics are automatically displayed with `line:column`information, so
+// /// this type is only for termianl output.
+// #[derive(Debug, Clone)]
+// pub struct ParseErrorWithLocation {
+//     err: ParseError,
+//     loc: LineColumn,
+// }
+//
+// impl fmt::Display for ParseErrorWithLocation {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "{}:{} {}", self.loc.ln, self.loc.col, self.err)
+//     }
+// }
 
 /// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
 /// grammer.
@@ -108,17 +106,10 @@ where
     tks: &'t [Token],
 }
 
-/// Span of [`Token`] s in range `(lo, hi]` referred to as `tsp`
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-struct TokenSpan {
-    pub lo: usize,
-    pub hi: usize,
-}
-
 /// Referred to as `pcx`.
 #[derive(Debug)]
 struct ParseState {
-    tsp: TokenSpan,
+    tsp: Span,
     builder: GreenNodeBuilder<'static>,
     errs: Vec<ParseError>,
 }
@@ -126,7 +117,7 @@ struct ParseState {
 impl ParseState {
     pub fn new() -> Self {
         Self {
-            tsp: Default::default(),
+            tsp: Span::from(0u32, 0u32),
             builder: GreenNodeBuilder::new(),
             errs: vec![],
         }
@@ -136,7 +127,7 @@ impl ParseState {
         self.builder.start_node(SyntaxKind::ROOT.into());
 
         self.maybe_bump_ws(pcx);
-        while self.tsp.lo < pcx.tks.len() {
+        while self.tsp.end.into_usize() < pcx.tks.len() {
             self.maybe_bump_sepx(&pcx);
             self.maybe_bump_ws(pcx);
         }
@@ -154,16 +145,16 @@ impl ParseState {
     }
 
     fn peek_n<'pcx>(&mut self, pcx: &'pcx ParseContext, n: usize) -> Option<&'pcx Token> {
-        pcx.tks.get(self.tsp.hi + n)
+        pcx.tks.get(self.tsp.end.into_usize() + n)
     }
 
     /// Consume the next element as a token
     fn bump<'pcx>(&mut self, pcx: &'pcx ParseContext) -> &'pcx Token {
-        let tk = &pcx.tks[self.tsp.hi];
+        let tk = &pcx.tks[self.tsp.end.into_usize()];
         self.builder.token(tk.kind.into(), tk.slice(pcx.src));
 
-        self.tsp.hi += 1;
-        self.tsp.lo = self.tsp.hi;
+        self.tsp.end += 1u32;
+        self.tsp.start = self.tsp.end;
         tk
     }
 
@@ -238,7 +229,7 @@ impl ParseState {
             Some(tk) => tk,
             None => {
                 self.errs.push(ParseError::Unexpected {
-                    at: pcx.src.len(),
+                    at: pcx.src.len().into(),
                     expected: "<call or special form>".to_string(),
                     found: "EoF".to_string(),
                 });
@@ -250,7 +241,7 @@ impl ParseState {
 
         if peek.kind != SyntaxKind::Ident {
             self.errs.push(ParseError::Unexpected {
-                at: pcx.src.len(),
+                at: pcx.src.len().into(),
                 expected: "<call or special form>".to_string(),
                 found: format!("{:?}", peek.kind),
             });
@@ -347,7 +338,7 @@ impl ParseState {
             self.errs.push(ParseError::Unexpected {
                 // todo: figure out why it's at this point
                 // todo: use span for error location
-                at: pcx.src.len(),
+                at: pcx.src.len().into(),
                 expected: ")".to_string(),
                 found: "eof".to_string(),
             });
@@ -375,7 +366,7 @@ impl ParseState {
                 self.errs.push(ParseError::Unexpected {
                     // todo: figure out why it's at this point
                     // todo: use span for error location
-                    at: pcx.src.len(),
+                    at: pcx.src.len().into(),
                     expected: ")".to_string(),
                     found: "eof".to_string(),
                 });
@@ -432,18 +423,18 @@ impl ParseState {
         match self.peek(pcx) {
             Some(tk) => {
                 self.errs.push(ParseError::Unexpected {
-                    at: tk.sp.lo,
+                    at: tk.sp.start,
                     expected: "symbol".to_string(),
                     found: format!("{:?}", tk),
                 });
 
                 // Discard this token so that we won't enter infinite loop
-                self.tsp.hi += 1;
-                self.tsp.lo = self.tsp.hi;
+                self.tsp.end += 1u32;
+                self.tsp.start = self.tsp.end;
             }
             None => {
                 self.errs.push(ParseError::Unexpected {
-                    at: pcx.src.len(),
+                    at: pcx.src.len().into(),
                     expected: "symbol".to_string(),
                     found: "EoF".to_string(),
                 });
@@ -465,10 +456,10 @@ impl ParseState {
     /// Path node
     // TODO: refactor
     fn maybe_bump_path(&mut self, pcx: &ParseContext) -> Option<()> {
-        let lo = if self.tsp.hi > 0 {
-            pcx.tks[self.tsp.hi - 1].sp.hi
+        let start = if self.tsp.end.into_usize() > 0 {
+            pcx.tks[self.tsp.end.into_usize() - 1].sp.end
         } else {
-            0
+            Offset::default()
         };
 
         let checkpoint = self.builder.checkpoint();
@@ -504,13 +495,13 @@ impl ParseState {
 
             // ident
             if self.maybe_bump_kind(pcx, SyntaxKind::Ident).is_none() {
-                let hi = match self.peek(pcx) {
-                    Some(tk) => tk.sp.lo,
-                    None => pcx.src.len(),
+                let end = match self.peek(pcx) {
+                    Some(tk) => tk.sp.start,
+                    None => pcx.src.len().into(),
                 };
 
                 self.errs.push(ParseError::PathNotEndWithIdent {
-                    sp: ByteSpan { lo, hi },
+                    sp: Span { start, end },
                 });
                 break;
             }
