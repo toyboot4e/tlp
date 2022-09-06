@@ -1,4 +1,4 @@
-//! Run all test cases in `cst/cases.txt` (on `cargo test`)
+//! Run all test cases in `cst_tests.txt` (on `cargo test`)
 
 use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
@@ -70,7 +70,7 @@ fn run_test(test: Test) -> Result<(), TestError> {
 
 #[test]
 fn cst() {
-    let src = include_str!("cst/cases.txt");
+    let src = include_str!("cst_tests.txt");
     let tests = utils::collect_tests(src);
 
     let errs = tests
