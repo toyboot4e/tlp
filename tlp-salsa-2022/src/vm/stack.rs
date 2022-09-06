@@ -35,14 +35,17 @@ impl Stack {
         self.units.pop()
     }
 
-    fn alloc_units(&mut self, n_units: usize) {
+    pub fn push_call_frame(&mut self, n_units: usize) {
+        let offset = self.units.len();
+        let capacity = n_units;
+
         for _ in 0..n_units {
             self.units.push(Unit::default());
         }
-    }
 
-    pub fn push_call_frame(&mut self, n_units: usize) {
-        self.alloc_units(n_units);
+        let frame = CallFrame { offset, capacity };
+
+        self.frames.push(frame);
     }
 
     pub fn set_local_u8(&mut self, index: u8, unit: Unit) {

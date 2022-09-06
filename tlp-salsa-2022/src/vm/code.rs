@@ -1,11 +1,12 @@
 //! Bytecode
 
-// TODO: disassemble
+use std::fmt::{self, Write};
 
 use crate::vm::{Unit, UnitVariant};
 
 /// Instruction to the stack-based virtual machine
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+#[repr(u8)]
 pub enum OpCode {
     OpReturn,
 
@@ -15,7 +16,7 @@ pub enum OpCode {
     OpConst16,
 
     // local variables (one word only)
-    OpAllocLocals8,
+    OpAllocFrame8,
     OpPushLocalUnit8,
     OpSetLocalUnit8,
 
@@ -25,6 +26,47 @@ pub enum OpCode {
     OpSubF32,
     OpMulF32,
     OpDivF32,
+}
+
+impl OpCode {
+    pub fn operands(&self) -> OpCodeOperands {
+        use OpCode::*;
+
+        match self {
+            OpConst8 | OpCode::OpAllocFrame8 | OpPushLocalUnit8 | OpSetLocalUnit8 => {
+                OpCodeOperands::One
+            }
+            OpConst16 => OpCodeOperands::Two,
+            _ => OpCodeOperands::None,
+        }
+    }
+
+    // pub fn n_pops(&self) -> usize
+
+    pub fn shorthand(&self) -> &'static str {
+        use OpCode::*;
+
+        match self {
+            OpReturn => "ret",
+            OpConst8 => "load-const8",
+            OpConst16 => "load-const16",
+            OpAllocFrame8 => "frame8",
+            OpPushLocalUnit8 => "push-local8",
+            OpSetLocalUnit8 => "set-local8",
+            OpNegateF32 => "neg-f32",
+            OpAddF32 => "add-f32",
+            OpSubF32 => "sub-f32",
+            OpMulF32 => "mul-f32",
+            OpDivF32 => "div-f32",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+pub enum OpCodeOperands {
+    None,
+    One,
+    Two,
 }
 
 impl Into<u8> for OpCode {
@@ -93,7 +135,7 @@ impl Chunk {
 
 impl Chunk {
     #[inline(always)]
-    pub fn code(&self) -> &[u8] {
+    pub fn bytes(&self) -> &[u8] {
         &self.codes
     }
 
@@ -157,7 +199,7 @@ impl Chunk {
 
     #[inline(always)]
     pub fn write_alloc_locals_u8(&mut self, idx: u8) {
-        self.codes.push(OpCode::OpAllocLocals8 as u8);
+        self.codes.push(OpCode::OpAllocFrame8 as u8);
         self.codes.push(idx);
     }
 
@@ -203,6 +245,56 @@ impl Chunk {
         };
 
         self.read_literal(idx)
+    }
+}
+
+impl Chunk {
+    pub fn disassemble(&self) -> Result<String, fmt::Error> {
+        let mut s = String::new();
+        self.disassemble_into(&mut s);
+        Ok(s)
+    }
+
+    pub fn disassemble_into(&self, s: &mut String) -> fmt::Result {
+        let mut bytes = self.codes.iter();
+
+        loop {
+            let b = match bytes.next() {
+                Some(b) => *b,
+                None => break,
+            };
+
+            // FIXME: implement `TryFrom`, maybe using `num_enum`
+            let op: OpCode = unsafe { std::mem::transmute(b) };
+            Self::write_opcode(op, &mut bytes, s)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_opcode<'a>(
+        op: OpCode,
+        bytes: &mut impl Iterator<Item = &'a u8>,
+        s: &mut String,
+    ) -> fmt::Result {
+        match op.operands() {
+            OpCodeOperands::None => writeln!(s, "{}", op.shorthand()),
+            OpCodeOperands::One => {
+                // TODO: unwrap
+                writeln!(s, "{:11} {:?}", op.shorthand(), bytes.next())
+            }
+            OpCodeOperands::Two => {
+                // TODO: unwrap
+                writeln!(
+                    s,
+                    "{:11} {:?} {:?}",
+                    op.shorthand(),
+                    bytes.next(),
+                    bytes.next()
+                )?;
+                Ok(())
+            }
+        }
     }
 }
 
