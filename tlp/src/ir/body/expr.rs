@@ -89,6 +89,7 @@ pub struct Let {
     pub rhs: Expr,
 }
 
+/// Procedure call
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct Call {
     pub path: Expr,
@@ -155,7 +156,7 @@ impl Path {
     pub fn parse(db: &dyn IrDb, ast: ast::Path) -> Self {
         let segments = ast
             .components()
-            .map(|c| Word::new(db.as_base_db(), c.text().to_string()))
+            .map(|c| Word::new(db.base(), c.text().to_string()))
             .collect();
 
         Self { segments }

@@ -134,7 +134,7 @@ impl Compiler {
     fn compile_expr(&mut self, db: &Db, body_data: &BodyData, expr: Expr, expr_data: &ExprData) {
         match expr_data {
             ExprData::Call(call) => {
-                // TODO: resolve `Call` to 
+                // TODO: resolve `Call` to typed builtin methods
                 let path = body_data.tables[call.path].clone().into_path();
 
                 // TODO: maybe support dot-separated path

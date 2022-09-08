@@ -6,6 +6,7 @@ pub mod item_scope;
 pub mod jar;
 pub mod lower;
 pub mod resolve;
+pub mod ty;
 
 #[salsa::jar(db = IrDb)]
 pub struct IrJar(

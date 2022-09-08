@@ -21,13 +21,13 @@ impl Item {
 
     pub fn name(self, db: &dyn ir::IrDb) -> Word {
         match self {
-            Item::Proc(f) => f.name(db).word(db.as_base_db()),
+            Item::Proc(f) => f.name(db).word(db.base()),
         }
     }
 
     pub fn name_span(self, db: &dyn ir::IrDb) -> FileSpan {
         match self {
-            Item::Proc(f) => f.name(db).span(db.as_base_db()),
+            Item::Proc(f) => f.name(db).span(db.base()),
         }
     }
 
@@ -63,7 +63,7 @@ impl Proc {
         let name = {
             // here we require function name for simplicity
             let name_tk = ast.name()?;
-            let name = Word::intern(db.as_base_db(), name_tk.token().text());
+            let name = Word::intern(db.base(), name_tk.token().text());
 
             let name_span = Span::from_rowan_range(name_tk.syn.text_range());
             let name_span = FileSpan {
@@ -72,7 +72,7 @@ impl Proc {
                 end: name_span.end,
             };
 
-            SpannedWord::new(db.as_base_db(), name, name_span)
+            SpannedWord::new(db.base(), name, name_span)
         };
 
         let file_span = Span::from_rowan_range(ast.syn.text_range());
