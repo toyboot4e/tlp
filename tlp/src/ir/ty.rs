@@ -1,7 +1,5 @@
 //! Types expressions
 
-use crate::ir::body::{expr::Expr, pat::Pat};
-
 pub mod lower_type;
 pub mod typed_body;
 
@@ -86,4 +84,15 @@ pub enum PrimitiveType {
     I32,
     F32,
     Bool,
+}
+
+mod ext {
+    use super::*;
+    use crate::ir::{item, IrDb};
+
+    impl item::Proc {
+        pub fn type_table<'db>(&self, db: &'db dyn IrDb) -> &'db lower_type::TypeTable {
+            lower_type::lower_body(db, *self)
+        }
+    }
 }

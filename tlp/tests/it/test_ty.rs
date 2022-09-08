@@ -39,7 +39,7 @@ fn type_of_plus_i32_f32() {
     let (db, proc) = self::new_main(src);
 
     let expr_data = self::expr_data(&db, proc);
-    let types = ty::lower_type::lower_body(&db, proc);
+    let types = proc.type_table(&db);
 
     match &expr_data[0] {
         ExprData::Call(call) => {
@@ -72,7 +72,7 @@ fn type_of_mul_f32_i32() {
     let (db, proc) = self::new_main(src);
 
     let expr_data = self::expr_data(&db, proc);
-    let types = ty::lower_type::lower_body(&db, proc);
+    let types = proc.type_table(&db);
 
     match &expr_data[0] {
         ExprData::Call(call) => {

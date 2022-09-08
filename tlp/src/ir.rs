@@ -21,6 +21,7 @@ pub struct IrJar(
     body::expr_scope::proc_expr_scope_query,
     // TODO: Consider ditching? It adds lifetimes to `Resolver` though
     body::expr_scope::ExprScopeMap,
+    ty::lower_type::lower_body,
 );
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {

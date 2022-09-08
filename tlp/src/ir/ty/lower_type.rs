@@ -1,6 +1,6 @@
 //! Type lowering
 
-// TODO: refactor with Visitor?
+// TODO: Accumulate diagnostics
 
 use std::ops;
 
@@ -14,13 +14,13 @@ use crate::ir::{
     },
     item,
     ty::{self, TypeData, WipTypeData},
-    IrDb,
+    IrDb, IrJar,
 };
 
-pub fn lower_body(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
+#[salsa::tracked(jar = IrJar, return_ref)]
+pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let mut tcx = Tcx {
         db,
-        proc,
         body_data: proc.body_data(db),
         expr_types: Default::default(),
         pat_types: Default::default(),
@@ -34,10 +34,7 @@ pub fn lower_body(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         .expr_types
         .into_iter()
         .map(|(expr, ty)| match ty {
-            WipTypeData::Var => unreachable!(
-                "bug: type variable remained at expr {:?}: {:?}",
-                expr, &tcx.body_data.tables[expr]
-            ),
+            WipTypeData::Var => (expr, TypeData::Unknown),
             WipTypeData::Data(data) => (expr, data),
         })
         .collect();
@@ -57,7 +54,7 @@ pub fn lower_body(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TypeTable {
     expr_types: FxHashMap<Expr, TypeData>,
     pat_types: FxHashMap<Pat, TypeData>,
@@ -77,27 +74,26 @@ impl ops::Index<Pat> for TypeTable {
     }
 }
 
-/// Upcast of type owner IDs
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum TypeId {
-    Expr(Expr),
-    Pat(Pat),
-    // Proc(item::Proc),
-}
-
-impl TypeId {
-    pub fn get<'a>(&self, tcx: &'a Tcx) -> Option<&'a WipTypeData> {
-        match self {
-            TypeId::Expr(expr) => tcx.expr_types.get(&expr),
-            TypeId::Pat(pat) => tcx.pat_types.get(&pat),
-        }
-    }
-}
+// /// Upcast of type owner IDs
+// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+// enum TypeId {
+//     Expr(Expr),
+//     Pat(Pat),
+//     // Proc(item::Proc),
+// }
+//
+// impl TypeId {
+//     pub fn get<'a>(&self, tcx: &'a Tcx) -> Option<&'a WipTypeData> {
+//         match self {
+//             TypeId::Expr(expr) => tcx.expr_types.get(&expr),
+//             TypeId::Pat(pat) => tcx.pat_types.get(&pat),
+//         }
+//     }
+// }
 
 /// Type lowering context
 struct Tcx<'db> {
     db: &'db dyn IrDb,
-    proc: item::Proc,
     body_data: &'db BodyData,
     // tables
     // vars:
@@ -222,40 +218,24 @@ impl<'db> Tcx<'db> {
                 // TODO: use name resolution to know the type
             }
         }
-
-        self.unwrap_expr_ty(expr);
     }
 
     fn infer_pat(&mut self, pat: Pat) {
-        self.unwrap_pat_ty(pat);
-    }
-
-    fn unwrap_expr_ty(&mut self, expr: Expr) {
-        let ty = self.expr_types.get_mut(&expr).unwrap();
-        if matches!(ty, WipTypeData::Var) {
-            *ty = WipTypeData::Data(TypeData::Unknown);
-        }
-    }
-
-    fn unwrap_pat_ty(&mut self, pat: Pat) {
-        let ty = self.pat_types.get_mut(&pat).unwrap();
-        if matches!(ty, WipTypeData::Var) {
-            *ty = WipTypeData::Data(TypeData::Unknown);
-        }
+        //
     }
 }
 
 impl<'db> Tcx<'db> {
-    /// Returns true if the type variable occurs in the compared type. This is used in [`unify`] to avoid inifinite call cycle.
-    fn occur(&self, var: TypeId, ty: TypeId) -> bool {
-        assert_eq!(
-            var.get(self),
-            Some(&WipTypeData::Var),
-            "not a type variable"
-        );
-
-        todo!()
-    }
+    // /// Returns true if the type variable occurs in the compared type. This is used in [`unify`] to avoid inifinite call cycle.
+    // fn occur(&self, var: TypeId, ty: TypeId) -> bool {
+    //     assert_eq!(
+    //         var.get(self),
+    //         Some(&WipTypeData::Var),
+    //         "not a type variable"
+    //     );
+    //
+    //     todo!()
+    // }
 
     /// Compares two types, tries to assign type to type variables and return if they match.
     pub fn unify(&mut self, w1: &WipTypeData, w2: &WipTypeData) -> bool {

@@ -129,7 +129,7 @@ pub(crate) fn proc_expr_scope_query(db: &dyn IrDb, proc: item::Proc) -> ExprScop
     ExprScopeMap::new(db, data)
 }
 
-fn body_expr_scope(db: &dyn IrDb, body_data: &BodyData) -> ExprScopeMapData {
+fn body_expr_scope(_db: &dyn IrDb, body_data: &BodyData) -> ExprScopeMapData {
     let mut scopes = ExprScopeMapData::default();
 
     // start with the root block expression

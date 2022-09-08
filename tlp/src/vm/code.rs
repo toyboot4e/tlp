@@ -263,7 +263,7 @@ impl Chunk {
 impl Chunk {
     pub fn disassemble(&self) -> Result<String, fmt::Error> {
         let mut s = String::new();
-        self.disassemble_into(&mut s);
+        self.disassemble_into(&mut s)?;
         Ok(s)
     }
 

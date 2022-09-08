@@ -22,7 +22,7 @@ impl FileSpan {
 
 impl<Db: ?Sized + crate::BaseDb> salsa::DebugWithDb<Db> for FileSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        let db = db.as_base_db();
+        let db = db.base();
         let start = ln::line_column(db, self.input_file, self.start);
         let end = ln::line_column(db, self.input_file, self.end);
         write!(

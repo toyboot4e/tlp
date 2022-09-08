@@ -5,14 +5,14 @@ pub mod scope;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
 
-use base::jar::{InputFile, Word};
+use base::jar::InputFile;
 
 use crate::{
     ir::{
         body::{
             expr::{self, Expr, ExprData},
             pat::{Pat, PatData},
-            Body, BodyData,
+            BodyData,
         },
         item,
     },
