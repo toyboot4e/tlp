@@ -5,10 +5,7 @@ use std::fmt::{self, Write};
 use tlp::{
     compile,
     syntax::ast,
-    vm::{
-        code::{Chunk, OpCode, OpCodeOperands},
-        UnitVariant, Vm,
-    },
+    vm::{code::Chunk, UnitVariant, Vm},
     Db,
 };
 

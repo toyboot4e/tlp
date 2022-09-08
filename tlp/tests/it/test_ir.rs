@@ -44,9 +44,10 @@ fn body() {
 
     let proc = match items[0] {
         Item::Proc(proc) => proc,
+        _ => unreachable!(),
     };
 
-    assert_eq!(proc.name(db).as_str(db.as_base_db()), "main");
+    assert_eq!(proc.name(db).as_str(db.base()), "main");
 
     let body = proc.body_data(db);
     let exprs = body
@@ -62,7 +63,7 @@ fn body() {
             assert_eq!(
                 pat,
                 &PatData::Bind {
-                    name: Word::intern(db.as_base_db(), "x")
+                    name: Word::intern(db.base(), "x")
                 }
             );
 
