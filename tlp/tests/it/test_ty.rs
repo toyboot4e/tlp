@@ -33,6 +33,15 @@ fn expr_data(db: &dyn IrDb, proc: item::Proc) -> Vec<ExprData> {
         .collect::<Vec<_>>()
 }
 
+fn expr_vec(db: &dyn IrDb, proc: item::Proc) -> Vec<(Expr, ExprData)> {
+    let body_data = proc.body_data(db);
+    body_data
+        .root_block()
+        .iter()
+        .map(|&e| (e, body_data.tables[e].clone()))
+        .collect::<Vec<_>>()
+}
+
 #[test]
 fn type_of_plus_i32_f32() {
     let src = r"(proc main () (+ 10 15.0))";
@@ -93,6 +102,35 @@ fn type_of_mul_f32_i32() {
                     target_ty: ty::OpTargetType::F32,
                 })
             );
+        }
+
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn let_type() {
+    let src = r"(proc main () (let x (* 1.0 2.5)) (+ x 13.2))";
+    let (db, proc) = self::new_main(src);
+
+    let exprs = self::expr_vec(&db, proc);
+    let types = proc.type_table(&db);
+
+    match &exprs[0].1 {
+        ExprData::Let(let_) => {
+            match &types[let_.rhs] {
+                TypeData::Primitive(ty::PrimitiveType::F32) => {}
+                x => unreachable!("{x:?}"),
+            }
+
+            match &types[let_.pat] {
+                TypeData::Primitive(prim) => {
+                    assert_eq!(prim, &ty::PrimitiveType::F32,);
+                }
+                x => unreachable!("{x:?}"),
+            }
+
+            //
         }
 
         _ => unreachable!(),

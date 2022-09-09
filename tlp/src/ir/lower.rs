@@ -50,7 +50,7 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
 
 // TODO: why not `return_ref`?
 #[salsa::tracked(jar = IrJar)]
-pub fn lower_body(db: &dyn IrDb, proc: item::Proc) -> body::Body {
+pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> body::Body {
     let mut lower = LowerBody {
         db,
         tables: Default::default(),

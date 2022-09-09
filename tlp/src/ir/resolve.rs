@@ -35,6 +35,10 @@ pub struct Resolver {
     scopes: Vec<Scope>,
 }
 
+impl Resolver {
+    //
+}
+
 pub fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
     let scopes = proc.expr_scopes(db).data(db);
     let scope = scopes.scope_for_expr(expr);

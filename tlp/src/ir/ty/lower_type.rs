@@ -2,8 +2,6 @@
 
 // TODO: Accumulate diagnostics
 
-use std::ops;
-
 use rustc_hash::FxHashMap;
 
 use crate::ir::{
@@ -13,15 +11,20 @@ use crate::ir::{
         BodyData,
     },
     item,
-    ty::{self, TypeData, WipTypeData},
+    resolve::Resolver,
+    ty::{self, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
 
 #[salsa::tracked(jar = IrJar, return_ref)]
-pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
+pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
+    let resolver = proc.root_resolver(db);
+
     let mut tcx = Tcx {
         db,
         body_data: proc.body_data(db),
+        // proc,
+        resolver,
         expr_types: Default::default(),
         pat_types: Default::default(),
     };
@@ -43,7 +46,7 @@ pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         .pat_types
         .into_iter()
         .map(|(expr, ty)| match ty {
-            WipTypeData::Var => unreachable!(),
+            WipTypeData::Var => (expr, TypeData::Unknown),
             WipTypeData::Data(data) => (expr, data),
         })
         .collect();
@@ -51,26 +54,6 @@ pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     TypeTable {
         expr_types,
         pat_types,
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct TypeTable {
-    expr_types: FxHashMap<Expr, TypeData>,
-    pat_types: FxHashMap<Pat, TypeData>,
-}
-
-impl ops::Index<Expr> for TypeTable {
-    type Output = TypeData;
-    fn index(&self, expr: Expr) -> &Self::Output {
-        &self.expr_types[&expr]
-    }
-}
-
-impl ops::Index<Pat> for TypeTable {
-    type Output = TypeData;
-    fn index(&self, pat: Pat) -> &Self::Output {
-        &self.pat_types[&pat]
     }
 }
 
@@ -95,6 +78,8 @@ impl ops::Index<Pat> for TypeTable {
 struct Tcx<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
+    // proc: item::Proc,
+    resolver: Resolver,
     // tables
     // vars:
     // TODO: maybe use `TiVec` instead?
@@ -102,6 +87,7 @@ struct Tcx<'db> {
     pat_types: FxHashMap<Pat, WipTypeData>,
 }
 
+/// # Collect
 impl<'db> Tcx<'db> {
     pub fn collect(&mut self) {
         self.body_data
@@ -125,10 +111,14 @@ impl<'db> Tcx<'db> {
                 WipTypeData::Data(TypeData::Stmt)
             }
             ExprData::Let(let_) => {
+                self.collect_expr(let_.rhs);
                 self.collect_pat(let_.pat);
                 WipTypeData::Data(TypeData::Stmt)
             }
             ExprData::Call(call) => {
+                call.args.iter().for_each(|&expr| {
+                    self.collect_expr(expr);
+                });
                 self.collect_expr(call.path);
                 WipTypeData::Data(TypeData::Stmt)
             }
@@ -144,7 +134,7 @@ impl<'db> Tcx<'db> {
                 }
             },
             // TODO: use name resolution to know the type
-            ExprData::Path(path) => WipTypeData::Var,
+            ExprData::Path(_path) => WipTypeData::Var,
         };
 
         self.expr_types.insert(expr, ty);
@@ -154,14 +144,15 @@ impl<'db> Tcx<'db> {
         let pat_data = &self.body_data.tables[pat];
 
         let ty = match pat_data {
-            PatData::Missing => TypeData::Unknown,
-            PatData::Bind { name } => {
-                todo!()
-            }
+            PatData::Missing => WipTypeData::Var,
+            PatData::Bind { .. } => WipTypeData::Var,
         };
+
+        self.pat_types.insert(pat, ty);
     }
 }
 
+/// # Infer
 impl<'db> Tcx<'db> {
     pub fn infer_all(&mut self) {
         self.infer_expr(self.body_data.root_block)
@@ -173,12 +164,16 @@ impl<'db> Tcx<'db> {
         match expr_data {
             ExprData::Missing => {}
             ExprData::Block(block) => {
+                // TODO: switch resolver to get into the block item scope
                 block.iter().for_each(|&expr| {
                     self.infer_expr(expr);
                 });
             }
             ExprData::Let(let_) => {
-                self.infer_pat(let_.pat);
+                self.infer_expr(let_.rhs);
+
+                let ty = self.expr_types[&let_.rhs].clone();
+                self.pat_types.insert(let_.pat, ty);
             }
             ExprData::Call(call) => {
                 call.args.iter().for_each(|expr| {
@@ -186,13 +181,16 @@ impl<'db> Tcx<'db> {
                 });
 
                 let path_expr = &self.body_data.tables[call.path];
-                let path = match path_expr {
-                    ExprData::Path(path) => path,
-                    _ => todo!("call path"),
-                };
-                assert_eq!(path.segments.len(), 1);
 
-                let ident = &path.segments[0];
+                let ident = {
+                    let path = match path_expr {
+                        ExprData::Path(path) => path,
+                        _ => todo!("call path"),
+                    };
+                    assert_eq!(path.segments.len(), 1);
+
+                    &path.segments[0]
+                };
                 let name = ident.as_str(self.db.base());
 
                 if let Some(kind) = ty::OpKind::parse(name) {
@@ -209,6 +207,9 @@ impl<'db> Tcx<'db> {
 
                     self.expr_types
                         .insert(call.path, WipTypeData::Data(TypeData::Op(op_type)));
+
+                    self.expr_types
+                        .insert(expr, target_ty.to_wip_type().unwrap());
                 } else {
                     // TODO: handle user function call
                 }
@@ -220,7 +221,7 @@ impl<'db> Tcx<'db> {
         }
     }
 
-    fn infer_pat(&mut self, pat: Pat) {
+    fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {
         //
     }
 }

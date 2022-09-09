@@ -21,7 +21,7 @@ pub struct IrJar(
     body::expr_scope::proc_expr_scope_query,
     // TODO: Consider ditching? It adds lifetimes to `Resolver` though
     body::expr_scope::ExprScopeMap,
-    ty::lower_type::lower_body,
+    ty::lower_type::lower_body_types,
 );
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
@@ -73,5 +73,14 @@ impl item::Proc {
 
     pub fn expr_scopes<'db>(&self, db: &'db dyn IrDb) -> body::expr_scope::ExprScopeMap {
         body::expr_scope::proc_expr_scope_query(db, *self)
+    }
+
+    pub fn expr_resolver<'db>(&self, db: &'db dyn IrDb, expr: body::expr::Expr) -> resolve::Resolver {
+        resolve::resolver_for_proc_expr(db, *self, expr)
+    }
+
+    pub fn root_resolver<'db>(&self, db: &'db dyn IrDb) -> resolve::Resolver {
+        let root_expr = self.body_data(db).root_block;
+        resolve::resolver_for_proc_expr(db, *self, root_expr)
     }
 }
