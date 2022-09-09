@@ -95,13 +95,13 @@ impl Vm {
                 }
 
                 // constants
-                Op::Const8 => {
+                Op::PushConst8 => {
                     let const_ix = self.bump_u8();
                     let unit = self.chunk.read_literal_u8(const_ix);
                     self.stack.push(unit);
                 }
 
-                Op::Const16 => {
+                Op::PushConst16 => {
                     let const_ix = self.bump_u16();
                     let unit = self.chunk.read_literal_u16(const_ix);
                     self.stack.push(unit);
@@ -128,7 +128,7 @@ impl Vm {
                 }
 
                 // `f32` operators (builtin)
-                Op::NegateF32 => {
+                Op::NegF32 => {
                     self.unit_op(|x: f32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
                 }
@@ -146,7 +146,7 @@ impl Vm {
                 }
 
                 // `i32` operators (builtin)
-                Op::NegateI32 => {
+                Op::NegI32 => {
                     self.unit_op(|x: i32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
                 }

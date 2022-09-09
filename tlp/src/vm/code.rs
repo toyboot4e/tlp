@@ -11,9 +11,9 @@ pub enum Op {
     Ret,
 
     /// Operand: byte index
-    Const8,
+    PushConst8,
     /// Operand: two bytes index
-    Const16,
+    PushConst16,
 
     // local variables (one word only)
     AllocFrame8,
@@ -21,14 +21,14 @@ pub enum Op {
     SetLocalUnit8,
 
     // `f32` arithmetic operations
-    NegateF32,
+    NegF32,
     AddF32,
     SubF32,
     MulF32,
     DivF32,
 
     // `i32` arithmetic operations
-    NegateI32,
+    NegI32,
     AddI32,
     SubI32,
     MulI32,
@@ -38,30 +38,30 @@ pub enum Op {
 impl Op {
     pub fn operands(&self) -> OpCodeOperands {
         match self {
-            Op::Const8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
+            Op::PushConst8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
                 OpCodeOperands::One
             }
-            Op::Const16 => OpCodeOperands::Two,
+            Op::PushConst16 => OpCodeOperands::Two,
             _ => OpCodeOperands::None,
         }
     }
 
     // pub fn n_pops(&self) -> usize
 
-    pub fn shorthand(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Op::Ret => "ret",
-            Op::Const8 => "load-const8",
-            Op::Const16 => "load-const16",
-            Op::AllocFrame8 => "frame8",
+            Op::PushConst8 => "push-const8",
+            Op::PushConst16 => "push-const16",
+            Op::AllocFrame8 => "alloc-frame8",
             Op::PushLocalUnit8 => "push-local8",
             Op::SetLocalUnit8 => "set-local8",
-            Op::NegateF32 => "neg-f32",
+            Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
             Op::SubF32 => "sub-f32",
             Op::MulF32 => "mul-f32",
             Op::DivF32 => "div-f32",
-            Op::NegateI32 => "neg-i32",
+            Op::NegI32 => "neg-i32",
             Op::AddI32 => "add-i32",
             Op::SubI32 => "sub-i32",
             Op::MulI32 => "mul-i32",
@@ -187,14 +187,14 @@ impl Chunk {
     /// Pushes a literal index of one byte
     #[inline(always)]
     pub fn write_idx_raw_u8(&mut self, idx: u8) {
-        self.codes.push(Op::Const8 as u8);
+        self.codes.push(Op::PushConst8 as u8);
         self.codes.push(idx);
     }
 
     /// Pushes a literal index of two bytes
     #[inline(always)]
     pub fn write_idx_raw_u16(&mut self, idx: u16) {
-        self.codes.push(Op::Const16 as u8);
+        self.codes.push(Op::PushConst16 as u8);
         // higher 8 bits
         self.codes.push((idx >> 8) as u8);
         // lower 8 bits
@@ -286,17 +286,17 @@ impl Chunk {
         s: &mut String,
     ) -> fmt::Result {
         match op.operands() {
-            OpCodeOperands::None => writeln!(s, "{}", op.shorthand()),
+            OpCodeOperands::None => writeln!(s, "{}", op.as_str()),
             OpCodeOperands::One => {
                 // TODO: unwrap
-                writeln!(s, "{:11} {:?}", op.shorthand(), bytes.next())
+                writeln!(s, "{:11} {:?}", op.as_str(), bytes.next())
             }
             OpCodeOperands::Two => {
                 // TODO: unwrap
                 writeln!(
                     s,
                     "{:11} {:?} {:?}",
-                    op.shorthand(),
+                    op.as_str(),
                     bytes.next(),
                     bytes.next()
                 )?;
@@ -329,7 +329,7 @@ mod tests {
             chunk.write_idx_raw_u16(2); // 16.0
             chunk.write_code(DivF32); // /
 
-            chunk.write_code(NegateF32); // -
+            chunk.write_code(NegF32); // -
 
             chunk.write_code(Ret);
 
