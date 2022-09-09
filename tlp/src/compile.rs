@@ -16,7 +16,7 @@ use crate::{
         },
         item,
     },
-    vm::code::{Chunk, OpCode, TypedLiteral},
+    vm::code::{Chunk, Op, TypedLiteral},
     Db,
 };
 
@@ -127,7 +127,7 @@ impl Compiler {
 
         // pop frame
         // FIXME: Handle frame stack pop and return value
-        self.chunk.write_code(OpCode::OpReturn);
+        self.chunk.write_code(Op::Ret);
     }
 
     #[allow(unused)]
@@ -220,12 +220,12 @@ fn find_procedure_by_name(db: &Db, file: InputFile, name: &str) -> item::Proc {
     }
 }
 
-fn to_oper_f32(s: &str) -> Option<OpCode> {
+fn to_oper_f32(s: &str) -> Option<Op> {
     Some(match s {
-        "+" => OpCode::OpAddF32,
-        "-" => OpCode::OpSubF32,
-        "*" => OpCode::OpMulF32,
-        "/" => OpCode::OpDivF32,
+        "+" => Op::AddF32,
+        "-" => Op::SubF32,
+        "*" => Op::MulF32,
+        "/" => Op::DivF32,
         _ => return None,
     })
 }

@@ -4,46 +4,44 @@ use std::fmt::{self, Write};
 
 use crate::vm::{Unit, UnitVariant};
 
-/// Instruction to the stack-based virtual machine
+/// Operational code, instruction to the stack-based virtual machine
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
 #[repr(u8)]
-pub enum OpCode {
-    OpReturn,
+pub enum Op {
+    Ret,
 
     /// Operand: byte index
-    OpConst8,
+    Const8,
     /// Operand: two bytes index
-    OpConst16,
+    Const16,
 
     // local variables (one word only)
-    OpAllocFrame8,
-    OpPushLocalUnit8,
-    OpSetLocalUnit8,
+    AllocFrame8,
+    PushLocalUnit8,
+    SetLocalUnit8,
 
     // `f32` arithmetic operations
-    OpNegateF32,
-    OpAddF32,
-    OpSubF32,
-    OpMulF32,
-    OpDivF32,
+    NegateF32,
+    AddF32,
+    SubF32,
+    MulF32,
+    DivF32,
 
     // `i32` arithmetic operations
-    OpNegateI32,
-    OpAddI32,
-    OpSubI32,
-    OpMulI32,
-    OpDivI32,
+    NegateI32,
+    AddI32,
+    SubI32,
+    MulI32,
+    DivI32,
 }
 
-impl OpCode {
+impl Op {
     pub fn operands(&self) -> OpCodeOperands {
-        use OpCode::*;
-
         match self {
-            OpConst8 | OpCode::OpAllocFrame8 | OpPushLocalUnit8 | OpSetLocalUnit8 => {
+            Op::Const8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
                 OpCodeOperands::One
             }
-            OpConst16 => OpCodeOperands::Two,
+            Op::Const16 => OpCodeOperands::Two,
             _ => OpCodeOperands::None,
         }
     }
@@ -51,25 +49,23 @@ impl OpCode {
     // pub fn n_pops(&self) -> usize
 
     pub fn shorthand(&self) -> &'static str {
-        use OpCode::*;
-
         match self {
-            OpReturn => "ret",
-            OpConst8 => "load-const8",
-            OpConst16 => "load-const16",
-            OpAllocFrame8 => "frame8",
-            OpPushLocalUnit8 => "push-local8",
-            OpSetLocalUnit8 => "set-local8",
-            OpNegateF32 => "neg-f32",
-            OpAddF32 => "add-f32",
-            OpSubF32 => "sub-f32",
-            OpMulF32 => "mul-f32",
-            OpDivF32 => "div-f32",
-            OpNegateI32 => "neg-i32",
-            OpAddI32 => "add-i32",
-            OpSubI32 => "sub-i32",
-            OpMulI32 => "mul-i32",
-            OpDivI32 => "div-i32",
+            Op::Ret => "ret",
+            Op::Const8 => "load-const8",
+            Op::Const16 => "load-const16",
+            Op::AllocFrame8 => "frame8",
+            Op::PushLocalUnit8 => "push-local8",
+            Op::SetLocalUnit8 => "set-local8",
+            Op::NegateF32 => "neg-f32",
+            Op::AddF32 => "add-f32",
+            Op::SubF32 => "sub-f32",
+            Op::MulF32 => "mul-f32",
+            Op::DivF32 => "div-f32",
+            Op::NegateI32 => "neg-i32",
+            Op::AddI32 => "add-i32",
+            Op::SubI32 => "sub-i32",
+            Op::MulI32 => "mul-i32",
+            Op::DivI32 => "div-i32",
         }
     }
 }
@@ -81,7 +77,7 @@ pub enum OpCodeOperands {
     Two,
 }
 
-impl Into<u8> for OpCode {
+impl Into<u8> for Op {
     fn into(self) -> u8 {
         self as u8
     }
@@ -152,7 +148,7 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub fn read_opcode(&self, ix: usize) -> OpCode {
+    pub fn read_opcode(&self, ix: usize) -> Op {
         unsafe { std::mem::transmute(self.codes[ix]) }
     }
 
@@ -170,7 +166,7 @@ impl Chunk {
 /// OpCode writer
 impl Chunk {
     #[inline(always)]
-    pub fn write_code(&mut self, code: OpCode) {
+    pub fn write_code(&mut self, code: Op) {
         self.codes.push(code as u8);
     }
 
@@ -191,14 +187,14 @@ impl Chunk {
     /// Pushes a literal index of one byte
     #[inline(always)]
     pub fn write_idx_raw_u8(&mut self, idx: u8) {
-        self.codes.push(OpCode::OpConst8 as u8);
+        self.codes.push(Op::Const8 as u8);
         self.codes.push(idx);
     }
 
     /// Pushes a literal index of two bytes
     #[inline(always)]
     pub fn write_idx_raw_u16(&mut self, idx: u16) {
-        self.codes.push(OpCode::OpConst16 as u8);
+        self.codes.push(Op::Const16 as u8);
         // higher 8 bits
         self.codes.push((idx >> 8) as u8);
         // lower 8 bits
@@ -211,7 +207,7 @@ impl Chunk {
 
     #[inline(always)]
     pub fn write_alloc_locals_u8(&mut self, idx: u8) {
-        self.codes.push(OpCode::OpAllocFrame8 as u8);
+        self.codes.push(Op::AllocFrame8 as u8);
         self.codes.push(idx);
     }
 
@@ -221,13 +217,13 @@ impl Chunk {
 
     #[inline(always)]
     pub fn write_load_local_u8(&mut self, idx: u8) {
-        self.codes.push(OpCode::OpPushLocalUnit8 as u8);
+        self.codes.push(Op::PushLocalUnit8 as u8);
         self.codes.push(idx);
     }
 
     #[inline(always)]
     pub fn write_set_local_u8(&mut self, idx: u8) {
-        self.codes.push(OpCode::OpSetLocalUnit8 as u8);
+        self.codes.push(Op::SetLocalUnit8 as u8);
         self.codes.push(idx);
     }
 }
@@ -277,7 +273,7 @@ impl Chunk {
             };
 
             // FIXME: implement `TryFrom`, maybe using `num_enum`
-            let op: OpCode = unsafe { std::mem::transmute(b) };
+            let op: Op = unsafe { std::mem::transmute(b) };
             Self::write_opcode(op, &mut bytes, s)?;
         }
 
@@ -285,7 +281,7 @@ impl Chunk {
     }
 
     fn write_opcode<'a>(
-        op: OpCode,
+        op: Op,
         bytes: &mut impl Iterator<Item = &'a u8>,
         s: &mut String,
     ) -> fmt::Result {
@@ -313,7 +309,7 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vm::{code::OpCode::*, Result, Vm};
+    use crate::vm::{code::Op::*, Result, Vm};
 
     /// Tests `-((64.0 - 32.0) / 16.0)` equals to `2.0`
     #[test]
@@ -328,14 +324,14 @@ mod tests {
 
             chunk.write_idx_raw_u8(0); // 64.0
             chunk.write_idx_raw_u8(1); // 32.0
-            chunk.write_code(OpSubF32); // -
+            chunk.write_code(SubF32); // -
 
             chunk.write_idx_raw_u16(2); // 16.0
-            chunk.write_code(OpDivF32); // /
+            chunk.write_code(DivF32); // /
 
-            chunk.write_code(OpNegateF32); // -
+            chunk.write_code(NegateF32); // -
 
-            chunk.write_code(OpReturn);
+            chunk.write_code(Ret);
 
             chunk
         };
