@@ -90,11 +90,7 @@ struct Infer<'db, 'map> {
 
 impl<'db> Collect<'db> {
     pub fn collect(&mut self) {
-        self.body_data
-            .tables
-            .exprs
-            .all_keys()
-            .for_each(|expr| self.collect_expr(expr));
+        self.collect_expr(self.body_data.root_block);
     }
 
     fn collect_expr(&mut self, expr: Expr) {
@@ -149,9 +145,12 @@ impl<'db> Collect<'db> {
         };
 
         let index = self.types.push_and_get_key(ty);
-        self.expr_types.insert(expr, index);
-        // FIXME:
-        // assert!(self.expr_types.insert(expr, index).is_none());
+        assert!(
+            self.expr_types.insert(expr, index).is_none(),
+            "bug: duplicate visit of expr: {:?} {:?}",
+            expr,
+            self.body_data.tables[expr]
+        );
     }
 
     /// Builtin operators can be overloaded so they're given type variables
@@ -183,9 +182,12 @@ impl<'db> Collect<'db> {
             ),
         };
 
-        self.expr_types.insert(expr, index).is_none();
-        // FIXME:
-        // assert!(self.expr_types.insert(expr, index).is_none());
+        assert!(
+            self.expr_types.insert(expr, index).is_none(),
+            "bug: duplicate visit of path: {:?} {:?}",
+            expr,
+            path
+        );
         true
     }
 
@@ -198,9 +200,11 @@ impl<'db> Collect<'db> {
         };
 
         let index = self.types.push_and_get_key(ty);
-        self.pat_types.insert(pat, index);
-        // FIXME:
-        // assert!(self.pat_types.insert(pat, index).is_none());
+        assert!(self.pat_types.insert(pat, index).is_none(),
+            "bug: duplicate visit of pat: {:?} {:?}",
+            pat,
+            self.body_data.tables[pat]
+        );
     }
 }
 
