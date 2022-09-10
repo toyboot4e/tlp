@@ -19,13 +19,11 @@ use crate::ir::{
 
 #[salsa::tracked(jar = IrJar, return_ref)]
 pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
-    let resolver = proc.root_resolver(db);
-
     let mut tcx = Tcx {
         db,
         body_data: proc.body_data(db),
-        // proc,
-        resolver,
+        proc,
+        // resolver: proc.root_resolver(db),
         expr_types: Default::default(),
         pat_types: Default::default(),
         types: Default::default(),
@@ -55,8 +53,8 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
 struct Tcx<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
-    // proc: item::Proc,
-    resolver: Resolver,
+    proc: item::Proc,
+    // resolver: Resolver,
     expr_types: FxHashMap<Expr, TyIndex>,
     pat_types: FxHashMap<Pat, TyIndex>,
     types: TiVec<TyIndex, WipTypeData>,
@@ -95,6 +93,7 @@ impl<'db> Tcx<'db> {
                     self.collect_expr(expr);
                 });
                 self.collect_expr(call.path);
+                // FIXME: call's return type
                 WipTypeData::Data(TypeData::Stmt)
             }
             ExprData::Literal(lit) => match lit {
@@ -110,39 +109,71 @@ impl<'db> Tcx<'db> {
             },
             // TODO: use name resolution to know the type
             ExprData::Path(path) => {
-                if let Some(pat) = self.resolver.resolve_path_as_pattern(self.db, path) {
-                    if let Some(&index) = self.pat_types.get(&pat) {
-                        self.expr_types.insert(expr, index);
-                        return;
-                    } else {
-                        unreachable!(
-                            "found a path that can be resolved but not colelcted: {:?}",
-                            path
-                        );
-                    }
+                if let Some(ty) = self.collect_builtin_op(path) {
+                    ty
+                } else if self.collect_path(path, expr) {
+                    // resolved; there's no new type data
+                    return;
                 } else {
-                    // path to an unexisting variable
+                    // path to nothing
+                    WipTypeData::Data(TypeData::Unknown)
                 }
-
-                // can't resolve
-                WipTypeData::Data(TypeData::Unknown)
             }
         };
 
         let index = self.types.push_and_get_key(ty);
         self.expr_types.insert(expr, index);
+        // FIXME:
+        // assert!(self.expr_types.insert(expr, index).is_none());
+    }
+
+    /// Builtin operators can be overloaded so they're given type variables
+    fn collect_builtin_op(&mut self, path: &expr::Path) -> Option<WipTypeData> {
+        if path.segments.len() == 1 {
+            let ident = path.segments[0].as_str(self.db.base());
+            if let Some(_) = ty::OpKind::parse(ident) {
+                return Some(WipTypeData::Var);
+            }
+        }
+
+        None
+    }
+
+    fn collect_path(&mut self, path: &expr::Path, expr: Expr) -> bool {
+        // path to variable
+        let resolver = self.proc.expr_resolver(self.db, expr);
+
+        let pat = match resolver.resolve_path_as_pattern(self.db, path) {
+            Some(x) => x,
+            None => return false,
+        };
+
+        let index = *match self.pat_types.get(&pat) {
+            Some(x) => x,
+            _ => unreachable!(
+                "bug: found a path that can be resolved but not collected: {:?}",
+                path, // TODO: debug with DB
+            ),
+        };
+
+        self.expr_types.insert(expr, index).is_none();
+        // FIXME:
+        // assert!(self.expr_types.insert(expr, index).is_none());
+        true
     }
 
     fn collect_pat(&mut self, pat: Pat) {
         let pat_data = &self.body_data.tables[pat];
 
         let ty = match pat_data {
-            PatData::Missing => WipTypeData::Var,
+            PatData::Missing => WipTypeData::Data(TypeData::Unknown),
             PatData::Bind { .. } => WipTypeData::Var,
         };
 
         let index = self.types.push_and_get_key(ty);
         self.pat_types.insert(pat, index);
+        // FIXME:
+        // assert!(self.pat_types.insert(pat, index).is_none());
     }
 }
 
@@ -166,8 +197,9 @@ impl<'db> Tcx<'db> {
             ExprData::Let(let_) => {
                 self.infer_expr(let_.rhs);
 
-                let ty = self.expr_types[&let_.rhs].clone();
-                self.pat_types.insert(let_.pat, ty);
+                let rhs_ty = self.expr_types[&let_.rhs].clone();
+                let pat_ty = self.pat_types[&let_.pat];
+                self.types[pat_ty] = self.types[rhs_ty].clone();
             }
             ExprData::Call(call) => {
                 call.args.iter().for_each(|expr| {
@@ -195,7 +227,8 @@ impl<'db> Tcx<'db> {
             }
             ExprData::Literal(_lit) => {}
             ExprData::Path(_path) => {
-                // pattern type is automatically resolved at `Let` expr
+                // path is alread resolve to a pattern and the pattern's type is shared the path
+                // expression
             }
         }
     }

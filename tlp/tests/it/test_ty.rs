@@ -113,10 +113,11 @@ fn let_type() {
     let src = r"(proc main () (let x (* 1.0 2.5)) (+ x 13.2))";
     let (db, proc) = self::new_main(src);
 
-    let exprs = self::expr_vec(&db, proc);
+    let body_data = proc.body_data(&db);
+    let root_exprs = self::expr_vec(&db, proc);
     let types = proc.type_table(&db);
 
-    match &exprs[0].1 {
+    let x_pat = match &root_exprs[0].1 {
         ExprData::Let(let_) => {
             match &types[let_.rhs] {
                 TypeData::Primitive(ty::PrimitiveType::F32) => {}
@@ -130,9 +131,22 @@ fn let_type() {
                 x => unreachable!("{x:?}"),
             }
 
-            //
+            let_.pat
         }
 
         _ => unreachable!(),
+    };
+
+    match &root_exprs[1].1 {
+        ExprData::Call(call) => {
+            assert_eq!(
+                body_data.tables[call.args[0]].clone().into_path().segments[0].as_str(&db),
+                "x"
+            );
+            // both `x` have to point to the same type data
+            assert_eq!(types[call.args[0]], types[x_pat]);
+        }
+
+        x => unreachable!("{x:?}"),
     }
 }

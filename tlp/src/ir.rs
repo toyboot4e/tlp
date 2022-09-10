@@ -75,12 +75,14 @@ impl item::Proc {
         body::expr_scope::proc_expr_scope_query(db, *self)
     }
 
-    pub fn expr_resolver<'db>(&self, db: &'db dyn IrDb, expr: body::expr::Expr) -> resolve::Resolver {
-        resolve::resolver_for_proc_expr(db, *self, expr)
-    }
-
+    /// Resolver for the root block expression
     pub fn root_resolver<'db>(&self, db: &'db dyn IrDb) -> resolve::Resolver {
         let root_expr = self.body_data(db).root_block;
         resolve::resolver_for_proc_expr(db, *self, root_expr)
+    }
+
+    /// Resolver for a expression in this procedure
+    pub fn expr_resolver<'db>(&self, db: &'db dyn IrDb, expr: body::expr::Expr) -> resolve::Resolver {
+        resolve::resolver_for_proc_expr(db, *self, expr)
     }
 }

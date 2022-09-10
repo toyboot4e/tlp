@@ -1,4 +1,6 @@
 //! Resolve expressions by name
+//!
+//! TODO: incremental computation
 
 use la_arena::Idx;
 
@@ -68,13 +70,13 @@ impl Resolver {
     }
 }
 
-pub fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
+pub(crate) fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
     let scopes = proc.expr_scopes(db).data(db);
     let scope = scopes.scope_for_expr(expr);
     self::resolver_for_proc_scope(db, proc, scope)
 }
 
-pub fn resolver_for_proc_scope(
+pub(crate) fn resolver_for_proc_scope(
     db: &dyn IrDb,
     proc: item::Proc,
     scope_idx: Option<Idx<ScopeData>>,

@@ -139,7 +139,8 @@ fn body_expr_scope(_db: &dyn IrDb, body_data: &BodyData) -> ExprScopeMapData {
     scopes
 }
 
-/// Walks through body expressions, creates scopes and tracks the scope for each expression
+/// Walks through body expressions, creates scopes on new binding patterns and tracks the scope for
+/// each expression
 ///
 /// Returns the last scope index for tracking the current scope.
 fn compute_expr_scopes(
@@ -152,7 +153,7 @@ fn compute_expr_scopes(
     // (Block scope creates a new scope, but it doesn't modify "current scope").
     let mut scope_idx = scope_idx;
 
-    // track parent expression
+    // track the expression scope for the parent expression
     scopes.track_expr_scope(expr, scope_idx);
 
     // call into the child expressions
@@ -163,6 +164,7 @@ fn compute_expr_scopes(
         ExprData::Block(block) => {
             let block_scope_idx = scopes.new_block_scope(scope_idx);
 
+            // FIXME:
             // Overwrite the block scope with the deepest child.
             // This is important for traverse as `ScopeData` only contains `parernt` index.
             scopes.track_expr_scope(expr, block_scope_idx);
