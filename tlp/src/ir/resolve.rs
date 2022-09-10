@@ -42,7 +42,7 @@ impl Resolver {
     }
 
     pub fn resolve_path_as_pattern(&self, db: &dyn IrDb, path: &expr::Path) -> Option<Pat> {
-        assert!(path.segments.is_empty(), "support path");
+        assert_eq!(path.segments.len(), 1, "support path");
         let ident = path.segments[0];
 
         for scope in self.scopes() {
