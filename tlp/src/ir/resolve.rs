@@ -4,8 +4,9 @@ use la_arena::Idx;
 
 use crate::ir::{
     body::{
-        expr::Expr,
+        expr::{self, Expr},
         expr_scope::{ExprScopeMap, ScopeData},
+        pat::Pat,
     },
     item,
     item_scope::ItemScope,
@@ -36,7 +37,35 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    //
+    fn scopes(&self) -> impl Iterator<Item = &Scope> {
+        self.scopes.iter().rev()
+    }
+
+    pub fn resolve_path_as_pattern(&self, db: &dyn IrDb, path: &expr::Path) -> Option<Pat> {
+        assert!(path.segments.is_empty(), "support path");
+        let ident = path.segments[0];
+
+        for scope in self.scopes() {
+            match scope {
+                Scope::Expr(scope) => {
+                    let scope_data = scope.map.data(db);
+
+                    if let Some(entry) = scope_data
+                        .entries(scope.idx)
+                        .iter()
+                        .find(|entry| entry.name == ident)
+                    {
+                        return Some(entry.pat);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // TODO: lookup global variables
+
+        None
+    }
 }
 
 pub fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
