@@ -19,21 +19,40 @@ use crate::ir::{
 
 #[salsa::tracked(jar = IrJar, return_ref)]
 pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
-    let mut tcx = Tcx {
+    let Collect {
         db,
-        body_data: proc.body_data(db),
+        body_data,
         proc,
-        // resolver: proc.root_resolver(db),
-        expr_types: Default::default(),
-        pat_types: Default::default(),
-        types: Default::default(),
+        expr_types,
+        pat_types,
+        types,
+    } = {
+        let mut collect = Collect {
+            db,
+            body_data: proc.body_data(db),
+            proc,
+            // resolver: proc.root_resolver(db),
+            expr_types: Default::default(),
+            pat_types: Default::default(),
+            types: Default::default(),
+        };
+
+        collect.collect();
+        collect
     };
 
-    tcx.collect();
-    tcx.infer_all();
+    let mut infer = Infer {
+        db,
+        body_data,
+        proc,
+        expr_types: &expr_types,
+        pat_types: &pat_types,
+        types,
+    };
+    infer.infer_all();
 
     // unwrap all
-    let types = tcx
+    let types = infer
         .types
         .into_iter()
         .map(|ty| match ty {
@@ -43,14 +62,13 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         .collect();
 
     TypeTable {
-        expr_types: tcx.expr_types,
-        pat_types: tcx.pat_types,
+        expr_types,
+        pat_types,
         types,
     }
 }
 
-/// Type lowering context
-struct Tcx<'db> {
+struct Collect<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
     proc: item::Proc,
@@ -60,8 +78,17 @@ struct Tcx<'db> {
     types: TiVec<TyIndex, WipTypeData>,
 }
 
-/// # Collect
-impl<'db> Tcx<'db> {
+struct Infer<'db, 'map> {
+    db: &'db dyn IrDb,
+    body_data: &'db BodyData,
+    proc: item::Proc,
+    // resolver: Resolver,
+    expr_types: &'map FxHashMap<Expr, TyIndex>,
+    pat_types: &'map FxHashMap<Pat, TyIndex>,
+    types: TiVec<TyIndex, WipTypeData>,
+}
+
+impl<'db> Collect<'db> {
     pub fn collect(&mut self) {
         self.body_data
             .tables
@@ -177,8 +204,7 @@ impl<'db> Tcx<'db> {
     }
 }
 
-/// # Infer
-impl<'db> Tcx<'db> {
+impl<'db, 'map> Infer<'db, 'map> {
     pub fn infer_all(&mut self) {
         self.infer_expr(self.body_data.root_block)
     }
@@ -256,7 +282,7 @@ impl<'db> Tcx<'db> {
     }
 }
 
-impl<'db> Tcx<'db> {
+impl<'db, 'map> Infer<'db, 'map> {
     // /// Returns true if the type variable occurs in the compared type. This is used in [`unify`] to avoid inifinite call cycle.
     // fn occur(&self, var: TypeId, ty: TypeId) -> bool {
     //     assert_eq!(
