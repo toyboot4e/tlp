@@ -3,6 +3,7 @@
 // TODO: Accumulate diagnostics
 
 use rustc_hash::FxHashMap;
+use typed_index_collections::TiVec;
 
 use crate::ir::{
     body::{
@@ -12,7 +13,7 @@ use crate::ir::{
     },
     item,
     resolve::Resolver,
-    ty::{self, TypeData, TypeTable, WipTypeData},
+    ty::{self, TyIndex, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
 
@@ -27,52 +28,28 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         resolver,
         expr_types: Default::default(),
         pat_types: Default::default(),
+        types: Default::default(),
     };
 
     tcx.collect();
     tcx.infer_all();
 
     // unwrap all
-    let expr_types = tcx
-        .expr_types
+    let types = tcx
+        .types
         .into_iter()
-        .map(|(expr, ty)| match ty {
-            WipTypeData::Var => (expr, TypeData::Unknown),
-            WipTypeData::Data(data) => (expr, data),
-        })
-        .collect();
-
-    let pat_types = tcx
-        .pat_types
-        .into_iter()
-        .map(|(expr, ty)| match ty {
-            WipTypeData::Var => (expr, TypeData::Unknown),
-            WipTypeData::Data(data) => (expr, data),
+        .map(|ty| match ty {
+            WipTypeData::Var => TypeData::Unknown,
+            WipTypeData::Data(data) => data,
         })
         .collect();
 
     TypeTable {
-        expr_types,
-        pat_types,
+        expr_types: tcx.expr_types,
+        pat_types: tcx.pat_types,
+        types,
     }
 }
-
-// /// Upcast of type owner IDs
-// #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-// enum TypeId {
-//     Expr(Expr),
-//     Pat(Pat),
-//     // Proc(item::Proc),
-// }
-//
-// impl TypeId {
-//     pub fn get<'a>(&self, tcx: &'a Tcx) -> Option<&'a WipTypeData> {
-//         match self {
-//             TypeId::Expr(expr) => tcx.expr_types.get(&expr),
-//             TypeId::Pat(pat) => tcx.pat_types.get(&pat),
-//         }
-//     }
-// }
 
 /// Type lowering context
 struct Tcx<'db> {
@@ -80,11 +57,9 @@ struct Tcx<'db> {
     body_data: &'db BodyData,
     // proc: item::Proc,
     resolver: Resolver,
-    // tables
-    // vars:
-    // TODO: maybe use `TiVec` instead?
-    expr_types: FxHashMap<Expr, WipTypeData>,
-    pat_types: FxHashMap<Pat, WipTypeData>,
+    expr_types: FxHashMap<Expr, TyIndex>,
+    pat_types: FxHashMap<Pat, TyIndex>,
+    types: TiVec<TyIndex, WipTypeData>,
 }
 
 /// # Collect
@@ -134,10 +109,28 @@ impl<'db> Tcx<'db> {
                 }
             },
             // TODO: use name resolution to know the type
-            ExprData::Path(_path) => WipTypeData::Var,
+            ExprData::Path(path) => {
+                if let Some(pat) = self.resolver.resolve_path_as_pattern(self.db, path) {
+                    if let Some(&index) = self.pat_types.get(&pat) {
+                        self.expr_types.insert(expr, index);
+                        return;
+                    } else {
+                        unreachable!(
+                            "found a path that can be resolved but not colelcted: {:?}",
+                            path
+                        );
+                    }
+                } else {
+                    // path to an unexisting variable
+                }
+
+                // can't resolve
+                WipTypeData::Data(TypeData::Unknown)
+            }
         };
 
-        self.expr_types.insert(expr, ty);
+        let index = self.types.push_and_get_key(ty);
+        self.expr_types.insert(expr, index);
     }
 
     fn collect_pat(&mut self, pat: Pat) {
@@ -148,7 +141,8 @@ impl<'db> Tcx<'db> {
             PatData::Bind { .. } => WipTypeData::Var,
         };
 
-        self.pat_types.insert(pat, ty);
+        let index = self.types.push_and_get_key(ty);
+        self.pat_types.insert(pat, index);
     }
 }
 
@@ -194,31 +188,34 @@ impl<'db> Tcx<'db> {
                 let name = ident.as_str(self.db.base());
 
                 if let Some(kind) = ty::OpKind::parse(name) {
-                    let target_ty = call
-                        .args
-                        .iter()
-                        .find_map(|expr| {
-                            let ty = &self.expr_types[expr];
-                            ty::OpTargetType::from_wip_type(ty)
-                        })
-                        .unwrap_or(ty::OpTargetType::Unknown);
-
-                    let op_type = ty::OpType { kind, target_ty };
-
-                    self.expr_types
-                        .insert(call.path, WipTypeData::Data(TypeData::Op(op_type)));
-
-                    self.expr_types
-                        .insert(expr, target_ty.to_wip_type().unwrap());
+                    self.infer_builtin_op(expr, call, kind);
                 } else {
                     // TODO: handle user function call
                 }
             }
             ExprData::Literal(_lit) => {}
             ExprData::Path(_path) => {
-                // TODO: use name resolution to know the type
+                // pattern type is automatically resolved at `Let` expr
             }
         }
+    }
+
+    fn infer_builtin_op(&mut self, call_expr: Expr, call: &expr::Call, kind: ty::OpKind) {
+        // handle builtin operators
+        let target_ty = call
+            .args
+            .iter()
+            .find_map(|expr| {
+                let index = self.expr_types[expr];
+                let ty = &self.types[index];
+                ty::OpTargetType::from_wip_type(ty)
+            })
+            .unwrap_or(ty::OpTargetType::Unknown);
+
+        let op_type = ty::OpType { kind, target_ty };
+
+        self.types[self.expr_types[&call.path]] = WipTypeData::Data(TypeData::Op(op_type));
+        self.types[self.expr_types[&call_expr]] = target_ty.to_wip_type().unwrap();
     }
 
     fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {

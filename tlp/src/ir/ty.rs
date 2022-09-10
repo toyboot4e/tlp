@@ -8,31 +8,48 @@ pub mod typed_body;
 use std::ops;
 
 use rustc_hash::FxHashMap;
+use typed_index_collections::TiVec;
 
 use crate::ir::body::{expr::Expr, pat::Pat};
 
-// #[salsa::tracked(jar = IrJar)]
-// pub struct Ty {
-//     pub data: TypeData,
-// }
-
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TypeTable {
-    expr_types: FxHashMap<Expr, TypeData>,
-    pat_types: FxHashMap<Pat, TypeData>,
+    /// Indices to `types` vector
+    expr_types: FxHashMap<Expr, TyIndex>,
+    /// Indices to `types` vector
+    pat_types: FxHashMap<Pat, TyIndex>,
+    /// Type storage. Type information can be share among expressions that poion to the same pattern.
+    types: TiVec<TyIndex, TypeData>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TyIndex(usize);
+
+impl From<usize> for TyIndex {
+    fn from(raw: usize) -> Self {
+        Self(raw)
+    }
+}
+
+impl From<TyIndex> for usize {
+    fn from(index: TyIndex) -> Self {
+        index.0
+    }
 }
 
 impl ops::Index<Expr> for TypeTable {
     type Output = TypeData;
     fn index(&self, expr: Expr) -> &Self::Output {
-        &self.expr_types[&expr]
+        let index = self.expr_types[&expr];
+        &self.types[index]
     }
 }
 
 impl ops::Index<Pat> for TypeTable {
     type Output = TypeData;
     fn index(&self, pat: Pat) -> &Self::Output {
-        &self.pat_types[&pat]
+        let index = self.pat_types[&pat];
+        &self.types[index]
     }
 }
 
