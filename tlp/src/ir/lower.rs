@@ -138,14 +138,15 @@ impl<'a> LowerBody<'a> {
             }
             ast::Expr::Literal(lit) => match lit.kind() {
                 ast::LiteralKind::Num(x) => {
-                    let literal = expr::Literal::parse(x).unwrap();
+                    let literal = expr::Literal::parse_num(x).unwrap();
                     self.alloc(ExprData::Literal(literal), span)
                 }
                 ast::LiteralKind::Str(_str) => {
                     todo!()
                 }
                 ast::LiteralKind::True(_) | ast::LiteralKind::False(_) => {
-                    todo!()
+                    let b = matches!(lit.kind(), ast::LiteralKind::True(_));
+                    self.alloc(ExprData::Literal(expr::Literal::Bool(b)), span)
                 }
             },
             ast::Expr::Block(block) => self.lower_block(block),
@@ -305,6 +306,7 @@ fn compute_expr_scopes(
         ExprData::Missing => {}
         ExprData::Path(_) => {}
         ExprData::Literal(_) => {}
+        _ => todo!(),
     }
 
     scope_idx

@@ -124,7 +124,9 @@ impl<'db> Collect<'db> {
             ExprData::Literal(lit) => match lit {
                 expr::Literal::String(_) => todo!(),
                 expr::Literal::Char(_) => todo!(),
-                expr::Literal::Bool(_) => todo!(),
+                expr::Literal::Bool(_) => {
+                    WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
+                }
                 expr::Literal::F32(_) => {
                     WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::F32))
                 }
