@@ -12,7 +12,6 @@ use crate::ir::{
         BodyData,
     },
     item,
-    resolve::Resolver,
     ty::{self, TyIndex, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
@@ -68,11 +67,13 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     }
 }
 
+/// Visits all expressions and patterns
 struct Collect<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
     proc: item::Proc,
     // resolver: Resolver,
+    // TODO: refer to external items?
     expr_types: FxHashMap<Expr, TyIndex>,
     pat_types: FxHashMap<Pat, TyIndex>,
     types: TiVec<TyIndex, WipTypeData>,
@@ -83,6 +84,7 @@ struct Infer<'db, 'map> {
     body_data: &'db BodyData,
     proc: item::Proc,
     // resolver: Resolver,
+    // types associated with Expr/Pat are immutable in `Infer` pass
     expr_types: &'map FxHashMap<Expr, TyIndex>,
     pat_types: &'map FxHashMap<Pat, TyIndex>,
     types: TiVec<TyIndex, WipTypeData>,
@@ -165,8 +167,9 @@ impl<'db> Collect<'db> {
         None
     }
 
+    /// Resolves path to a variable and point to the same type
     fn collect_path(&mut self, path: &expr::Path, expr: Expr) -> bool {
-        // path to variable
+        // FIXME(perf)
         let resolver = self.proc.expr_resolver(self.db, expr);
 
         let pat = match resolver.resolve_path_as_pattern(self.db, path) {
@@ -184,7 +187,7 @@ impl<'db> Collect<'db> {
 
         assert!(
             self.expr_types.insert(expr, index).is_none(),
-            "bug: duplicate visit of path: {:?} {:?}",
+            "bug: duplicate visit to path: {:?} {:?}",
             expr,
             path
         );
@@ -200,8 +203,9 @@ impl<'db> Collect<'db> {
         };
 
         let index = self.types.push_and_get_key(ty);
-        assert!(self.pat_types.insert(pat, index).is_none(),
-            "bug: duplicate visit of pat: {:?} {:?}",
+        assert!(
+            self.pat_types.insert(pat, index).is_none(),
+            "bug: duplicate visit to pat: {:?} {:?}",
             pat,
             self.body_data.tables[pat]
         );
@@ -219,7 +223,6 @@ impl<'db, 'map> Infer<'db, 'map> {
         match expr_data {
             ExprData::Missing => {}
             ExprData::Block(block) => {
-                // TODO: switch resolver to get into the block item scope
                 block.iter().for_each(|&expr| {
                     self.infer_expr(expr);
                 });
@@ -299,34 +302,52 @@ impl<'db, 'map> Infer<'db, 'map> {
     // }
 
     /// Compares two types, tries to assign type to type variables and return if they match.
-    pub fn unify(&mut self, w1: &WipTypeData, w2: &WipTypeData) -> bool {
+    pub fn unify(&mut self, i1: TyIndex, i2: TyIndex) -> bool {
+        if i1 == i2 {
+            return true;
+        }
+
+        let w1 = &self.types[i1];
+        let w2 = &self.types[i2];
+
         // FIXME: do occur check to avoid inifnite loop
         match (w1, w2) {
-            (WipTypeData::Var, WipTypeData::Var) => todo!(),
-            (WipTypeData::Data(t1), WipTypeData::Var) => todo!(),
-            (WipTypeData::Var, WipTypeData::Data(t2)) => todo!(),
-            (WipTypeData::Data(t1), WipTypeData::Data(t2)) => self.cmp_known(t1, t2),
+            (WipTypeData::Var, WipTypeData::Var) => true,
+            (WipTypeData::Data(_), WipTypeData::Var) => {
+                // assign to the type type
+                let w1 = w1.clone();
+                self.types[i2] = w1;
+                true
+            }
+            (WipTypeData::Var, WipTypeData::Data(_)) => {
+                // assign to the type type
+                let w2 = w2.clone();
+                self.types[i1] = w2;
+                true
+            }
+            (WipTypeData::Data(t1), WipTypeData::Data(t2)) => self.cmp_known(i1, i2),
         }
     }
 
-    // assert_eq!(path.segments.len(), 1, "handle path");
-    // let ident = path.segments[0];
-    // let name = ident.as_str(self.db.as_base_db());
-
     /// Compares two known types
-    fn cmp_known(&mut self, t1: &TypeData, t2: &TypeData) -> bool {
+    fn cmp_known(&self, i1: TyIndex, i2: TyIndex) -> bool {
+        let t1 = &self.types[i1].cast_as_data();
+        let t2 = &self.types[i2].cast_as_data();
+
         match (t1, t2) {
-            (TypeData::Primitive(p1), TypeData::Primitive(p2)) => self.cmp_primitive(p1, p2),
-            (TypeData::Op(o1), TypeData::Op(o2)) => self.cmp_builtin_binary_op(o1, o2),
+            (TypeData::Primitive(p1), TypeData::Primitive(p2)) => Self::cmp_primitive(p1, p2),
+            (TypeData::Op(o1), TypeData::Op(o2)) => Self::cmp_builtin_op(o1, o2),
             _ => false,
         }
     }
 
-    fn cmp_primitive(&mut self, p1: &ty::PrimitiveType, p2: &ty::PrimitiveType) -> bool {
+    fn cmp_primitive(p1: &ty::PrimitiveType, p2: &ty::PrimitiveType) -> bool {
         todo!()
     }
 
-    fn cmp_builtin_binary_op(&mut self, o1: &ty::OpType, o2: &ty::OpType) -> bool {
-        todo!()
+    // TODO: remove builtin function comparison?
+    fn cmp_builtin_op(o1: &ty::OpType, o2: &ty::OpType) -> bool {
+        // TODO: need arity check?
+        o1.target_ty == o2.target_ty && o1.kind == o2.kind
     }
 }

@@ -82,7 +82,14 @@ impl item::Proc {
     }
 
     /// Resolver for a expression in this procedure
-    pub fn expr_resolver<'db>(&self, db: &'db dyn IrDb, expr: body::expr::Expr) -> resolve::Resolver {
+    pub fn expr_resolver<'db>(
+        &self,
+        db: &'db dyn IrDb,
+        expr: body::expr::Expr,
+    ) -> resolve::Resolver {
         resolve::resolver_for_proc_expr(db, *self, expr)
+    }
+    pub fn type_table<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeTable {
+        ty::lower_type::lower_body_types(db, *self)
     }
 }

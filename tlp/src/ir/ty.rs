@@ -56,9 +56,25 @@ impl ops::Index<Pat> for TypeTable {
 /// WIP type information
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WipTypeData {
-    /// Type varable to be inferred
+    /// Unresolved type variable
     Var,
     Data(TypeData),
+}
+
+impl WipTypeData {
+    pub fn cast_as_data(&self) -> &TypeData {
+        match self {
+            Self::Var => unreachable!("failed to cast to `TypeData`"),
+            Self::Data(data) => data,
+        }
+    }
+
+    pub fn cast_as_data_mut(&mut self) -> &mut TypeData {
+        match self {
+            Self::Var => unreachable!("failed to cast to `TypeData`"),
+            Self::Data(data) => data,
+        }
+    }
 }
 
 /// Best-effor type information
@@ -139,16 +155,4 @@ pub enum PrimitiveType {
     I32,
     F32,
     Bool,
-}
-
-/// Extentional impls
-mod ext {
-    use super::*;
-    use crate::ir::{item, IrDb};
-
-    impl item::Proc {
-        pub fn type_table<'db>(&self, db: &'db dyn IrDb) -> &'db TypeTable {
-            lower_type::lower_body_types(db, *self)
-        }
-    }
 }
