@@ -135,10 +135,18 @@ impl<'a> LowerBody<'a> {
                 self.alloc(ExprData::Or(expr), span)
             }
             ast::Expr::When(when) => {
-                todo!()
+                let pred = when.pred().map(|expr| self.lower_ast_expr(expr));
+                let block = self.lower_block(when.block());
+
+                let expr = expr::When { pred, block };
+                self.alloc(ExprData::When(expr), span)
             }
             ast::Expr::Unless(unless) => {
-                todo!()
+                let pred = unless.pred().map(|expr| self.lower_ast_expr(expr));
+                let block = self.lower_block(unless.block());
+
+                let expr = expr::Unless { pred, block };
+                self.alloc(ExprData::Unless(expr), span)
             }
             ast::Expr::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
@@ -322,6 +330,12 @@ fn compute_expr_scopes(
             or.exprs.iter().for_each(|expr| {
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
             });
+        }
+        ExprData::When(when) => {
+            todo!()
+        }
+        ExprData::Unless(unless) => {
+            todo!()
         }
 
         // --------------------------------------------------------------------------------

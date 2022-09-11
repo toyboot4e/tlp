@@ -160,6 +160,42 @@ impl<'db> Collect<'db> {
 
                 WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
             }
+            ExprData::When(when) => {
+                if let Some(pred) = when.pred {
+                    self.collect_expr(pred);
+                }
+                self.collect_expr(when.block);
+
+                // `when` expression's type = the inner block's type
+                let ty_index = self.expr_types[&when.block];
+
+                assert!(
+                    self.expr_types.insert(expr, ty_index).is_none(),
+                    "bug: duplicate visit: {:?} {:?}",
+                    expr,
+                    when
+                );
+
+                return;
+            }
+            ExprData::Unless(unless) => {
+                if let Some(pred) = unless.pred {
+                    self.collect_expr(pred);
+                }
+                self.collect_expr(unless.block);
+
+                // `unless` expression's type = the inner block's type
+                let ty_index = self.expr_types[&unless.block];
+
+                assert!(
+                    self.expr_types.insert(expr, ty_index).is_none(),
+                    "bug: duplicate visit: {:?} {:?}",
+                    expr,
+                    unless
+                );
+
+                return;
+            }
         };
 
         let index = self.types.push_and_get_key(ty);
@@ -207,6 +243,7 @@ impl<'db> Collect<'db> {
             expr,
             path
         );
+
         true
     }
 
@@ -242,6 +279,8 @@ impl<'db, 'map> Infer<'db, 'map> {
                 block.iter().for_each(|&expr| {
                     self.infer_expr(expr);
                 });
+
+                // TODO: handle return type of `Block`
             }
             ExprData::Let(let_) => {
                 self.infer_expr(let_.rhs);
@@ -290,6 +329,22 @@ impl<'db, 'map> Infer<'db, 'map> {
                 or.exprs.iter().for_each(|&expr| {
                     self.unify_expected(self.expr_types[&expr], &b);
                 });
+            }
+            ExprData::When(when) => {
+                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
+                if let Some(pred) = when.pred {
+                    self.unify_expected(self.expr_types[&pred], &b);
+                }
+
+                self.infer_expr(when.block);
+            }
+            ExprData::Unless(unless) => {
+                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
+                if let Some(pred) = unless.pred {
+                    self.unify_expected(self.expr_types[&pred], &b);
+                }
+
+                self.infer_expr(unless.block);
             }
         }
     }

@@ -17,7 +17,7 @@ use crate::{
         item,
         ty::{self, TypeTable},
     },
-    vm::code::{Chunk, Op, TypedLiteral},
+    vm::code::{Chunk, JumpAnchor, Op, TypedLiteral},
     Db,
 };
 
@@ -121,11 +121,7 @@ impl Compiler {
         // body
         {
             let types = proc.type_table(db);
-
-            // TODO: compile root block directly
-            for &expr in body_data.root_block() {
-                self.compile_expr(db, &body_data, types, expr);
-            }
+            self.compile_expr(db, body_data, types, body_data.root_block);
         }
 
         // pop frame
@@ -137,8 +133,19 @@ impl Compiler {
         let expr_data = &body_data.tables[expr];
 
         match expr_data {
-            ExprData::Missing | ExprData::Block(_) => {
+            ExprData::Missing => {
                 todo!("{:#?}", expr_data)
+            }
+            ExprData::Block(block) => {
+                // TODO: compile root block directly
+                for &expr in block {
+                    // TODO: move validation in `validate` path
+                    assert_ne!(types[expr], ty::TypeData::Unknown);
+
+                    self.compile_expr(db, &body_data, types, expr);
+                }
+
+                // TODO: handle tail expression's return value: return or discard
             }
             ExprData::Call(call) => {
                 if let ty::TypeData::Op(op) = &types[call.path] {
@@ -203,7 +210,7 @@ impl Compiler {
                     let idx = self.chunk.store_literal(literal);
                     self.chunk.write_ix(idx);
                 }
-                _ => todo!(),
+                _ => todo!("{:?}", lit),
             },
             ExprData::Path(path) => {
                 let local_idx = self
@@ -222,6 +229,12 @@ impl Compiler {
             ExprData::Or(or) => {
                 //
                 self.compile_bool_oper(db, body_data, types, &or.exprs, false);
+            }
+            ExprData::When(when) => {
+                self.compile_branch(db, body_data, types, when.pred, when.block, true);
+            }
+            ExprData::Unless(unless) => {
+                self.compile_branch(db, body_data, types, unless.pred, unless.block, false);
             }
         }
     }
@@ -274,13 +287,44 @@ impl Compiler {
             self.chunk.write_code(Op::PushFalse);
         }
 
+        for anchor in anchors {
+            self.write_anchor(anchor);
+        }
+    }
+
+    fn compile_branch(
+        &mut self,
+        db: &Db,
+        body_data: &BodyData,
+        types: &TypeTable,
+        pred: Option<Expr>,
+        block: Expr,
+        is_when: bool,
+    ) {
+        let pred = pred.unwrap_or_else(|| panic!("no predicate in branch"));
+        assert_eq!(
+            types[pred],
+            ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+        );
+
+        self.compile_expr(db, body_data, types, pred);
+
+        let anchor = if is_when {
+            self.chunk.write_jump_if_not_u16()
+        } else {
+            self.chunk.write_jump_if_u16()
+        };
+
+        self.compile_expr(db, body_data, types, block);
+        self.write_anchor(anchor);
+    }
+
+    fn write_anchor(&mut self, anchor: JumpAnchor) {
         let ip = self.chunk.bytes().len();
         assert!(ip <= u16::MAX as usize);
         let ip = ip as u16;
 
-        for anchor in anchors {
-            anchor.write_ip(&mut self.chunk, ip);
-        }
+        anchor.write_ip(&mut self.chunk, ip);
     }
 }
 

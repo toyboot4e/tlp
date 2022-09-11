@@ -99,10 +99,13 @@ fn let_statement() {
 }
 
 #[test]
-fn boolean() {
+fn bool_literal() {
     test_expr("true", true);
     test_expr("false", false);
+}
 
+#[test]
+fn bool_and_or() {
     test_expr("(and false false)", false);
     test_expr("(and true false)", false);
     test_expr("(and false true)", false);
@@ -116,3 +119,10 @@ fn boolean() {
     test_expr("(let b false) (or b true)", true);
     test_expr("(let b true) (and b true)", true);
 }
+
+#[test]
+fn control_flow() {
+    test_expr("(when true true)", true);
+    test_expr("(unless false true)", true);
+}
+

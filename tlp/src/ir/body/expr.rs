@@ -35,6 +35,8 @@ pub enum ExprData {
     Path(Path),
     And(And),
     Or(Or),
+    When(When),
+    Unless(Unless),
 }
 
 impl ExprData {
@@ -173,4 +175,16 @@ pub struct And {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Or {
     pub exprs: Vec<Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct When {
+    pub pred: Option<Expr>,
+    pub block: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Unless {
+    pub pred: Option<Expr>,
+    pub block: Expr,
 }
