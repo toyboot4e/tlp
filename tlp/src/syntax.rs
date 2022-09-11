@@ -3,4 +3,3 @@
 pub mod ast;
 pub mod cst;
 pub mod ptr;
-pub mod validate;

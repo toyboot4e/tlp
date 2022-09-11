@@ -18,7 +18,7 @@ fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display, header: impl
 
     writeln!(s, "{}", header.to_string()).unwrap();
     writeln!(s, "test code: {}", src).unwrap();
-    writeln!(s, "errors:");
+    writeln!(s, "errors:").unwrap();
     for e in errs {
         writeln!(s, "- {} ", e).unwrap();
     }
