@@ -88,6 +88,7 @@ impl Into<u8> for Op {
 pub enum TypedLiteral {
     F32(f32),
     I32(i32),
+    Bool(bool),
 }
 
 impl TypedLiteral {
@@ -95,6 +96,7 @@ impl TypedLiteral {
         match self {
             Self::F32(x) => x.into_unit(),
             Self::I32(x) => x.into_unit(),
+            Self::Bool(x) => x.into_unit(),
         }
     }
 }

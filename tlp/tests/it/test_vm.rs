@@ -9,14 +9,16 @@ use tlp::{
     Db,
 };
 
-fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display) {
+fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display, header: impl ToString) {
     if errs.is_empty() {
         return;
     }
 
     let mut s = String::new();
 
-    writeln!(s, "source: {}", src).unwrap();
+    writeln!(s, "{}", header.to_string()).unwrap();
+    writeln!(s, "test code: {}", src).unwrap();
+    writeln!(s, "errors:");
     for e in errs {
         writeln!(s, "- {} ", e).unwrap();
     }
@@ -37,7 +39,7 @@ fn log_chunk(chunk: &Chunk) {
 
 fn test_expr(src: &str, expected: impl UnitVariant) {
     let (_doc, errs) = ast::parse(src).into_tuple();
-    self::print_errors(&errs, src);
+    self::print_errors(&errs, src, "parse error");
 
     let chunk = {
         let mut db = Db::default();
@@ -46,7 +48,7 @@ fn test_expr(src: &str, expected: impl UnitVariant) {
         let file = db.new_input_file("main.tlp", src.clone());
 
         let (chunk, errs) = compile::compile(&db, file);
-        self::print_errors(&errs, &src);
+        self::print_errors(&errs, &src, "compile error");
         chunk
     };
 
@@ -74,4 +76,9 @@ fn simple_arithmetics() {
 fn let_statement() {
     test_expr("(let a 10.5) (+ a 2.5)", 13.0);
     test_expr("(let a 10) (+ a 2)", 12);
+}
+
+#[test]
+fn boolean() {
+    test_expr("true", true);
 }

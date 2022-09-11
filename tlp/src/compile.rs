@@ -194,6 +194,11 @@ impl Compiler {
                     let idx = self.chunk.store_literal(literal);
                     self.chunk.write_ix(idx);
                 }
+                expr::Literal::Bool(b) => {
+                    let literal = TypedLiteral::Bool(*b);
+                    let idx = self.chunk.store_literal(literal);
+                    self.chunk.write_ix(idx);
+                }
                 _ => todo!(),
             },
             ExprData::Path(path) => {
@@ -226,14 +231,4 @@ fn find_procedure_by_name(db: &Db, file: InputFile, name: &str) -> item::Proc {
         item::Item::Proc(x) => x,
         _ => panic!(),
     }
-}
-
-fn to_oper_f32(s: &str) -> Option<Op> {
-    Some(match s {
-        "+" => Op::AddF32,
-        "-" => Op::SubF32,
-        "*" => Op::MulF32,
-        "/" => Op::DivF32,
-        _ => return None,
-    })
 }
