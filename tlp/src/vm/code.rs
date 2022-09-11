@@ -15,8 +15,11 @@ pub enum Op {
     /// Operand: two bytes index
     PushConst16,
 
-    // local variables (one word only)
+    /// Function frame
     AllocFrame8,
+    AllocFrame16,
+
+    // locals
     PushLocalUnit8,
     SetLocalUnit8,
 
@@ -51,11 +54,12 @@ impl Op {
     pub fn as_str(&self) -> &'static str {
         match self {
             Op::Ret => "ret",
-            Op::PushConst8 => "push-const8",
-            Op::PushConst16 => "push-const16",
-            Op::AllocFrame8 => "alloc-frame8",
-            Op::PushLocalUnit8 => "push-local8",
-            Op::SetLocalUnit8 => "set-local8",
+            Op::PushConst8 => "push-const-8",
+            Op::PushConst16 => "push-const-16",
+            Op::AllocFrame8 => "alloc-frame-8",
+            Op::AllocFrame16 => "alloc-frame-16",
+            Op::PushLocalUnit8 => "push-local-8",
+            Op::SetLocalUnit8 => "set-local-8",
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
             Op::SubF32 => "sub-f32",
@@ -163,9 +167,16 @@ impl Chunk {
     pub fn read_u16(&self, ix: usize) -> u16 {
         ((self.codes[ix] as u16) << 8) | (self.codes[ix + 1] as u16)
     }
+
+    fn write_u16(&mut self, data: u16) {
+        // higher 8 bits
+        self.codes.push((data >> 8) as u8);
+        // lower 8 bits
+        self.codes.push(data as u8);
+    }
 }
 
-/// OpCode writer
+/// Code writer
 impl Chunk {
     #[inline(always)]
     pub fn write_code(&mut self, code: Op) {
@@ -197,10 +208,7 @@ impl Chunk {
     #[inline(always)]
     pub fn write_idx_raw_u16(&mut self, idx: u16) {
         self.codes.push(Op::PushConst16 as u8);
-        // higher 8 bits
-        self.codes.push((idx >> 8) as u8);
-        // lower 8 bits
-        self.codes.push(idx as u8);
+        self.write_u16(idx);
     }
 
     // --------------------------------------------------------------------------------
@@ -213,20 +221,27 @@ impl Chunk {
         self.codes.push(idx);
     }
 
+    #[inline(always)]
+    pub fn write_alloc_locals_u16(&mut self, idx: u16) {
+        self.codes.push(Op::AllocFrame16 as u8);
+        self.write_u16(idx);
+    }
+
     // --------------------------------------------------------------------------------
     // Locals
     // --------------------------------------------------------------------------------
 
     #[inline(always)]
-    pub fn write_load_local_u8(&mut self, idx: u8) {
+    pub fn write_push_local_u8(&mut self, n_units: u8) {
         self.codes.push(Op::PushLocalUnit8 as u8);
-        self.codes.push(idx);
+        self.codes.push(n_units);
     }
 
     #[inline(always)]
-    pub fn write_set_local_u8(&mut self, idx: u8) {
+    pub fn write_set_local_u8(&mut self, n_units: u8) {
         self.codes.push(Op::SetLocalUnit8 as u8);
-        self.codes.push(idx);
+        self.codes.push(n_units);
+    }
     }
 }
 

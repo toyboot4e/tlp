@@ -113,6 +113,11 @@ impl Vm {
                     let local_capacity = local_capacity as usize;
                     self.stack.push_call_frame(local_capacity);
                 }
+                Op::AllocFrame16 => {
+                    let local_capacity = self.bump_u16();
+                    let local_capacity = local_capacity as usize;
+                    self.stack.push_call_frame(local_capacity);
+                }
 
                 // locals
                 Op::PushLocalUnit8 => {

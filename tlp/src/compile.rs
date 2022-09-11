@@ -122,6 +122,7 @@ impl Compiler {
         {
             let types = proc.type_table(db);
 
+            // TODO: compile root block directly
             for &expr in body_data.root_block() {
                 self.compile_expr(db, &body_data, types, expr);
             }
@@ -132,11 +133,13 @@ impl Compiler {
         self.chunk.write_code(Op::Ret);
     }
 
-    #[allow(unused)]
     fn compile_expr(&mut self, db: &Db, body_data: &BodyData, types: &TypeTable, expr: Expr) {
         let expr_data = &body_data.tables[expr];
 
         match expr_data {
+            ExprData::Missing | ExprData::Block(_) => {
+                todo!("{:#?}", expr_data)
+            }
             ExprData::Call(call) => {
                 if let ty::TypeData::Op(op) = &types[call.path] {
                     assert_eq!(
@@ -179,8 +182,9 @@ impl Compiler {
                 let rhs = self.compile_expr(db, body_data, types, rhs_idx);
 
                 let local_idx = self.call_frame.as_ref().unwrap().locals[&let_.pat];
-                let local_idx = local_idx as u8;
+                assert!(local_idx <= u8::MAX as usize);
 
+                let local_idx = local_idx as u8;
                 self.chunk.write_set_local_u8(local_idx);
             }
             ExprData::Literal(lit) => match lit {
@@ -209,11 +213,15 @@ impl Compiler {
                     .resolve_path(db, expr, path)
                     .unwrap();
 
-                self.chunk.write_load_local_u8(local_idx as u8);
+                self.chunk.write_push_local_u8(local_idx as u8);
             }
-            _ => {
-                self.errs
-                    .push(CompileError::UnexpectedExpr { expr: expr.clone() });
+            ExprData::And(and) => {
+                // evaluate one by one, but short-circuit when we can
+                todo!()
+            }
+            ExprData::Or(or) => {
+                // evaluate one by one, but short-circuit when we can
+                todo!()
             }
         }
     }

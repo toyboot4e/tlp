@@ -27,8 +27,9 @@ fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display, header: impl
 }
 
 #[allow(unused)]
-fn log_chunk(chunk: &Chunk) {
-    println!("");
+fn log_chunk(src: &str, chunk: &Chunk) {
+    println!("Source:");
+    println!("{}", src);
     println!("--------------------------------------------------------------------------------");
 
     let s = chunk.disassemble().unwrap();
@@ -37,14 +38,14 @@ fn log_chunk(chunk: &Chunk) {
     println!("--------------------------------------------------------------------------------");
 }
 
-fn test_expr(src: &str, expected: impl UnitVariant) {
+fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) {
     let (_doc, errs) = ast::parse(src).into_tuple();
     self::print_errors(&errs, src, "parse error");
 
+    let src = format!("(proc main () {})", src);
     let chunk = {
         let mut db = Db::default();
 
-        let src = format!("(proc main () {} )", src);
         let file = db.new_input_file("main.tlp", src.clone());
 
         let (chunk, errs) = compile::compile(&db, file);
@@ -52,13 +53,13 @@ fn test_expr(src: &str, expected: impl UnitVariant) {
         chunk
     };
 
-    log_chunk(&chunk);
+    log_chunk(&src, &chunk);
 
     let mut vm = Vm::new(chunk);
     vm.run().unwrap();
 
     let unit = vm.units().last().unwrap();
-    assert_eq!(*unit, expected.into_unit());
+    assert_eq!(T::from_unit(*unit), expected);
 }
 
 #[test]
