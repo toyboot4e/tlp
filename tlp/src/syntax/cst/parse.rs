@@ -239,7 +239,8 @@ impl ParseState {
             }
         };
 
-        if peek.kind != SyntaxKind::Ident {
+        // REMARK: keywords other than literals are not lexed
+        if !matches!(peek.kind, SyntaxKind::Ident) {
             self.errs.push(ParseError::Unexpected {
                 at: pcx.src.len().into(),
                 expected: "<call or special form>".to_string(),
@@ -532,26 +533,31 @@ impl ParseState {
     fn maybe_bump_lit(&mut self, pcx: &ParseContext) -> Option<()> {
         let checkpoint = self.builder.checkpoint();
 
-        let wrap = loop {
+        loop {
             if self.maybe_bump_kind(pcx, SyntaxKind::Num).is_some() {
-                break true;
+                break;
+            }
+
+            if self.maybe_bump_kind(pcx, SyntaxKind::True).is_some() {
+                break;
+            }
+
+            if self.maybe_bump_kind(pcx, SyntaxKind::False).is_some() {
+                break;
             }
 
             if self.maybe_bump_str(pcx).is_some() {
-                break true;
+                break;
             }
 
-            break false;
-        };
-
-        if wrap {
-            self.builder
-                .start_node_at(checkpoint, SyntaxKind::Literal.into());
-            self.builder.finish_node();
-            Some(())
-        } else {
-            None
+            return None;
         }
+
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Literal.into());
+        self.builder.finish_node();
+
+        Some(())
     }
 
     fn maybe_bump_str(&mut self, pcx: &ParseContext) -> Option<()> {
