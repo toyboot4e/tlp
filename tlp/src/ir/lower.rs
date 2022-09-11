@@ -1,5 +1,7 @@
 //! Lowers code block into [`Body`](body::Body)
 
+use la_arena::Idx;
+
 use base::{
     jar::{InputFile, Word},
     span::Span,
@@ -11,8 +13,9 @@ use crate::{
         body::{
             self,
             expr::{self, Expr, ExprData},
+            expr_scope::{ExprScopeMap, ExprScopeMapData, ScopeData},
             pat::{Pat, PatData},
-            SyntheticSyntax,
+            BodyData, SyntheticSyntax,
         },
         item::{self, Item},
         item_scope::{ItemScope, ItemScopeData},
@@ -224,4 +227,101 @@ pub(crate) fn lower_item_scope(db: &dyn IrDb, file: InputFile) -> ItemScope {
     }
 
     ItemScope::new(db, scope)
+}
+
+#[salsa::tracked(jar = IrJar)]
+pub(crate) fn lower_proc_expr_scope(db: &dyn IrDb, proc: item::Proc) -> ExprScopeMap {
+    let body = proc.body(db);
+    let body_data = body.data(db);
+    let data = self::body_expr_scope(db, &body_data);
+    ExprScopeMap::new(db, data)
+}
+
+fn body_expr_scope(_db: &dyn IrDb, body_data: &BodyData) -> ExprScopeMapData {
+    let mut scopes = ExprScopeMapData::default();
+
+    // start with the root block expression
+    let root_scope = scopes.alloc_root_scope();
+    self::compute_expr_scopes(body_data.root_block, body_data, &mut scopes, root_scope);
+
+    scopes
+}
+
+/// Walks through body expressions, creates scopes on new binding patterns and tracks the scope for
+/// each expression
+///
+/// Returns the last scope index for tracking the current scope.
+fn compute_expr_scopes(
+    expr: expr::Expr,
+    body_data: &BodyData,
+    scopes: &mut ExprScopeMapData,
+    scope_idx: Idx<ScopeData>,
+) -> Idx<ScopeData> {
+    // Current scope is only modified by `Let` expression.
+    // (Block scope creates a new scope, but it doesn't modify "current scope").
+    let mut scope_idx = scope_idx;
+
+    // track the expression scope for the parent expression
+    scopes.track_expr_scope(expr, scope_idx);
+
+    // call into the child expressions
+    match &body_data.tables[expr] {
+        // --------------------------------------------------------------------------------
+        // Handle block and binding patterns
+        // --------------------------------------------------------------------------------
+        ExprData::Block(block) => {
+            let block_scope_idx = scopes.new_block_scope(scope_idx);
+
+            // FIXME:
+            // Overwrite the block scope with the deepest child.
+            // This is important for traverse as `ScopeData` only contains `parernt` index.
+            scopes.track_expr_scope(expr, block_scope_idx);
+
+            self::compute_block_scopes(&block.children, body_data, scopes, block_scope_idx);
+        }
+        ExprData::Let(let_) => {
+            // expr: track scope
+            scope_idx = self::compute_expr_scopes(let_.rhs, body_data, scopes, scope_idx);
+
+            // pat: create new scope
+            scope_idx = scopes.append_scope(scope_idx);
+            scopes.add_bindings(body_data, scope_idx, let_.pat);
+        }
+
+        // --------------------------------------------------------------------------------
+        // Walk child expressions and track scope for them.
+        // It should not modify curernt scope.
+        // --------------------------------------------------------------------------------
+        ExprData::Call(call) => {
+            self::compute_expr_scopes(call.path, body_data, scopes, scope_idx);
+            call.args.iter().for_each(|expr| {
+                self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
+            });
+        }
+
+        // --------------------------------------------------------------------------------
+        // Terminals. No children, nothing to do
+        // --------------------------------------------------------------------------------
+        ExprData::Missing => {}
+        ExprData::Path(_) => {}
+        ExprData::Literal(_) => {}
+    }
+
+    scope_idx
+}
+
+/// Walks through body expressions, creates scopes and tracks the scope for each expression
+fn compute_block_scopes(
+    exprs: &[expr::Expr],
+    body_data: &BodyData,
+    scopes: &mut ExprScopeMapData,
+    scope_idx: Idx<ScopeData>,
+) -> Idx<ScopeData> {
+    let mut scope_idx = scope_idx;
+
+    for expr in exprs {
+        scope_idx = self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
+    }
+
+    scope_idx
 }

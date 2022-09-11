@@ -11,16 +11,19 @@ pub mod ty;
 #[salsa::jar(db = IrDb)]
 pub struct IrJar(
     jar::ParsedFile,
-    lower::lower_items,
-    lower::lower_body,
-    lower::lower_item_scope,
     item::Proc,
     // TODO: Consider ditching? Though it adds lifetimes to `Resolver`
     item_scope::ItemScope,
+
     body::Body,
-    body::expr_scope::proc_expr_scope_query,
     // TODO: Consider ditching? Thoguh it adds lifetimes to `Resolver`
     body::expr_scope::ExprScopeMap,
+
+    lower::lower_items,
+    lower::lower_item_scope,
+    lower::lower_body,
+    lower::lower_proc_expr_scope,
+
     ty::lower_type::lower_body_types,
 );
 
@@ -72,7 +75,7 @@ impl item::Proc {
     }
 
     pub fn expr_scopes<'db>(&self, db: &'db dyn IrDb) -> body::expr_scope::ExprScopeMap {
-        body::expr_scope::proc_expr_scope_query(db, *self)
+        lower::lower_proc_expr_scope(db, *self)
     }
 
     /// Resolver for the root block expression
