@@ -15,11 +15,11 @@ pub struct IrJar(
     lower::lower_body,
     lower::lower_item_scope,
     item::Proc,
-    // TODO: Consider ditching? It adds lifetimes to `Resolver` though
+    // TODO: Consider ditching? Though it adds lifetimes to `Resolver`
     item_scope::ItemScope,
     body::Body,
     body::expr_scope::proc_expr_scope_query,
-    // TODO: Consider ditching? It adds lifetimes to `Resolver` though
+    // TODO: Consider ditching? Thoguh it adds lifetimes to `Resolver`
     body::expr_scope::ExprScopeMap,
     ty::lower_type::lower_body_types,
 );
@@ -89,6 +89,7 @@ impl item::Proc {
     ) -> resolve::Resolver {
         resolve::resolver_for_proc_expr(db, *self, expr)
     }
+
     pub fn type_table<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeTable {
         ty::lower_type::lower_body_types(db, *self)
     }

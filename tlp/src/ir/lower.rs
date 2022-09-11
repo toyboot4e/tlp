@@ -1,4 +1,4 @@
-//! Lowers code block into [`Body`]
+//! Lowers code block into [`Body`](body::Body)
 
 use base::{
     jar::{InputFile, Word},

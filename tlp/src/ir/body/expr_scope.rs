@@ -1,4 +1,4 @@
-//! Item / expression scopes collected from [`Body`]
+//! Item / expression scopes collected from [`BodyData`]
 
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;

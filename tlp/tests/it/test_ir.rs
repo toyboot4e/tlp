@@ -3,7 +3,7 @@ use tlp::{
     ir::{
         body::{
             expr::{self, ExprData},
-            pat::{self, PatData},
+            pat::PatData,
         },
         item::Item,
         InputFileExt,
