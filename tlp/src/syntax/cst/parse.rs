@@ -239,7 +239,8 @@ impl ParseState {
             }
         };
 
-        if peek.kind != SyntaxKind::Ident {
+        // REMARK: keywords other than literals are not lexed
+        if !matches!(peek.kind, SyntaxKind::Ident) {
             self.errs.push(ParseError::Unexpected {
                 at: pcx.src.len().into(),
                 expected: "<call or special form>".to_string(),
@@ -253,6 +254,7 @@ impl ParseState {
         match peek.slice(pcx.src) {
             "proc" => self.bump_list_proc(pcx, checkpoint),
             "let" => self.bump_list_let(pcx, checkpoint),
+            "and" | "or" => self.bump_list_bool_oper(pcx, checkpoint),
             _ => self.bump_list_call(pcx, checkpoint),
         }
     }
@@ -397,20 +399,41 @@ impl ParseState {
         self.builder.finish_node();
     }
 
+    /// ("and" | "or") Pat Expr ")"
+    fn bump_list_bool_oper(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+
+        let kind = match tk.slice(pcx.src) {
+            "and" => SyntaxKind::And,
+            "or" => SyntaxKind::Or,
+            x => unreachable!("not `and` or `or`: {}", x),
+        };
+
+        self._bump_rest_list_wrapping(pcx, checkpoint, kind);
+    }
+
     /// Call → "(" Path Sexp* ")"
     fn bump_list_call(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         self.maybe_bump_path(pcx).unwrap();
+        self._bump_rest_list_wrapping(pcx, checkpoint, SyntaxKind::Call);
+    }
 
-        // wrap the list
-        self.builder
-            .start_node_at(checkpoint, SyntaxKind::Call.into());
-        self.maybe_bump_ws(pcx);
+    fn _bump_rest_list_wrapping(
+        &mut self,
+        pcx: &ParseContext,
+        checkpoint: rowan::Checkpoint,
+        kind: SyntaxKind,
+    ) {
+        self.builder.start_node_at(checkpoint, kind.into());
 
-        if self._bump_sexps_to_end_paren(pcx).is_some() {
-            self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+        {
+            self.maybe_bump_ws(pcx);
+
+            if self._bump_sexps_to_end_paren(pcx).is_some() {
+                self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+            }
         }
 
-        // end `Call`
         self.builder.finish_node();
     }
 
@@ -532,26 +555,31 @@ impl ParseState {
     fn maybe_bump_lit(&mut self, pcx: &ParseContext) -> Option<()> {
         let checkpoint = self.builder.checkpoint();
 
-        let wrap = loop {
+        loop {
             if self.maybe_bump_kind(pcx, SyntaxKind::Num).is_some() {
-                break true;
+                break;
+            }
+
+            if self.maybe_bump_kind(pcx, SyntaxKind::True).is_some() {
+                break;
+            }
+
+            if self.maybe_bump_kind(pcx, SyntaxKind::False).is_some() {
+                break;
             }
 
             if self.maybe_bump_str(pcx).is_some() {
-                break true;
+                break;
             }
 
-            break false;
-        };
-
-        if wrap {
-            self.builder
-                .start_node_at(checkpoint, SyntaxKind::Literal.into());
-            self.builder.finish_node();
-            Some(())
-        } else {
-            None
+            return None;
         }
+
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Literal.into());
+        self.builder.finish_node();
+
+        Some(())
     }
 
     fn maybe_bump_str(&mut self, pcx: &ParseContext) -> Option<()> {

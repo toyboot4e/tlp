@@ -46,8 +46,8 @@ impl Db {
 
     /// Converts a `FileSpan` into its constituent parts.
     pub fn line_column_spans(&self, span: FileSpan) -> (InputFile, LineColumn, LineColumn) {
-        let start = self.line_column(span.input_file, span.start);
-        let end = self.line_column(span.input_file, span.end);
+        let start = self.line_column_at(span.input_file, span.start);
+        let end = self.line_column_at(span.input_file, span.end);
         (span.input_file, start, end)
     }
 }

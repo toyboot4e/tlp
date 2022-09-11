@@ -1,5 +1,7 @@
 //! Bytecode
 
+// TODO: consider endians of opcodes?
+
 use std::fmt::{self, Write};
 
 use crate::vm::{Unit, UnitVariant};
@@ -10,15 +12,32 @@ use crate::vm::{Unit, UnitVariant};
 pub enum Op {
     Ret,
 
+    /// Push `true` to the stack
+    PushTrue,
+    /// Push `false` to the stack
+    PushFalse,
+    /// Pop and do nothing
+    Discard8,
+
     /// Operand: byte index
     PushConst8,
     /// Operand: two bytes index
     PushConst16,
 
-    // local variables (one word only)
+    /// Function frame
     AllocFrame8,
+    AllocFrame16,
+
+    // locals
     PushLocalUnit8,
     SetLocalUnit8,
+
+    /// Jumps
+    Jump16,
+    /// Pops a value and jumps if it's true
+    JumpIf16,
+    /// Pops a value and jumps if it's false
+    JumpIfNot16,
 
     // `f32` arithmetic operations
     NegF32,
@@ -38,11 +57,15 @@ pub enum Op {
 impl Op {
     pub fn operands(&self) -> OpCodeOperands {
         match self {
-            Op::PushConst8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
-                OpCodeOperands::One
+            Op::Discard8
+            | Op::PushConst8
+            | Op::AllocFrame8
+            | Op::PushLocalUnit8
+            | Op::SetLocalUnit8 => OpCodeOperands::One,
+            Op::PushConst16 | Op::AllocFrame16 | Op::Jump16 | Op::JumpIf16 | Op::JumpIfNot16 => {
+                OpCodeOperands::Two
             }
-            Op::PushConst16 => OpCodeOperands::Two,
-            _ => OpCodeOperands::None,
+            _ => OpCodeOperands::Zero,
         }
     }
 
@@ -51,11 +74,18 @@ impl Op {
     pub fn as_str(&self) -> &'static str {
         match self {
             Op::Ret => "ret",
-            Op::PushConst8 => "push-const8",
-            Op::PushConst16 => "push-const16",
-            Op::AllocFrame8 => "alloc-frame8",
-            Op::PushLocalUnit8 => "push-local8",
-            Op::SetLocalUnit8 => "set-local8",
+            Op::Discard8 => "discard-8",
+            Op::PushTrue => "push-true",
+            Op::PushFalse => "push-false",
+            Op::PushConst8 => "push-const-8",
+            Op::PushConst16 => "push-const-16",
+            Op::AllocFrame8 => "alloc-frame-8",
+            Op::AllocFrame16 => "alloc-frame-16",
+            Op::PushLocalUnit8 => "push-local-8",
+            Op::SetLocalUnit8 => "set-local-8",
+            Op::Jump16 => "jump-16",
+            Op::JumpIf16 => "jump-if-16",
+            Op::JumpIfNot16 => "jump-if-16",
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
             Op::SubF32 => "sub-f32",
@@ -72,7 +102,7 @@ impl Op {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
 pub enum OpCodeOperands {
-    None,
+    Zero,
     One,
     Two,
 }
@@ -88,6 +118,7 @@ impl Into<u8> for Op {
 pub enum TypedLiteral {
     F32(f32),
     I32(i32),
+    Bool(bool),
 }
 
 impl TypedLiteral {
@@ -95,6 +126,7 @@ impl TypedLiteral {
         match self {
             Self::F32(x) => x.into_unit(),
             Self::I32(x) => x.into_unit(),
+            Self::Bool(x) => x.into_unit(),
         }
     }
 }
@@ -161,9 +193,16 @@ impl Chunk {
     pub fn read_u16(&self, ix: usize) -> u16 {
         ((self.codes[ix] as u16) << 8) | (self.codes[ix + 1] as u16)
     }
+
+    fn write_u16(&mut self, data: u16) {
+        // higher 8 bits
+        self.codes.push((data >> 8) as u8);
+        // lower 8 bits
+        self.codes.push(data as u8);
+    }
 }
 
-/// OpCode writer
+/// Code writer
 impl Chunk {
     #[inline(always)]
     pub fn write_code(&mut self, code: Op) {
@@ -195,10 +234,7 @@ impl Chunk {
     #[inline(always)]
     pub fn write_idx_raw_u16(&mut self, idx: u16) {
         self.codes.push(Op::PushConst16 as u8);
-        // higher 8 bits
-        self.codes.push((idx >> 8) as u8);
-        // lower 8 bits
-        self.codes.push(idx as u8);
+        self.write_u16(idx);
     }
 
     // --------------------------------------------------------------------------------
@@ -211,12 +247,18 @@ impl Chunk {
         self.codes.push(idx);
     }
 
+    #[inline(always)]
+    pub fn write_alloc_locals_u16(&mut self, idx: u16) {
+        self.codes.push(Op::AllocFrame16 as u8);
+        self.write_u16(idx);
+    }
+
     // --------------------------------------------------------------------------------
     // Locals
     // --------------------------------------------------------------------------------
 
     #[inline(always)]
-    pub fn write_load_local_u8(&mut self, idx: u8) {
+    pub fn write_push_local_u8(&mut self, idx: u8) {
         self.codes.push(Op::PushLocalUnit8 as u8);
         self.codes.push(idx);
     }
@@ -225,6 +267,51 @@ impl Chunk {
     pub fn write_set_local_u8(&mut self, idx: u8) {
         self.codes.push(Op::SetLocalUnit8 as u8);
         self.codes.push(idx);
+    }
+
+    // --------------------------------------------------------------------------------
+    // Jumps
+    // --------------------------------------------------------------------------------
+
+    /// Returns [`JumpAnchor`] for overwriting jump target later
+    #[inline(always)]
+    pub fn write_jump_u16(&mut self) -> JumpAnchor {
+        self.codes.push(Op::Jump16 as u8);
+        let anchor = JumpAnchor::new(self);
+        self.write_u16(0);
+        anchor
+    }
+
+    /// Returns [`JumpAnchor`] for overwriting jump target later
+    #[inline(always)]
+    pub fn write_jump_if_u16(&mut self) -> JumpAnchor {
+        self.codes.push(Op::JumpIf16 as u8);
+        let anchor = JumpAnchor::new(self);
+        self.write_u16(0);
+        anchor
+    }
+
+    /// Returns [`JumpAnchor`] for overwriting jump target later
+    #[inline(always)]
+    pub fn write_jump_if_not_u16(&mut self) -> JumpAnchor {
+        self.codes.push(Op::JumpIfNot16 as u8);
+        let anchor = JumpAnchor::new(self);
+        self.write_u16(0);
+        anchor
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct JumpAnchor(u16);
+
+impl JumpAnchor {
+    fn new(chunk: &Chunk) -> Self {
+        JumpAnchor(chunk.codes.len() as u16)
+    }
+
+    pub fn write_ip(&self, chunk: &mut Chunk, ip: u16) {
+        chunk.codes[self.0 as usize] = (ip >> 8) as u8;
+        chunk.codes[self.0 as usize + 1] = ip as u8;
     }
 }
 
@@ -264,41 +351,63 @@ impl Chunk {
     }
 
     pub fn disassemble_into(&self, s: &mut String) -> fmt::Result {
-        let mut bytes = self.codes.iter();
+        let mut bytes = self.codes.iter().enumerate();
 
         loop {
-            let b = match bytes.next() {
-                Some(b) => *b,
+            let (ip, b) = match bytes.next() {
+                Some((ip, b)) => (ip, *b),
                 None => break,
             };
 
             // FIXME: implement `TryFrom`, maybe using `num_enum`
             let op: Op = unsafe { std::mem::transmute(b) };
-            Self::write_opcode(op, &mut bytes, s)?;
+            Self::write_opcode(ip, op, &mut bytes, s)?;
         }
 
         Ok(())
     }
 
     fn write_opcode<'a>(
+        ip: usize,
         op: Op,
-        bytes: &mut impl Iterator<Item = &'a u8>,
+        bytes: &mut impl Iterator<Item = (usize, &'a u8)>,
         s: &mut String,
     ) -> fmt::Result {
+        fn next<'a>(bytes: &mut impl Iterator<Item = (usize, &'a u8)>) -> TransparentOptionU8 {
+            if let Some((_, b)) = bytes.next() {
+                TransparentOptionU8(Some(*b))
+            } else {
+                TransparentOptionU8(None)
+            }
+        }
+
+        struct TransparentOptionU8(Option<u8>);
+
+        impl fmt::Display for TransparentOptionU8 {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                if let Some(x) = self.0 {
+                    fmt::Display::fmt(&x, f)
+                } else {
+                    fmt::Display::fmt("<none>", f)
+                }
+            }
+        }
+
         match op.operands() {
-            OpCodeOperands::None => writeln!(s, "{}", op.as_str()),
+            OpCodeOperands::Zero => writeln!(s, "{:3}: {}", ip, op.as_str()),
             OpCodeOperands::One => {
                 // TODO: unwrap
-                writeln!(s, "{:11} {:?}", op.as_str(), bytes.next())
+                writeln!(s, "{:3}: {:11} {}", ip, op.as_str(), next(bytes))
             }
             OpCodeOperands::Two => {
                 // TODO: unwrap
                 writeln!(
                     s,
-                    "{:11} {:?} {:?}",
+                    "{:3}: {:11} {} {}",
+                    ip,
                     op.as_str(),
-                    bytes.next(),
-                    bytes.next()
+                    next(bytes),
+                    next(bytes)
                 )?;
                 Ok(())
             }

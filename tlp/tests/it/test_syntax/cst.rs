@@ -46,10 +46,10 @@ fn run_test(test: Test) -> Result<(), TestError> {
         let s = errs
             .iter()
             // FIXME: print with location
-            .map(|e| format!("{}", e))
+            .map(|e| format!("- {}", e))
             .collect::<Vec<_>>()
             .join("\n");
-        panic!("{}\nsource: {}", s, test.code);
+        panic!("Parse error:\n{}\nsource: {}", s, test.code);
     }
 
     // root
@@ -82,8 +82,9 @@ fn cst() {
         return;
     }
 
+    eprintln!("Errors:");
     for e in &errs {
-        eprintln!("{}", e);
+        eprintln!("- {}", e);
         eprintln!("");
     }
 

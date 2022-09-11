@@ -122,6 +122,7 @@ impl Compiler {
         {
             let types = proc.type_table(db);
 
+            // TODO: compile root block directly
             for &expr in body_data.root_block() {
                 self.compile_expr(db, &body_data, types, expr);
             }
@@ -132,11 +133,13 @@ impl Compiler {
         self.chunk.write_code(Op::Ret);
     }
 
-    #[allow(unused)]
     fn compile_expr(&mut self, db: &Db, body_data: &BodyData, types: &TypeTable, expr: Expr) {
         let expr_data = &body_data.tables[expr];
 
         match expr_data {
+            ExprData::Missing | ExprData::Block(_) => {
+                todo!("{:#?}", expr_data)
+            }
             ExprData::Call(call) => {
                 if let ty::TypeData::Op(op) = &types[call.path] {
                     assert_eq!(
@@ -179,8 +182,9 @@ impl Compiler {
                 let rhs = self.compile_expr(db, body_data, types, rhs_idx);
 
                 let local_idx = self.call_frame.as_ref().unwrap().locals[&let_.pat];
-                let local_idx = local_idx as u8;
+                assert!(local_idx <= u8::MAX as usize);
 
+                let local_idx = local_idx as u8;
                 self.chunk.write_set_local_u8(local_idx);
             }
             ExprData::Literal(lit) => match lit {
@@ -194,6 +198,11 @@ impl Compiler {
                     let idx = self.chunk.store_literal(literal);
                     self.chunk.write_ix(idx);
                 }
+                expr::Literal::Bool(b) => {
+                    let literal = TypedLiteral::Bool(*b);
+                    let idx = self.chunk.store_literal(literal);
+                    self.chunk.write_ix(idx);
+                }
                 _ => todo!(),
             },
             ExprData::Path(path) => {
@@ -204,12 +213,73 @@ impl Compiler {
                     .resolve_path(db, expr, path)
                     .unwrap();
 
-                self.chunk.write_load_local_u8(local_idx as u8);
+                self.chunk.write_push_local_u8(local_idx as u8);
             }
-            _ => {
-                self.errs
-                    .push(CompileError::UnexpectedExpr { expr: expr.clone() });
+            ExprData::And(and) => {
+                //
+                self.compile_bool_oper(db, body_data, types, &and.exprs, true);
             }
+            ExprData::Or(or) => {
+                //
+                self.compile_bool_oper(db, body_data, types, &or.exprs, false);
+            }
+        }
+    }
+
+    /// `and` or `or`
+    fn compile_bool_oper(
+        &mut self,
+        db: &Db,
+        body_data: &BodyData,
+        types: &TypeTable,
+        exprs: &[Expr],
+        is_and: bool,
+    ) {
+        let mut anchors = Vec::new();
+
+        if is_and {
+            // `false` on short-circuit
+            self.chunk.write_code(Op::PushFalse);
+        } else {
+            // `true` on short-circuit
+            self.chunk.write_code(Op::PushTrue);
+        }
+
+        for &expr in exprs {
+            let expr_data = &body_data.tables[expr];
+
+            assert_eq!(
+                types[expr],
+                ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+            );
+
+            self.compile_expr(db, body_data, types, expr);
+
+            let anchor = if is_and {
+                // `and`: short circuit on `false`
+                self.chunk.write_jump_if_not_u16()
+            } else {
+                // `or`: short circuit on `true`
+                self.chunk.write_jump_if_u16()
+            };
+
+            anchors.push(anchor);
+        }
+
+        self.chunk.write_code(Op::Discard8);
+
+        if is_and {
+            self.chunk.write_code(Op::PushTrue);
+        } else {
+            self.chunk.write_code(Op::PushFalse);
+        }
+
+        let ip = self.chunk.bytes().len();
+        assert!(ip <= u16::MAX as usize);
+        let ip = ip as u16;
+
+        for anchor in anchors {
+            anchor.write_ip(&mut self.chunk, ip);
         }
     }
 }
@@ -226,14 +296,4 @@ fn find_procedure_by_name(db: &Db, file: InputFile, name: &str) -> item::Proc {
         item::Item::Proc(x) => x,
         _ => panic!(),
     }
-}
-
-fn to_oper_f32(s: &str) -> Option<Op> {
-    Some(match s {
-        "+" => Op::AddF32,
-        "-" => Op::SubF32,
-        "*" => Op::MulF32,
-        "/" => Op::DivF32,
-        _ => return None,
-    })
 }

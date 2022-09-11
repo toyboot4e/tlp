@@ -124,7 +124,9 @@ impl<'db> Collect<'db> {
             ExprData::Literal(lit) => match lit {
                 expr::Literal::String(_) => todo!(),
                 expr::Literal::Char(_) => todo!(),
-                expr::Literal::Bool(_) => todo!(),
+                expr::Literal::Bool(_) => {
+                    WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
+                }
                 expr::Literal::F32(_) => {
                     WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::F32))
                 }
@@ -143,6 +145,20 @@ impl<'db> Collect<'db> {
                     // path to nothing
                     WipTypeData::Data(TypeData::Unknown)
                 }
+            }
+            ExprData::And(and) => {
+                and.exprs.iter().for_each(|&expr| {
+                    self.collect_expr(expr);
+                });
+
+                WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
+            }
+            ExprData::Or(or) => {
+                or.exprs.iter().for_each(|&expr| {
+                    self.collect_expr(expr);
+                });
+
+                WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
             }
         };
 
@@ -263,6 +279,18 @@ impl<'db, 'map> Infer<'db, 'map> {
                 // path is alread resolve to a pattern and the pattern's type is shared the path
                 // expression
             }
+            ExprData::And(and) => {
+                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
+                and.exprs.iter().for_each(|&expr| {
+                    self.unify_expected(self.expr_types[&expr], &b);
+                });
+            }
+            ExprData::Or(or) => {
+                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
+                or.exprs.iter().for_each(|&expr| {
+                    self.unify_expected(self.expr_types[&expr], &b);
+                });
+            }
         }
     }
 
@@ -301,8 +329,19 @@ impl<'db, 'map> Infer<'db, 'map> {
     //     todo!()
     // }
 
+    pub fn unify_expected(&mut self, i: TyIndex, expected: &TypeData) -> bool {
+        let w = &self.types[i];
+        match w {
+            WipTypeData::Var => {
+                self.types[i] = WipTypeData::Data(expected.clone());
+                true
+            }
+            WipTypeData::Data(t) => t == expected,
+        }
+    }
+
     /// Compares two types, tries to assign type to type variables and return if they match.
-    pub fn unify(&mut self, i1: TyIndex, i2: TyIndex) -> bool {
+    pub fn unify_vars(&mut self, i1: TyIndex, i2: TyIndex) -> bool {
         if i1 == i2 {
             return true;
         }

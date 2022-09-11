@@ -62,7 +62,7 @@ struct Lexer<'s> {
     errs: Vec<LexError>,
 }
 
-/// Is trivia
+/// "Whitespace" = trivia
 fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t')
 }
@@ -70,6 +70,10 @@ fn is_ws(c: u8) -> bool {
 /// Single-character-delimited token
 fn is_symbol(c: u8) -> bool {
     matches!(c, b'(' | b')' | b':' | b'.')
+}
+
+fn is_quote(c: u8) -> bool {
+    matches!(c, b'"' | b'\'')
 }
 
 /// [0-9] | -
@@ -82,12 +86,12 @@ fn is_num_body(c: u8) -> bool {
     !(c < b'0' || b'9' < c) || matches!(c, b'.' | b'e' | b'E' | b'_' | b'-')
 }
 
-fn is_ident_body(c: u8) -> bool {
-    !(is_ws(c) || is_symbol(c) || c == b'"')
+fn is_ident_start(c: u8) -> bool {
+    is_ident_body(c) && !is_num_start(c)
 }
 
-fn is_ident_start(c: u8) -> bool {
-    is_ident_body(c) && !is_num_start(c) && !is_symbol(c)
+fn is_ident_body(c: u8) -> bool {
+    !(is_ws(c) || is_symbol(c) || is_quote(c))
 }
 
 /// Lexing utilities
@@ -279,6 +283,8 @@ impl<'s> Lexer<'s> {
 
         // If it's a keyword, override the syntax kind
         let s: &str = unsafe { std::str::from_utf8_unchecked(self.src) };
+        let s = tk.slice(s);
+
         if let Some(kind) = parse_kwd(s) {
             tk.kind = kind;
         }
@@ -292,10 +298,12 @@ impl<'s> Lexer<'s> {
 
         fn parse_kwd(kwd: &str) -> Option<SyntaxKind> {
             Some(match kwd {
+                // literals are recognized
                 "true" => SyntaxKind::True,
                 "false" => SyntaxKind::False,
                 "nil" => SyntaxKind::Nil,
-                "let" => SyntaxKind::Let,
+
+                // REMARK: keywords other than literals are not lexed
                 _ => {
                     return None;
                 }
