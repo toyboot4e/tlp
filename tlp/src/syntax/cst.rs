@@ -92,6 +92,10 @@ pub enum SyntaxKind {
     And,
     /// Or node
     Or,
+    /// When node
+    When,
+    /// Unless node
+    Unless,
     /// DefProc node
     DefProc,
     /// DefProc node name node

@@ -134,6 +134,12 @@ impl<'a> LowerBody<'a> {
                 let expr = expr::Or { exprs };
                 self.alloc(ExprData::Or(expr), span)
             }
+            ast::Expr::When(when) => {
+                todo!()
+            }
+            ast::Expr::Unless(unless) => {
+                todo!()
+            }
             ast::Expr::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
                 let rhs = self.lower_opt_ast_expr(let_.rhs());

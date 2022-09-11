@@ -254,6 +254,7 @@ impl ParseState {
         match peek.slice(pcx.src) {
             "proc" => self.bump_list_proc(pcx, checkpoint),
             "let" => self.bump_list_let(pcx, checkpoint),
+            "when" | "unless" => self.bump_list_control_flow(pcx, checkpoint),
             "and" | "or" => self.bump_list_bool_oper(pcx, checkpoint),
             _ => self.bump_list_call(pcx, checkpoint),
         }
@@ -399,13 +400,26 @@ impl ParseState {
         self.builder.finish_node();
     }
 
-    /// ("and" | "or") Pat Expr ")"
+    /// ("and" | "or") Pat Sexp* ")"
     fn bump_list_bool_oper(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
 
         let kind = match tk.slice(pcx.src) {
             "and" => SyntaxKind::And,
             "or" => SyntaxKind::Or,
+            x => unreachable!("not `and` or `or`: {}", x),
+        };
+
+        self._bump_rest_list_wrapping(pcx, checkpoint, kind);
+    }
+
+    /// ("when" | "unless") Sexp* ")"
+    fn bump_list_control_flow(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+
+        let kind = match tk.slice(pcx.src) {
+            "when" => SyntaxKind::When,
+            "unless" => SyntaxKind::Unless,
             x => unreachable!("not `and` or `or`: {}", x),
         };
 
