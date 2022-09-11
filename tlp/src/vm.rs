@@ -100,7 +100,7 @@ impl Vm {
                 Op::PushFalse => {
                     self.stack.push(false.into_unit());
                 }
-                Op::Discard8 => {
+                Op::Discard => {
                     self.stack.pop().unwrap();
                 }
 

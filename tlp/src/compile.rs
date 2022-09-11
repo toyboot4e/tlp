@@ -266,7 +266,7 @@ impl Compiler {
             anchors.push(anchor);
         }
 
-        self.chunk.write_code(Op::Discard8);
+        self.chunk.write_code(Op::Discard);
 
         if is_and {
             self.chunk.write_code(Op::PushTrue);
