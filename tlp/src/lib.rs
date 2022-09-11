@@ -40,12 +40,12 @@ impl Db {
     // }
 
     /// Converts a given offset in a given file into line/column information.
-    pub fn line_column(&self, input_file: InputFile, offset: Offset) -> LineColumn {
+    pub fn line_column_at(&self, input_file: InputFile, offset: Offset) -> LineColumn {
         base::ln::line_column(self, input_file, offset)
     }
 
     /// Converts a `FileSpan` into its constituent parts.
-    pub fn line_columns(&self, span: FileSpan) -> (InputFile, LineColumn, LineColumn) {
+    pub fn line_column_spans(&self, span: FileSpan) -> (InputFile, LineColumn, LineColumn) {
         let start = self.line_column(span.input_file, span.start);
         let end = self.line_column(span.input_file, span.end);
         (span.input_file, start, end)
