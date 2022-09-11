@@ -103,9 +103,15 @@ fn boolean() {
     test_expr("true", true);
     test_expr("false", false);
 
+    test_expr("(and false false)", false);
     test_expr("(and true false)", false);
-    test_expr("(or false true)", true);
+    test_expr("(and false true)", false);
+    test_expr("(and true true)", true);
+
+    test_expr("(or false false)", false);
     test_expr("(or true false)", true);
+    test_expr("(or false true)", true);
+    test_expr("(or true true)", true);
 
     test_expr("(let b false) (or b true)", true);
     test_expr("(let b true) (and b true)", true);
