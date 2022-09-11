@@ -121,9 +121,18 @@ impl<'a> LowerBody<'a> {
             ast::Expr::Call(call) => {
                 let path = self.lower_ast_expr(call.path().into());
                 let args = call.args().map(|expr| self.lower_ast_expr(expr)).collect();
-
                 let expr = expr::Call { path, args };
                 self.alloc(ExprData::Call(expr), span)
+            }
+            ast::Expr::And(and) => {
+                let exprs = and.exprs().map(|expr| self.lower_ast_expr(expr)).collect();
+                let expr = expr::And { exprs };
+                self.alloc(ExprData::And(expr), span)
+            }
+            ast::Expr::Or(or) => {
+                let exprs = or.exprs().map(|expr| self.lower_ast_expr(expr)).collect();
+                let expr = expr::Or { exprs };
+                self.alloc(ExprData::Or(expr), span)
             }
             ast::Expr::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
@@ -290,12 +299,21 @@ fn compute_expr_scopes(
         }
 
         // --------------------------------------------------------------------------------
-        // Walk child expressions and track scope for them.
-        // It should not modify curernt scope.
+        // Walk child expressions and track their scopes
         // --------------------------------------------------------------------------------
         ExprData::Call(call) => {
             self::compute_expr_scopes(call.path, body_data, scopes, scope_idx);
             call.args.iter().for_each(|expr| {
+                self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
+            });
+        }
+        ExprData::And(and) => {
+            and.exprs.iter().for_each(|expr| {
+                self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
+            });
+        }
+        ExprData::Or(or) => {
+            or.exprs.iter().for_each(|expr| {
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
             });
         }
@@ -306,7 +324,6 @@ fn compute_expr_scopes(
         ExprData::Missing => {}
         ExprData::Path(_) => {}
         ExprData::Literal(_) => {}
-        _ => todo!(),
     }
 
     scope_idx

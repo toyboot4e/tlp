@@ -33,6 +33,8 @@ pub enum ExprData {
     Call(Call),
     Literal(Literal),
     Path(Path),
+    And(And),
+    Or(Or),
 }
 
 impl ExprData {
@@ -161,4 +163,14 @@ impl Path {
 
         Self { segments }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct And {
+    pub exprs: Vec<Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Or {
+    pub exprs: Vec<Expr>,
 }
