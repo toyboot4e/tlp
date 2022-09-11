@@ -101,7 +101,7 @@ impl<'a> LowerBody<'a> {
             }
 
             expr::Block {
-                children: children.into_boxed_slice(),
+                exprs: children.into_boxed_slice(),
             }
         };
 
@@ -277,7 +277,7 @@ fn compute_expr_scopes(
             // This is important for traverse as `ScopeData` only contains `parernt` index.
             scopes.track_expr_scope(expr, block_scope_idx);
 
-            self::compute_block_scopes(&block.children, body_data, scopes, block_scope_idx);
+            self::compute_block_scopes(&block.exprs, body_data, scopes, block_scope_idx);
         }
         ExprData::Let(let_) => {
             // expr: track scope

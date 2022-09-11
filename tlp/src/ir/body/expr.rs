@@ -25,7 +25,7 @@ id! {
     pub struct Expr;
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ExprData {
     Missing,
     Block(Block),
@@ -61,15 +61,15 @@ impl_from! {
 }
 
 /// Code block of S-expressions
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Block {
     // TODO: statements?
-    pub children: Box<[Expr]>,
+    pub exprs: Box<[Expr]>,
 }
 
 impl Block {
     pub fn iter(&self) -> impl Iterator<Item = &Expr> {
-        self.children.iter()
+        self.exprs.iter()
     }
 }
 
@@ -78,25 +78,25 @@ impl<'a> IntoIterator for &'a Block {
     type IntoIter = std::slice::Iter<'a, Expr>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.children.into_iter()
+        self.exprs.into_iter()
     }
 }
 
 /// Code block of S-expressions
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Let {
     pub pat: Pat,
     pub rhs: Expr,
 }
 
 /// Procedure call
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Call {
     pub path: Expr,
     pub args: Box<[Expr]>,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Literal {
     String(String),
     Char(char),
@@ -105,7 +105,7 @@ pub enum Literal {
     I32(i32),
 }
 
-#[derive(PartialEq, PartialOrd, Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct TotalF32(pub f32);
 
 impl cmp::Eq for TotalF32 {}
@@ -132,7 +132,7 @@ impl hash::Hash for TotalF32 {
 }
 
 impl Literal {
-    pub fn parse(x: ast::Num) -> Result<Self, String> {
+    pub fn parse_num(x: ast::Num) -> Result<Self, String> {
         let text = x.syntax().text();
 
         if let Ok(x) = text.parse::<i32>() {
@@ -147,7 +147,7 @@ impl Literal {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Path {
     pub segments: Box<[Word]>,
 }
