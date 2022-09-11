@@ -135,14 +135,14 @@ impl<'a> LowerBody<'a> {
                 self.alloc(ExprData::Or(expr), span)
             }
             ast::Expr::When(when) => {
-                let pred = when.pred().map(|expr| self.lower_ast_expr(expr));
+                let pred = self.lower_opt_ast_expr(when.pred());
                 let block = self.lower_block(when.block());
 
                 let expr = expr::When { pred, block };
                 self.alloc(ExprData::When(expr), span)
             }
             ast::Expr::Unless(unless) => {
-                let pred = unless.pred().map(|expr| self.lower_ast_expr(expr));
+                let pred = self.lower_opt_ast_expr(unless.pred());
                 let block = self.lower_block(unless.block());
 
                 let expr = expr::Unless { pred, block };

@@ -27,6 +27,7 @@ id! {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ExprData {
+    // TODO: consider removing missing expr
     Missing,
     Block(Block),
     Let(Let),
@@ -179,12 +180,12 @@ pub struct Or {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct When {
-    pub pred: Option<Expr>,
+    pub pred: Expr,
     pub block: Expr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Unless {
-    pub pred: Option<Expr>,
+    pub pred: Expr,
     pub block: Expr,
 }

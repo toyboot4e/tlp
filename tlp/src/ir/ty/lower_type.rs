@@ -99,7 +99,12 @@ impl<'db> Collect<'db> {
         let expr_data = &self.body_data.tables[expr];
 
         let ty = match expr_data {
-            ExprData::Missing => WipTypeData::Data(TypeData::Unknown),
+            ExprData::Missing => {
+                // TODO: reconsider
+                // missing expression can have any type
+                WipTypeData::Var
+            }
+
             ExprData::Block(block) => {
                 block.iter().for_each(|&expr| {
                     self.collect_expr(expr);
@@ -161,40 +166,16 @@ impl<'db> Collect<'db> {
                 WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
             }
             ExprData::When(when) => {
-                if let Some(pred) = when.pred {
-                    self.collect_expr(pred);
-                }
+                self.collect_expr(when.pred);
                 self.collect_expr(when.block);
 
-                // `when` expression's type = the inner block's type
-                let ty_index = self.expr_types[&when.block];
-
-                assert!(
-                    self.expr_types.insert(expr, ty_index).is_none(),
-                    "bug: duplicate visit: {:?} {:?}",
-                    expr,
-                    when
-                );
-
-                return;
+                WipTypeData::Data(TypeData::Stmt)
             }
             ExprData::Unless(unless) => {
-                if let Some(pred) = unless.pred {
-                    self.collect_expr(pred);
-                }
+                self.collect_expr(unless.pred);
                 self.collect_expr(unless.block);
 
-                // `unless` expression's type = the inner block's type
-                let ty_index = self.expr_types[&unless.block];
-
-                assert!(
-                    self.expr_types.insert(expr, ty_index).is_none(),
-                    "bug: duplicate visit: {:?} {:?}",
-                    expr,
-                    unless
-                );
-
-                return;
+                WipTypeData::Data(TypeData::Stmt)
             }
         };
 
