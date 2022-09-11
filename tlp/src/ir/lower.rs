@@ -26,7 +26,7 @@ use crate::{
 pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFile {
     let mut items = Vec::new();
 
-    let src = file.source_text(db.as_base_db());
+    let src = file.source_text(db.base());
     let parse = ast::parse(src);
     let ast = parse.doc;
 
@@ -50,12 +50,9 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
 
 // TODO: why not `return_ref`?
 #[salsa::tracked(jar = IrJar)]
-pub fn lower_body(db: &dyn IrDb, proc: item::Proc) -> body::Body {
-    let input_file = proc.span(db).input_file;
-
+pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> body::Body {
     let mut lower = LowerBody {
         db,
-        input_file,
         tables: Default::default(),
         spans: Default::default(),
         root_block: Default::default(),
@@ -67,7 +64,6 @@ pub fn lower_body(db: &dyn IrDb, proc: item::Proc) -> body::Body {
 
 struct LowerBody<'a> {
     db: &'a dyn IrDb,
-    input_file: InputFile,
     tables: body::BodyTables,
     spans: body::BodySpans,
     root_block: Option<Expr>,
@@ -169,7 +165,7 @@ impl<'a> LowerBody<'a> {
         match ast_pat {
             ast::Pat::PatPath(_) => todo!(),
             ast::Pat::PatIdent(ident) => {
-                let name = Word::intern(self.db.as_base_db(), ident.ident_token().text());
+                let name = Word::intern(self.db.base(), ident.ident_token().text());
                 let pat = PatData::Bind { name };
                 self.alloc(pat, Ok(span))
             }
@@ -224,7 +220,7 @@ pub(crate) fn lower_item_scope(db: &dyn IrDb, file: InputFile) -> ItemScope {
         };
 
         let name = proc.name(db);
-        scope.declare_proc(name.word(db.as_base_db()), *proc);
+        scope.declare_proc(name.word(db.base()), *proc);
     }
 
     ItemScope::new(db, scope)

@@ -237,7 +237,7 @@ First I'll try to make it. Not scared, I'm in incremental development mode.
 +
 `salsa-2022` is coming! https://github.com/salsa-rs/salsa/issues/305[Tracking issue]. The only advanced code base based on it out there is {dada}. I looked into {dada} and got the basic idea of `salsa-2022`.
 +
-In the context of `rust-analyzer`, `salsa-2022` *much* simplifies the `hir_def` crate. *We don't have to keep holding `ItemTree`*. Each `Item` is indexed by their `name` as `#[id]`. And that's it. The item IDs keep pointing to the same item. It's even stable on items reordered.
+In the context of `rust-analyzer`, `salsa-2022` *much* simplifies the `hir_def` crate. *We don't have to keep holding `ItemTree`*. Each `Item` is indexed by their `name` as `#[id]`. And that's it. The item IDs keep pointing to the same item. It's even stable when items are reordered.
 +
 Accessing ID-relevant data is trivial. I'm re-implementing `hir_def` alternative (just called `ir`), and here's a simple test case:
 +

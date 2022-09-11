@@ -1,11 +1,14 @@
 //! Resolve expressions by name
+//!
+//! TODO: incremental computation
 
 use la_arena::Idx;
 
 use crate::ir::{
     body::{
-        expr::Expr,
+        expr::{self, Expr},
         expr_scope::{ExprScopeMap, ScopeData},
+        pat::Pat,
     },
     item,
     item_scope::ItemScope,
@@ -35,13 +38,45 @@ pub struct Resolver {
     scopes: Vec<Scope>,
 }
 
-pub fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
+impl Resolver {
+    fn scopes(&self) -> impl Iterator<Item = &Scope> {
+        self.scopes.iter().rev()
+    }
+
+    pub fn resolve_path_as_pattern(&self, db: &dyn IrDb, path: &expr::Path) -> Option<Pat> {
+        assert_eq!(path.segments.len(), 1, "support path");
+        let ident = path.segments[0];
+
+        for scope in self.scopes() {
+            match scope {
+                Scope::Expr(scope) => {
+                    let scope_data = scope.map.data(db);
+
+                    if let Some(entry) = scope_data
+                        .entries(scope.idx)
+                        .iter()
+                        .find(|entry| entry.name == ident)
+                    {
+                        return Some(entry.pat);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // TODO: lookup global variables
+
+        None
+    }
+}
+
+pub(crate) fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
     let scopes = proc.expr_scopes(db).data(db);
     let scope = scopes.scope_for_expr(expr);
     self::resolver_for_proc_scope(db, proc, scope)
 }
 
-pub fn resolver_for_proc_scope(
+pub(crate) fn resolver_for_proc_scope(
     db: &dyn IrDb,
     proc: item::Proc,
     scope_idx: Option<Idx<ScopeData>>,

@@ -17,11 +17,11 @@ pub struct BaseJar(
 );
 
 pub trait BaseDb: salsa::DbWithJar<BaseJar> {
-    fn as_base_db(&self) -> &dyn BaseDb;
+    fn base(&self) -> &dyn BaseDb;
 }
 
 impl<T: salsa::DbWithJar<BaseJar>> BaseDb for T {
-    fn as_base_db(&self) -> &dyn BaseDb {
+    fn base(&self) -> &dyn BaseDb {
         self
     }
 }

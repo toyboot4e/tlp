@@ -5,18 +5,19 @@ pub mod scope;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
 
-use base::jar::{InputFile, Word};
+use base::jar::InputFile;
 
 use crate::{
     ir::{
         body::{
             expr::{self, Expr, ExprData},
             pat::{Pat, PatData},
-            Body, BodyData,
+            BodyData,
         },
         item,
+        ty::{self, TypeTable},
     },
-    vm::code::{Chunk, OpCode, TypedLiteral},
+    vm::code::{Chunk, Op, TypedLiteral},
     Db,
 };
 
@@ -119,55 +120,63 @@ impl Compiler {
 
         // body
         {
+            let types = proc.type_table(db);
+
             for &expr in body_data.root_block() {
-                let expr_data = &body_data.tables[expr];
-                self.compile_expr(db, &body_data, expr, expr_data);
+                self.compile_expr(db, &body_data, types, expr);
             }
         }
 
         // pop frame
         // FIXME: Handle frame stack pop and return value
-        self.chunk.write_code(OpCode::OpReturn);
+        self.chunk.write_code(Op::Ret);
     }
 
     #[allow(unused)]
-    fn compile_expr(&mut self, db: &Db, body_data: &BodyData, expr: Expr, expr_data: &ExprData) {
+    fn compile_expr(&mut self, db: &Db, body_data: &BodyData, types: &TypeTable, expr: Expr) {
+        let expr_data = &body_data.tables[expr];
+
         match expr_data {
             ExprData::Call(call) => {
-                let path = body_data.tables[call.path].clone().into_path();
+                if let ty::TypeData::Op(op) = &types[call.path] {
+                    assert_eq!(
+                        call.args.len(),
+                        2,
+                        "binary operator must take just two arguments"
+                    );
 
-                // TODO: maybe support dot-separated path
-                let name = path.segments[0].clone();
+                    let lhs_idx = call.args[0];
+                    self.compile_expr(db, body_data, types, lhs_idx);
 
-                match name.as_str(db) {
-                    "+" | "-" | "*" | "/" => {
-                        assert_eq!(
-                            call.args.len(),
-                            2,
-                            "binary operator must take just two arguments"
-                        );
+                    let rhs_idx = call.args[1];
+                    self.compile_expr(db, body_data, types, rhs_idx);
 
-                        let lhs_idx = call.args[0];
-                        let lhs = &body_data.tables[lhs_idx];
-                        self.compile_expr(db, body_data, lhs_idx, &lhs);
+                    let op = match (op.kind, op.target_ty) {
+                        (ty::OpKind::Add, ty::OpTargetType::I32) => Op::AddI32,
+                        (ty::OpKind::Add, ty::OpTargetType::F32) => Op::AddF32,
+                        (ty::OpKind::Sub, ty::OpTargetType::I32) => Op::SubI32,
+                        (ty::OpKind::Sub, ty::OpTargetType::F32) => Op::SubF32,
+                        (ty::OpKind::Mul, ty::OpTargetType::I32) => Op::MulI32,
+                        (ty::OpKind::Mul, ty::OpTargetType::F32) => Op::MulF32,
+                        (ty::OpKind::Div, ty::OpTargetType::I32) => Op::DivI32,
+                        (ty::OpKind::Div, ty::OpTargetType::F32) => Op::DivF32,
+                        _ => todo!("{:?}", op),
+                    };
 
-                        let rhs_idx = call.args[1];
-                        let rhs = &body_data.tables[rhs_idx];
-                        self.compile_expr(db, body_data, rhs_idx, &rhs);
+                    self.chunk.write_code(op);
+                } else {
+                    // TODO: resolve `Call` to typed builtin methods
+                    let path = body_data.tables[call.path].clone().into_path();
 
-                        // FIXME: Don't assume `f32` type
-                        let op = self::to_oper_f32(name.as_str(db)).unwrap();
-                        self.chunk.write_code(op);
-                    }
-                    _ => {
-                        todo!("{:?}", call);
-                    }
-                };
+                    // TODO: maybe support dot-separated path
+                    let name = path.segments[0].clone();
+
+                    todo!("non-builtin function call: {:?}", call);
+                }
             }
             ExprData::Let(let_) => {
                 let rhs_idx = let_.rhs;
-                let rhs = &body_data.tables[rhs_idx];
-                let rhs = self.compile_expr(db, body_data, rhs_idx, rhs);
+                let rhs = self.compile_expr(db, body_data, types, rhs_idx);
 
                 let local_idx = self.call_frame.as_ref().unwrap().locals[&let_.pat];
                 let local_idx = local_idx as u8;
@@ -219,12 +228,12 @@ fn find_procedure_by_name(db: &Db, file: InputFile, name: &str) -> item::Proc {
     }
 }
 
-fn to_oper_f32(s: &str) -> Option<OpCode> {
+fn to_oper_f32(s: &str) -> Option<Op> {
     Some(match s {
-        "+" => OpCode::OpAddF32,
-        "-" => OpCode::OpSubF32,
-        "*" => OpCode::OpMulF32,
-        "/" => OpCode::OpDivF32,
+        "+" => Op::AddF32,
+        "-" => Op::SubF32,
+        "*" => Op::MulF32,
+        "/" => Op::DivF32,
         _ => return None,
     })
 }

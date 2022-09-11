@@ -22,11 +22,11 @@ pub enum VmError {
     #[error("runtime error")]
     RuntimeError,
     #[error("{code:?} must be followed by an index ({at})")]
-    MissingIndex { code: OpCode, at: usize },
+    MissingIndex { code: Op, at: usize },
     #[error("nothing to negate")]
     NothingToNegate,
     #[error("end of bytecode while applying operator {op:?}")]
-    EobWhileOp { op: OpCode },
+    EobWhileOp { op: Op },
 }
 
 /// Toy Lisp bytecode virtual machine
@@ -73,8 +73,8 @@ impl Vm {
         b
     }
 
-    fn bump_opcode(&mut self) -> OpCode {
-        let code: OpCode = self.chunk.read_opcode(self.ip);
+    fn bump_opcode(&mut self) -> Op {
+        let code: Op = self.chunk.read_opcode(self.ip);
         self.ip += 1;
         code
     }
@@ -88,62 +88,79 @@ impl Vm {
         while self.ip < chunk_len {
             let code = self.bump_opcode();
 
-            use OpCode::*;
             match code {
-                OpReturn => {
+                Op::Ret => {
                     // REMARK: the return value has to be poped by the caller (bad design?)
                     return Ok(());
                 }
 
                 // constants
-                OpConst8 => {
+                Op::PushConst8 => {
                     let const_ix = self.bump_u8();
                     let unit = self.chunk.read_literal_u8(const_ix);
                     self.stack.push(unit);
                 }
 
-                OpConst16 => {
+                Op::PushConst16 => {
                     let const_ix = self.bump_u16();
                     let unit = self.chunk.read_literal_u16(const_ix);
                     self.stack.push(unit);
                 }
 
                 // call frame
-                OpAllocFrame8 => {
+                Op::AllocFrame8 => {
                     let local_capacity = self.bump_u8();
                     let local_capacity = local_capacity as usize;
                     self.stack.push_call_frame(local_capacity);
                 }
 
                 // locals
-                OpPushLocalUnit8 => {
+                Op::PushLocalUnit8 => {
                     let local_ix = self.bump_u8();
                     let local = self.stack.read_local_u8(local_ix);
                     self.stack.push(local);
                 }
 
-                OpSetLocalUnit8 => {
+                Op::SetLocalUnit8 => {
                     let local_ix = self.bump_u8();
                     let unit = self.stack.pop().unwrap();
                     self.stack.set_local_u8(local_ix, unit);
                 }
 
-                // builtin operators
-                OpNegateF32 => {
+                // `f32` operators (builtin)
+                Op::NegF32 => {
                     self.unit_op(|x: f32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
                 }
-                OpAddF32 => {
-                    self.binary_op::<f32>(OpAddF32, ops::Add::<f32>::add)?;
+                Op::AddF32 => {
+                    self.binary_op::<f32>(Op::AddF32, ops::Add::<f32>::add)?;
                 }
-                OpSubF32 => {
-                    self.binary_op::<f32>(OpSubF32, ops::Sub::<f32>::sub)?;
+                Op::SubF32 => {
+                    self.binary_op::<f32>(Op::SubF32, ops::Sub::<f32>::sub)?;
                 }
-                OpMulF32 => {
-                    self.binary_op::<f32>(OpMulF32, ops::Mul::<f32>::mul)?;
+                Op::MulF32 => {
+                    self.binary_op::<f32>(Op::MulF32, ops::Mul::<f32>::mul)?;
                 }
-                OpDivF32 => {
-                    self.binary_op::<f32>(OpDivF32, ops::Div::<f32>::div)?;
+                Op::DivF32 => {
+                    self.binary_op::<f32>(Op::DivF32, ops::Div::<f32>::div)?;
+                }
+
+                // `i32` operators (builtin)
+                Op::NegI32 => {
+                    self.unit_op(|x: i32| -x)
+                        .map_err(|_| VmError::NothingToNegate)?;
+                }
+                Op::AddI32 => {
+                    self.binary_op::<i32>(Op::AddI32, ops::Add::<i32>::add)?;
+                }
+                Op::SubI32 => {
+                    self.binary_op::<i32>(Op::SubI32, ops::Sub::<i32>::sub)?;
+                }
+                Op::MulI32 => {
+                    self.binary_op::<i32>(Op::MulI32, ops::Mul::<i32>::mul)?;
+                }
+                Op::DivI32 => {
+                    self.binary_op::<i32>(Op::DivI32, ops::Div::<i32>::div)?;
                 }
             }
         }
@@ -161,7 +178,7 @@ impl Vm {
     }
 
     /// Pushes binary operator to the stack
-    fn binary_op<T: UnitVariant>(&mut self, op: OpCode, oper: impl Fn(T, T) -> T) -> Result<()> {
+    fn binary_op<T: UnitVariant>(&mut self, op: Op, oper: impl Fn(T, T) -> T) -> Result<()> {
         let y = self.stack.pop().ok_or_else(|| VmError::EobWhileOp { op })?;
         let x = self.stack.pop().ok_or_else(|| VmError::EobWhileOp { op })?;
 
