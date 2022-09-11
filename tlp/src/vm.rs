@@ -94,6 +94,16 @@ impl Vm {
                     return Ok(());
                 }
 
+                Op::PushTrue => {
+                    self.stack.push(true.into_unit());
+                }
+                Op::PushFalse => {
+                    self.stack.push(false.into_unit());
+                }
+                Op::Discard8 => {
+                    self.stack.pop().unwrap();
+                }
+
                 // constants
                 Op::PushConst8 => {
                     let const_ix = self.bump_u8();
@@ -130,6 +140,26 @@ impl Vm {
                     let local_ix = self.bump_u8();
                     let unit = self.stack.pop().unwrap();
                     self.stack.set_local_u8(local_ix, unit);
+                }
+
+                // jump
+                Op::Jump16 => {
+                    let ip = self.bump_u16();
+                    self.ip = ip as usize;
+                }
+                Op::JumpIf16 => {
+                    let ip = self.bump_u16();
+                    let b = bool::from_unit(self.stack.pop().unwrap());
+                    if b {
+                        self.ip = ip as usize;
+                    }
+                }
+                Op::JumpIfNot16 => {
+                    let ip = self.bump_u16();
+                    let b = bool::from_unit(self.stack.pop().unwrap());
+                    if !b {
+                        self.ip = ip as usize;
+                    }
                 }
 
                 // `f32` operators (builtin)

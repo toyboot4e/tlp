@@ -26,16 +26,24 @@ fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display, header: impl
     panic!("{}", s);
 }
 
-#[allow(unused)]
-fn log_chunk(src: &str, chunk: &Chunk) {
-    println!("Source:");
-    println!("{}", src);
-    println!("--------------------------------------------------------------------------------");
+fn log_chunk(src: &str, chunk: &Chunk) -> Result<String, fmt::Error> {
+    let mut s = String::new();
 
-    let s = chunk.disassemble().unwrap();
-    println!("{}", s);
+    writeln!(s, "Source: {}", src)?;
 
-    println!("--------------------------------------------------------------------------------");
+    writeln!(
+        s,
+        "--------------------------------------------------------------------------------"
+    )?;
+
+    writeln!(s, "{}", chunk.disassemble().unwrap())?;
+
+    writeln!(
+        s,
+        "--------------------------------------------------------------------------------"
+    )?;
+
+    Ok(s)
 }
 
 fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) {
@@ -53,13 +61,24 @@ fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: 
         chunk
     };
 
-    log_chunk(&src, &chunk);
+    let mut vm = Vm::new(chunk.clone());
+    if let Err(e) = vm.run() {
+        panic!("{}\n{}", e, log_chunk(&src, &chunk).unwrap());
+    }
 
-    let mut vm = Vm::new(chunk);
-    vm.run().unwrap();
-
-    let unit = vm.units().last().unwrap();
-    assert_eq!(T::from_unit(*unit), expected);
+    let unit = match vm.units().last() {
+        Some(x) => x,
+        None => panic!(
+            "Nothing on stack after run.\n{}",
+            log_chunk(&src, &chunk).unwrap()
+        ),
+    };
+    assert_eq!(
+        T::from_unit(*unit),
+        expected,
+        "{}",
+        log_chunk(&src, &chunk).unwrap()
+    );
 }
 
 #[test]
@@ -89,4 +108,5 @@ fn boolean() {
     test_expr("(or true false)", true);
 
     test_expr("(let b false) (or b true)", true);
+    test_expr("(let b true) (and b true)", true);
 }

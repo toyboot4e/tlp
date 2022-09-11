@@ -216,13 +216,70 @@ impl Compiler {
                 self.chunk.write_push_local_u8(local_idx as u8);
             }
             ExprData::And(and) => {
-                // evaluate one by one, but short-circuit when we can
-                todo!()
+                //
+                self.compile_bool_oper(db, body_data, types, &and.exprs, true);
             }
             ExprData::Or(or) => {
-                // evaluate one by one, but short-circuit when we can
-                todo!()
+                //
+                self.compile_bool_oper(db, body_data, types, &or.exprs, false);
             }
+        }
+    }
+
+    /// `and` or `or`
+    fn compile_bool_oper(
+        &mut self,
+        db: &Db,
+        body_data: &BodyData,
+        types: &TypeTable,
+        exprs: &[Expr],
+        is_and: bool,
+    ) {
+        let mut anchors = Vec::new();
+
+        if is_and {
+            // `false` on short-circuit
+            self.chunk.write_code(Op::PushFalse);
+        } else {
+            // `true` on short-circuit
+            self.chunk.write_code(Op::PushTrue);
+        }
+
+        for &expr in exprs {
+            let expr_data = &body_data.tables[expr];
+
+            assert_eq!(
+                types[expr],
+                ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+            );
+
+            self.compile_expr(db, body_data, types, expr);
+
+            let anchor = if is_and {
+                // `and`: short circuit on `false`
+                self.chunk.write_jump_if_not_u16()
+            } else {
+                // `or`: short circuit on `true`
+                self.chunk.write_jump_if_u16()
+            };
+
+            anchors.push(anchor);
+        }
+
+        self.chunk.write_code(Op::Discard8);
+
+        if is_and {
+            self.chunk.write_code(Op::PushTrue);
+        } else {
+            self.chunk.write_code(Op::PushFalse);
+        }
+
+        let ip = self.chunk.bytes().len();
+        assert!(ip <= u16::MAX as usize);
+        let ip = ip as u16;
+
+        for anchor in anchors {
+            anchor.write_ip(&mut self.chunk, ip);
         }
     }
 }
