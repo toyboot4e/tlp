@@ -340,21 +340,21 @@ impl Or {
 
 impl When {
     pub fn pred(&self) -> Option<Expr> {
-        self.syn.children().filter_map(Expr::cast_node).next()
+        self.syn.children().find_map(Expr::cast_node)
     }
 
-    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
-        self.syn.children().filter_map(Expr::cast_node).skip(1)
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
     }
 }
 
 impl Unless {
     pub fn pred(&self) -> Option<Expr> {
-        self.syn.children().filter_map(Expr::cast_node).next()
+        self.syn.children().find_map(Expr::cast_node)
     }
 
-    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
-        self.syn.children().filter_map(Expr::cast_node).skip(1)
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
     }
 }
 
