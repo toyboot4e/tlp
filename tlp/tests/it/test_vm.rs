@@ -61,7 +61,7 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
         chunk
     };
 
-    // println!("{}", log_chunk(&src, &chunk).unwrap());
+    println!("{}", log_chunk(&src, &chunk).unwrap());
 
     let mut vm = Vm::new(chunk.clone());
     if let Err(e) = vm.run() {
@@ -156,6 +156,10 @@ fn control_flow() {
     test_expr("(let a 0) (when true (set a 10)) a", 10);
     test_expr("(unless false true) 15", 15);
 
+    // cond expression
     test_expr("(cond (false 10) (true 15))", 15);
     test_expr("(cond (true 10) (false 15))", 10);
+
+    // cond statement
+    test_expr("(cond (false 10) (false 15))", 0);
 }

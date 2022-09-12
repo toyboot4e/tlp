@@ -108,6 +108,7 @@ impl Vm {
                     self.stack.push(Default::default());
                 }
                 Op::Discard => {
+                    println!("{:?}", self);
                     self.stack.pop().unwrap();
                 }
 

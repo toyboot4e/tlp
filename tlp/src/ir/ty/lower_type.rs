@@ -195,8 +195,11 @@ impl<'db> Collect<'db> {
                     self.collect_expr(case.block);
                 }
 
-                // `cond` return types needs to be inferred
-                WipTypeData::Var
+                if cond.is_expr {
+                    WipTypeData::Var
+                } else {
+                    WipTypeData::Data(TypeData::Stmt)
+                }
             }
             ExprData::Set(set) => {
                 self.collect_expr(set.place);
@@ -355,6 +358,10 @@ impl<'db, 'map> Infer<'db, 'map> {
                 for case in &cond.cases {
                     self.unify_expected(self.expr_types[&case.pred], &b);
                     self.infer_expr(case.block);
+                }
+
+                if !cond.is_expr {
+                    return;
                 }
 
                 // unify blocks

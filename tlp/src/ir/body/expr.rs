@@ -201,6 +201,9 @@ pub struct Unless {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Cond {
+    /// Is this `cond` expression (or statement)? If no `CondCase` has `true` for test, it's a
+    /// statement.
+    pub is_expr: bool,
     pub cases: Vec<CondCase>,
 }
 

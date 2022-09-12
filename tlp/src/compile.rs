@@ -275,9 +275,20 @@ impl Compiler {
                     self.write_anchor(on_mismatch);
                 }
 
+                // otherwise: push `<none>`. the case is never reached on `cond` expression
+                if !cond.is_expr {
+                    self.chunk.write_code(Op::PushNone);
+                }
+
                 // jump to IP after `cond` on each end of case
                 for anchor in case_end_anchors {
                     self.write_anchor(anchor);
+                }
+
+                // if it's a statement, overwrite the last expression of any type
+                if !cond.is_expr {
+                    self.chunk.write_code(Op::Discard);
+                    self.chunk.write_code(Op::PushNone);
                 }
             }
             ExprData::Set(set) => {

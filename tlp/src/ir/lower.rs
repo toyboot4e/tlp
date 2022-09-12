@@ -158,7 +158,17 @@ impl<'a> LowerBody<'a> {
                     cases.push(case);
                 }
 
-                let expr = expr::Cond { cases };
+                // If there's any case that has `true` test case, it's an expression.
+                // Otherwise it's a statement
+                let is_expr = cond.cases().any(|case| {
+                    if let Some(ast::Expr::Literal(lit)) = case.pred() {
+                        matches!(lit.kind(), ast::LiteralKind::True(_))
+                    } else {
+                        false
+                    }
+                });
+
+                let expr = expr::Cond { is_expr, cases };
                 self.alloc(ExprData::Cond(expr), span)
             }
             ast::Expr::Set(set) => {
