@@ -16,6 +16,8 @@ pub enum Op {
     PushTrue,
     /// Push `false` to the stack
     PushFalse,
+    /// Push `<none>` to the stack
+    PushNone,
     /// Pop and do nothing
     Discard,
 
@@ -75,6 +77,7 @@ impl Op {
             Op::Discard => "discard",
             Op::PushTrue => "push-true",
             Op::PushFalse => "push-false",
+            Op::PushNone => "push-none",
             Op::PushConst8 => "push-const-8",
             Op::PushConst16 => "push-const-16",
             Op::AllocFrame8 => "alloc-frame-8",
@@ -83,7 +86,7 @@ impl Op {
             Op::SetLocalUnit8 => "set-local-8",
             Op::Jump16 => "jump-16",
             Op::JumpIf16 => "jump-if-16",
-            Op::JumpIfNot16 => "jump-if-16",
+            Op::JumpIfNot16 => "jump-if-not-16",
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
             Op::SubF32 => "sub-f32",

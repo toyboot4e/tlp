@@ -254,6 +254,7 @@ impl ParseState {
         match peek.slice(pcx.src) {
             "proc" => self.bump_list_proc(pcx, checkpoint),
             "let" => self.bump_list_let(pcx, checkpoint),
+            "set" => self.bump_list_set(pcx, checkpoint),
             "when" | "unless" => self.bump_list_control_flow(pcx, checkpoint),
             "and" | "or" => self.bump_list_bool_oper(pcx, checkpoint),
             _ => self.bump_list_call(pcx, checkpoint),
@@ -397,6 +398,37 @@ impl ParseState {
         }
 
         // end `Let`
+        self.builder.finish_node();
+    }
+
+    /// "set" place Sexp ")"
+    fn bump_list_set(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        assert_eq!(tk.slice(pcx.src), "set");
+
+        // wrap the list
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Set.into());
+
+        // place
+        self.maybe_bump_ws(pcx);
+        if self.maybe_bump_path(pcx).is_none() {
+            let err = ParseError::Unexpected {
+                at: pcx.src.len().into(),
+                expected: "<place>".to_string(),
+                found: format!("{:?}", self.peek(pcx)),
+            };
+            self.errs.push(err);
+        }
+
+        // rhs
+        self.maybe_bump_ws(pcx);
+        self.maybe_bump_sexp(pcx);
+
+        // ")"
+        self.maybe_bump_ws(pcx);
+        self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+
         self.builder.finish_node();
     }
 

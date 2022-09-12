@@ -36,6 +36,7 @@ pub enum ExprData {
     Path(Path),
     And(And),
     Or(Or),
+    Set(Set),
     When(When),
     Unless(Unless),
 }
@@ -176,6 +177,13 @@ pub struct And {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Or {
     pub exprs: Vec<Expr>,
+}
+
+/// Set value
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Set {
+    pub place: Expr,
+    pub rhs: Expr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

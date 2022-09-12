@@ -88,6 +88,8 @@ pub enum SyntaxKind {
     PatPath,
     /// Call node
     Call,
+    /// Set node
+    Set,
     /// And node
     And,
     /// Or node

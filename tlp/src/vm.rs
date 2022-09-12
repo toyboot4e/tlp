@@ -57,8 +57,12 @@ impl Vm {
     }
 
     /// Stack bytes
-    pub fn units(&mut self) -> &[Unit] {
+    pub fn units(&self) -> &[Unit] {
         self.stack.units()
+    }
+
+    pub fn stack(&self) -> &Stack {
+        &self.stack
     }
 
     fn bump_u8(&mut self) -> u8 {
@@ -99,6 +103,9 @@ impl Vm {
                 }
                 Op::PushFalse => {
                     self.stack.push(false.into_unit());
+                }
+                Op::PushNone => {
+                    self.stack.push(Default::default());
                 }
                 Op::Discard => {
                     self.stack.pop().unwrap();

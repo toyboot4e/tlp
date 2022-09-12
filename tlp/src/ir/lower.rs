@@ -148,6 +148,13 @@ impl<'a> LowerBody<'a> {
                 let expr = expr::Unless { pred, block };
                 self.alloc(ExprData::Unless(expr), span)
             }
+            ast::Expr::Set(set) => {
+                let place = self.lower_opt_ast_expr(set.place().map(|ast_path| ast_path.into()));
+                let rhs = self.lower_opt_ast_expr(set.rhs());
+
+                let set = expr::Set { place, rhs };
+                self.alloc(ExprData::Set(set), span)
+            }
             ast::Expr::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
                 let rhs = self.lower_opt_ast_expr(let_.rhs());
@@ -332,10 +339,16 @@ fn compute_expr_scopes(
             });
         }
         ExprData::When(when) => {
-            todo!()
+            self::compute_expr_scopes(when.pred, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(when.block, body_data, scopes, scope_idx);
         }
         ExprData::Unless(unless) => {
-            todo!()
+            self::compute_expr_scopes(unless.pred, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(unless.block, body_data, scopes, scope_idx);
+        }
+        ExprData::Set(set) => {
+            self::compute_expr_scopes(set.place, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(set.rhs, body_data, scopes, scope_idx);
         }
 
         // --------------------------------------------------------------------------------

@@ -129,6 +129,7 @@ impl Compiler {
         self.chunk.write_code(Op::Ret);
     }
 
+    /// Compiles an expression. It returns some value or `<none>`
     fn compile_expr(&mut self, db: &Db, body_data: &BodyData, types: &TypeTable, expr: Expr) {
         let expr_data = &body_data.tables[expr];
 
@@ -137,13 +138,24 @@ impl Compiler {
                 todo!("{:#?}", expr_data)
             }
             ExprData::Block(block) => {
-                // TODO: compile root block directly
-                for &expr in block {
+                let (last, exprs) = match block.exprs.split_last() {
+                    Some(x) => x,
+                    None => {
+                        self.chunk.write_code(Op::PushNone);
+                        return;
+                    }
+                };
+
+                for &expr in exprs {
                     // TODO: move validation in `validate` path
                     assert_ne!(types[expr], ty::TypeData::Unknown);
 
+                    // return values other than the last one are discarded
                     self.compile_expr(db, &body_data, types, expr);
+                    self.chunk.write_code(Op::Discard);
                 }
+
+                self.compile_expr(db, &body_data, types, *last);
 
                 // TODO: handle tail expression's return value: return or discard
             }
@@ -193,6 +205,9 @@ impl Compiler {
 
                 let local_idx = local_idx as u8;
                 self.chunk.write_set_local_u8(local_idx);
+
+                // push zero as return value
+                self.chunk.write_code(Op::PushNone)
             }
             ExprData::Literal(lit) => match lit {
                 expr::Literal::F32(x) => {
@@ -213,13 +228,7 @@ impl Compiler {
                 _ => todo!("{:?}", lit),
             },
             ExprData::Path(path) => {
-                let local_idx = self
-                    .call_frame
-                    .as_ref()
-                    .unwrap()
-                    .resolve_path(db, expr, path)
-                    .unwrap();
-
+                let local_idx = self.resolve_path_as_local_index(db, body_data, types, expr, path);
                 self.chunk.write_push_local_u8(local_idx as u8);
             }
             ExprData::And(and) => {
@@ -235,6 +244,14 @@ impl Compiler {
             }
             ExprData::Unless(unless) => {
                 self.compile_branch(db, body_data, types, unless.pred, unless.block, false);
+            }
+            ExprData::Set(set) => {
+                self.compile_expr(db, body_data, types, set.rhs);
+                let local_idx = self.resolve_expr_as_local_index(db, body_data, types, set.place);
+                self.chunk.write_set_local_u8(local_idx as u8);
+
+                // return value is `<none>`
+                self.chunk.write_code(Op::PushNone);
             }
         }
     }
@@ -297,15 +314,17 @@ impl Compiler {
         db: &Db,
         body_data: &BodyData,
         types: &TypeTable,
-        pred: Option<Expr>,
+        pred: Expr,
         block: Expr,
         is_when: bool,
     ) {
-        let pred = pred.unwrap_or_else(|| panic!("no predicate in branch"));
         assert_eq!(
             types[pred],
             ty::TypeData::Primitive(ty::PrimitiveType::Bool)
         );
+
+        // `<none>` is the return value of `when` or `unless`:
+        self.chunk.write_code(Op::PushNone);
 
         self.compile_expr(db, body_data, types, pred);
 
@@ -316,6 +335,8 @@ impl Compiler {
         };
 
         self.compile_expr(db, body_data, types, block);
+        self.chunk.write_code(Op::Discard);
+
         self.write_anchor(anchor);
     }
 
@@ -325,6 +346,39 @@ impl Compiler {
         let ip = ip as u16;
 
         anchor.write_ip(&mut self.chunk, ip);
+    }
+
+    fn resolve_expr_as_local_index(
+        &mut self,
+        db: &Db,
+        body_data: &BodyData,
+        types: &TypeTable,
+        expr: Expr,
+    ) -> usize {
+        let path = match &body_data.tables[expr] {
+            ExprData::Path(p) => p,
+            x => panic!("not a place: {:?}", x),
+        };
+
+        self.resolve_path_as_local_index(db, body_data, types, expr, path)
+    }
+
+    fn resolve_path_as_local_index(
+        &mut self,
+        db: &Db,
+        body_data: &BodyData,
+        types: &TypeTable,
+        expr: Expr,
+        path: &expr::Path,
+    ) -> usize {
+        let local_idx = self
+            .call_frame
+            .as_ref()
+            .unwrap()
+            .resolve_path(db, expr, path)
+            .unwrap_or_else(|| panic!("can't resolve as place: {:?}", path));
+
+        local_idx
     }
 }
 

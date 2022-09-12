@@ -218,7 +218,7 @@ define_enum_node! {
 
 define_enum_node! {
     /// AST expression node (transparent node wrapper)
-    Expr = Let | Call | And | Or | When | Unless | Literal | Path | Block,
+    Expr = Let | Call | Set | And | Or | When | Unless | Literal | Path | Block,
     SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path | SyntaxKind::Block
 }
 
@@ -231,6 +231,9 @@ define_node! {
 
     /// "(" ident sexp* ")"
     Call: SyntaxKind::Call,
+
+    /// "(" "set" sexp ")"
+    Set: SyntaxKind::Set,
 
     /// "(" "and" sexp* ")"
     And: SyntaxKind::And,
@@ -323,6 +326,25 @@ impl Call {
     pub fn args(&self) -> impl Iterator<Item = Expr> {
         // skip function path
         self.syn.children().filter_map(Expr::cast_node).skip(1)
+    }
+}
+
+impl Set {
+    /// Place
+    pub fn place(&self) -> Option<Path> {
+        self.syn.children().find_map(Path::cast_node)
+    }
+
+    /// Function arguments
+    pub fn rhs(&self) -> Option<Expr> {
+        let mut iter = self.syn.children().filter_map(Expr::cast_node);
+
+        let i0 = iter.next()?;
+        if i0.syntax().kind() != SyntaxKind::Path {
+            return None;
+        }
+
+        iter.next()
     }
 }
 
