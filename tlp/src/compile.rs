@@ -323,9 +323,6 @@ impl Compiler {
             ty::TypeData::Primitive(ty::PrimitiveType::Bool)
         );
 
-        // `<none>` is the return value of `when` or `unless`:
-        self.chunk.write_code(Op::PushNone);
-
         self.compile_expr(db, body_data, types, pred);
 
         let anchor = if is_when {
@@ -338,6 +335,9 @@ impl Compiler {
         self.chunk.write_code(Op::Discard);
 
         self.write_anchor(anchor);
+
+        // `<none>` is the return value of `when` or `unless`:
+        self.chunk.write_code(Op::PushNone);
     }
 
     fn write_anchor(&mut self, anchor: JumpAnchor) {

@@ -143,11 +143,16 @@ fn bool_and_or() {
 fn stack_balance() {
     // REMARK: Statement returns `<none>`, which internally is `0`
     test_expr("(let a 0)", 0);
+
+    test_expr("(when false true)", 0);
+    test_expr("(when true true)", 0);
+
+    test_expr("(unless false true)", 0);
+    test_expr("(unless true true)", 0);
 }
 
 #[test]
 fn control_flow() {
-    // TODO: handle statements
     test_expr("(let a 0) (when true (set a 10)) a", 10);
     test_expr("(unless false true) 15", 15);
 }
