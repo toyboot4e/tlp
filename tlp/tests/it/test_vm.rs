@@ -155,4 +155,7 @@ fn stack_balance() {
 fn control_flow() {
     test_expr("(let a 0) (when true (set a 10)) a", 10);
     test_expr("(unless false true) 15", 15);
+
+    test_expr("(cond (false 10) (true 15))", 15);
+    test_expr("(cond (true 10) (false 15))", 10);
 }

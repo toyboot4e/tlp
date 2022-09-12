@@ -189,6 +189,15 @@ impl<'db> Collect<'db> {
 
                 WipTypeData::Data(TypeData::Stmt)
             }
+            ExprData::Cond(cond) => {
+                for case in &cond.cases {
+                    self.collect_expr(case.pred);
+                    self.collect_expr(case.block);
+                }
+
+                // `cond` return types needs to be inferred
+                WipTypeData::Var
+            }
             ExprData::Set(set) => {
                 self.collect_expr(set.place);
                 self.collect_expr(set.rhs);
@@ -341,10 +350,32 @@ impl<'db, 'map> Infer<'db, 'map> {
 
                 self.infer_expr(unless.block);
             }
+            ExprData::Cond(cond) => {
+                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
+                for case in &cond.cases {
+                    self.unify_expected(self.expr_types[&case.pred], &b);
+                    self.infer_expr(case.block);
+                }
+
+                // unify blocks
+                let tys = cond.cases.iter().map(|case| self.expr_types[&case.block]);
+                self.unify_many_vars(tys);
+
+                // FIXME: Get unified type and use it for the cond's type
+                let ty = if let Some(case) = cond.cases.first() {
+                    let ty_index = self.expr_types[&case.block];
+                    self.types[ty_index].clone()
+                } else {
+                    WipTypeData::Data(TypeData::Stmt)
+                };
+
+                let ty_index = self.expr_types[&expr];
+                self.types[ty_index] = ty;
+            }
             ExprData::Set(set) => {
                 let i1 = self.expr_types[&set.place];
                 let i2 = self.expr_types[&set.rhs];
-                self.unify_vars(i1, i2);
+                self.unify_2vars(i1, i2);
             }
         }
     }
@@ -396,7 +427,7 @@ impl<'db, 'map> Infer<'db, 'map> {
     }
 
     /// Compares two types, tries to assign type to type variables and return if they match.
-    pub fn unify_vars(&mut self, i1: TyIndex, i2: TyIndex) -> bool {
+    pub fn unify_2vars(&mut self, i1: TyIndex, i2: TyIndex) -> bool {
         if i1 == i2 {
             return true;
         }
@@ -421,6 +452,34 @@ impl<'db, 'map> Infer<'db, 'map> {
             }
             (WipTypeData::Data(t1), WipTypeData::Data(t2)) => self.cmp_known(i1, i2),
         }
+    }
+
+    // pub fn unify_many_vars(&mut self, tys: &[TyIndex]) -> bool {
+    pub fn unify_many_vars(&mut self, mut tys: impl Iterator<Item = TyIndex>) -> bool {
+        let mut res = true;
+
+        // window(2)
+        let mut t1 = match tys.next() {
+            Some(x) => x,
+            None => return false,
+        };
+        let mut t2 = match tys.next() {
+            Some(x) => x,
+            None => return false,
+        };
+
+        loop {
+            res &= self.unify_2vars(t1, t2);
+
+            if let Some(t) = tys.next() {
+                t1 = t2;
+                t2 = t;
+            } else {
+                break;
+            }
+        }
+
+        res
     }
 
     /// Compares two known types

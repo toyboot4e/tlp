@@ -39,6 +39,7 @@ pub enum ExprData {
     Set(Set),
     When(When),
     Unless(Unless),
+    Cond(Cond),
 }
 
 impl ExprData {
@@ -194,6 +195,17 @@ pub struct When {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Unless {
+    pub pred: Expr,
+    pub block: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Cond {
+    pub cases: Vec<CondCase>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CondCase {
     pub pred: Expr,
     pub block: Expr,
 }

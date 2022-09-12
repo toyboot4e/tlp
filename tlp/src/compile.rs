@@ -240,10 +240,45 @@ impl Compiler {
                 self.compile_bool_oper(db, body_data, types, &or.exprs, false);
             }
             ExprData::When(when) => {
-                self.compile_branch(db, body_data, types, when.pred, when.block, true);
+                let anchor = self.compile_branch(db, body_data, types, when.pred, when.block, true);
+
+                // discard the last value on `true`
+                self.chunk.write_code(Op::Discard);
+
+                self.write_anchor(anchor);
+                // `<none>` is the return value of `when` or `unless`:
+                self.chunk.write_code(Op::PushNone);
             }
             ExprData::Unless(unless) => {
-                self.compile_branch(db, body_data, types, unless.pred, unless.block, false);
+                let anchor =
+                    self.compile_branch(db, body_data, types, unless.pred, unless.block, false);
+
+                // discard the last value on `false`
+                self.chunk.write_code(Op::Discard);
+
+                self.write_anchor(anchor);
+                // `<none>` is the return value of `when` or `unless`:
+                self.chunk.write_code(Op::PushNone);
+            }
+            ExprData::Cond(cond) => {
+                // anchors for the end of each case
+                let mut case_end_anchors = Vec::new();
+
+                for case in &cond.cases {
+                    let on_mismatch =
+                        self.compile_branch(db, body_data, types, case.pred, case.block, true);
+
+                    // go to the end of `cond` on match
+                    case_end_anchors.push(self.chunk.write_jump_u16());
+
+                    // go to next cond case on mismatch
+                    self.write_anchor(on_mismatch);
+                }
+
+                // jump to IP after `cond` on each end of case
+                for anchor in case_end_anchors {
+                    self.write_anchor(anchor);
+                }
             }
             ExprData::Set(set) => {
                 self.compile_expr(db, body_data, types, set.rhs);
@@ -309,6 +344,7 @@ impl Compiler {
         }
     }
 
+    /// Compiles a branch without discarding the last value
     fn compile_branch(
         &mut self,
         db: &Db,
@@ -317,7 +353,7 @@ impl Compiler {
         pred: Expr,
         block: Expr,
         is_when: bool,
-    ) {
+    ) -> JumpAnchor {
         assert_eq!(
             types[pred],
             ty::TypeData::Primitive(ty::PrimitiveType::Bool)
@@ -332,12 +368,8 @@ impl Compiler {
         };
 
         self.compile_expr(db, body_data, types, block);
-        self.chunk.write_code(Op::Discard);
 
-        self.write_anchor(anchor);
-
-        // `<none>` is the return value of `when` or `unless`:
-        self.chunk.write_code(Op::PushNone);
+        anchor
     }
 
     fn write_anchor(&mut self, anchor: JumpAnchor) {
