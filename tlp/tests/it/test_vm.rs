@@ -46,7 +46,7 @@ fn log_chunk(src: &str, chunk: &Chunk) -> Result<String, fmt::Error> {
     Ok(s)
 }
 
-fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) {
+fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Chunk, Vm) {
     let (_doc, errs) = ast::parse(src).into_tuple();
     self::print_errors(&errs, src, "parse error");
 
@@ -61,10 +61,18 @@ fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: 
         chunk
     };
 
+    // println!("{}", log_chunk(&src, &chunk).unwrap());
+
     let mut vm = Vm::new(chunk.clone());
     if let Err(e) = vm.run() {
         panic!("{}\n{}", e, log_chunk(&src, &chunk).unwrap());
     }
+
+    (chunk, vm)
+}
+
+fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
+    let (chunk, vm) = self::run(src, expected.clone());
 
     let unit = match vm.units().last() {
         Some(x) => x,
@@ -73,6 +81,17 @@ fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: 
             log_chunk(&src, &chunk).unwrap()
         ),
     };
+
+    // balance test
+    assert_eq!(
+        vm.units().len(),
+        vm.stack().tmp_offset() + 1,
+        "stack is not balanced: {:?}\n{}",
+        vm.units(),
+        log_chunk(&src, &chunk).unwrap()
+    );
+
+    // check the last and the only value
     assert_eq!(
         T::from_unit(*unit),
         expected,
@@ -99,14 +118,36 @@ fn let_statement() {
 }
 
 #[test]
-fn boolean() {
+fn bool_literal() {
     test_expr("true", true);
     test_expr("false", false);
+}
 
+#[test]
+fn bool_and_or() {
+    test_expr("(and false false)", false);
     test_expr("(and true false)", false);
-    test_expr("(or false true)", true);
+    test_expr("(and false true)", false);
+    test_expr("(and true true)", true);
+
+    test_expr("(or false false)", false);
     test_expr("(or true false)", true);
+    test_expr("(or false true)", true);
+    test_expr("(or true true)", true);
 
     test_expr("(let b false) (or b true)", true);
     test_expr("(let b true) (and b true)", true);
+}
+
+#[test]
+fn stack_balance() {
+    // REMARK: Statement returns `<none>`, which internally is `0`
+    test_expr("(let a 0)", 0);
+}
+
+#[test]
+fn control_flow() {
+    // TODO: handle statements
+    test_expr("(let a 0) (when true (set a 10)) a", 10);
+    test_expr("(unless false true) 15", 15);
 }

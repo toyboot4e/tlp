@@ -128,7 +128,7 @@ impl ParseState {
 
         self.maybe_bump_ws(pcx);
         while self.tsp.end.into_usize() < pcx.tks.len() {
-            self.maybe_bump_sepx(&pcx);
+            self.maybe_bump_sexp(&pcx);
             self.maybe_bump_ws(pcx);
         }
 
@@ -207,7 +207,7 @@ impl ParseState {
 /// High-level syntax items
 impl ParseState {
     /// sexp → list | symbol
-    pub fn maybe_bump_sepx(&mut self, pcx: &ParseContext) -> Option<()> {
+    pub fn maybe_bump_sexp(&mut self, pcx: &ParseContext) -> Option<()> {
         if self.peek(pcx)?.kind == SyntaxKind::LParen {
             self.bump_list(pcx);
         } else {
@@ -254,6 +254,8 @@ impl ParseState {
         match peek.slice(pcx.src) {
             "proc" => self.bump_list_proc(pcx, checkpoint),
             "let" => self.bump_list_let(pcx, checkpoint),
+            "set" => self.bump_list_set(pcx, checkpoint),
+            "when" | "unless" => self.bump_list_control_flow(pcx, checkpoint),
             "and" | "or" => self.bump_list_bool_oper(pcx, checkpoint),
             _ => self.bump_list_call(pcx, checkpoint),
         }
@@ -346,7 +348,7 @@ impl ParseState {
             });
 
             // consume the syntax
-            self.maybe_bump_sepx(pcx);
+            self.maybe_bump_sexp(pcx);
         }
 
         self.builder.finish_node();
@@ -364,7 +366,7 @@ impl ParseState {
                 return Some(());
             }
 
-            if self.maybe_bump_sepx(pcx).is_none() {
+            if self.maybe_bump_sexp(pcx).is_none() {
                 self.errs.push(ParseError::Unexpected {
                     // todo: figure out why it's at this point
                     // todo: use span for error location
@@ -399,7 +401,38 @@ impl ParseState {
         self.builder.finish_node();
     }
 
-    /// ("and" | "or") Pat Expr ")"
+    /// "set" place Sexp ")"
+    fn bump_list_set(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        assert_eq!(tk.slice(pcx.src), "set");
+
+        // wrap the list
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Set.into());
+
+        // place
+        self.maybe_bump_ws(pcx);
+        if self.maybe_bump_path(pcx).is_none() {
+            let err = ParseError::Unexpected {
+                at: pcx.src.len().into(),
+                expected: "<place>".to_string(),
+                found: format!("{:?}", self.peek(pcx)),
+            };
+            self.errs.push(err);
+        }
+
+        // rhs
+        self.maybe_bump_ws(pcx);
+        self.maybe_bump_sexp(pcx);
+
+        // ")"
+        self.maybe_bump_ws(pcx);
+        self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+
+        self.builder.finish_node();
+    }
+
+    /// ("and" | "or") Pat Sexp* ")"
     fn bump_list_bool_oper(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
 
@@ -412,12 +445,53 @@ impl ParseState {
         self._bump_rest_list_wrapping(pcx, checkpoint, kind);
     }
 
+    /// ("when" | "unless") Sexp* ")"
+    fn bump_list_control_flow(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+
+        let kind = match tk.slice(pcx.src) {
+            "when" => SyntaxKind::When,
+            "unless" => SyntaxKind::Unless,
+            x => unreachable!("not `and` or `or`: {}", x),
+        };
+
+        self.maybe_bump_ws(pcx);
+
+        // pred
+        self.maybe_bump_sexp(pcx);
+        self.maybe_bump_ws(pcx);
+
+        // block
+        let block_checkpoint = self.builder.checkpoint();
+        self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
+
+        self._bump_rest_list_wrapping(pcx, checkpoint, kind);
+    }
+
     /// Call → "(" Path Sexp* ")"
     fn bump_list_call(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         self.maybe_bump_path(pcx).unwrap();
         self._bump_rest_list_wrapping(pcx, checkpoint, SyntaxKind::Call);
     }
 
+    /// Bumps to just before `)`
+    fn _bump_to_r_paren_wrapping(
+        &mut self,
+        pcx: &ParseContext,
+        checkpoint: rowan::Checkpoint,
+        kind: SyntaxKind,
+    ) {
+        self.builder.start_node_at(checkpoint, kind.into());
+
+        {
+            self.maybe_bump_ws(pcx);
+            self._bump_sexps_to_end_paren(pcx);
+        }
+
+        self.builder.finish_node();
+    }
+
+    /// Bumps to `)`
     fn _bump_rest_list_wrapping(
         &mut self,
         pcx: &ParseContext,

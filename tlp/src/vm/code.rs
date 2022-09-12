@@ -16,8 +16,10 @@ pub enum Op {
     PushTrue,
     /// Push `false` to the stack
     PushFalse,
+    /// Push `<none>` to the stack
+    PushNone,
     /// Pop and do nothing
-    Discard8,
+    Discard,
 
     /// Operand: byte index
     PushConst8,
@@ -57,11 +59,9 @@ pub enum Op {
 impl Op {
     pub fn operands(&self) -> OpCodeOperands {
         match self {
-            Op::Discard8
-            | Op::PushConst8
-            | Op::AllocFrame8
-            | Op::PushLocalUnit8
-            | Op::SetLocalUnit8 => OpCodeOperands::One,
+            Op::PushConst8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
+                OpCodeOperands::One
+            }
             Op::PushConst16 | Op::AllocFrame16 | Op::Jump16 | Op::JumpIf16 | Op::JumpIfNot16 => {
                 OpCodeOperands::Two
             }
@@ -74,9 +74,10 @@ impl Op {
     pub fn as_str(&self) -> &'static str {
         match self {
             Op::Ret => "ret",
-            Op::Discard8 => "discard-8",
+            Op::Discard => "discard",
             Op::PushTrue => "push-true",
             Op::PushFalse => "push-false",
+            Op::PushNone => "push-none",
             Op::PushConst8 => "push-const-8",
             Op::PushConst16 => "push-const-16",
             Op::AllocFrame8 => "alloc-frame-8",
@@ -85,7 +86,7 @@ impl Op {
             Op::SetLocalUnit8 => "set-local-8",
             Op::Jump16 => "jump-16",
             Op::JumpIf16 => "jump-if-16",
-            Op::JumpIfNot16 => "jump-if-16",
+            Op::JumpIfNot16 => "jump-if-not-16",
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
             Op::SubF32 => "sub-f32",
@@ -397,13 +398,13 @@ impl Chunk {
             OpCodeOperands::Zero => writeln!(s, "{:3}: {}", ip, op.as_str()),
             OpCodeOperands::One => {
                 // TODO: unwrap
-                writeln!(s, "{:3}: {:11} {}", ip, op.as_str(), next(bytes))
+                writeln!(s, "{:3}: {:15} {}", ip, op.as_str(), next(bytes))
             }
             OpCodeOperands::Two => {
                 // TODO: unwrap
                 writeln!(
                     s,
-                    "{:3}: {:11} {} {}",
+                    "{:3}: {:15} {} {}",
                     ip,
                     op.as_str(),
                     next(bytes),

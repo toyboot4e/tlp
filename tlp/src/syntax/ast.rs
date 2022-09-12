@@ -218,7 +218,7 @@ define_enum_node! {
 
 define_enum_node! {
     /// AST expression node (transparent node wrapper)
-    Expr = Let | Call | And | Or | Literal | Path | Block,
+    Expr = Let | Call | Set | And | Or | When | Unless | Literal | Path | Block,
     SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path | SyntaxKind::Block
 }
 
@@ -232,11 +232,20 @@ define_node! {
     /// "(" ident sexp* ")"
     Call: SyntaxKind::Call,
 
+    /// "(" "set" sexp ")"
+    Set: SyntaxKind::Set,
+
     /// "(" "and" sexp* ")"
     And: SyntaxKind::And,
 
     /// "(" "or" sexp* ")"
     Or: SyntaxKind::Or,
+
+    /// "(" "when" sexp* ")"
+    When: SyntaxKind::When,
+
+    /// "(" "unless" sexp* ")"
+    Unless: SyntaxKind::Unless,
 
     /// Expressions marked as inline code block
     Block: SyntaxKind::Block,
@@ -320,6 +329,25 @@ impl Call {
     }
 }
 
+impl Set {
+    /// Place
+    pub fn place(&self) -> Option<Path> {
+        self.syn.children().find_map(Path::cast_node)
+    }
+
+    /// Function arguments
+    pub fn rhs(&self) -> Option<Expr> {
+        let mut iter = self.syn.children().filter_map(Expr::cast_node);
+
+        let i0 = iter.next()?;
+        if i0.syntax().kind() != SyntaxKind::Path {
+            return None;
+        }
+
+        iter.next()
+    }
+}
+
 impl And {
     pub fn exprs(&self) -> impl Iterator<Item = Expr> {
         self.syn.children().filter_map(Expr::cast_node)
@@ -329,6 +357,26 @@ impl And {
 impl Or {
     pub fn exprs(&self) -> impl Iterator<Item = Expr> {
         self.syn.children().filter_map(Expr::cast_node)
+    }
+}
+
+impl When {
+    pub fn pred(&self) -> Option<Expr> {
+        self.syn.children().find_map(Expr::cast_node)
+    }
+
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
+    }
+}
+
+impl Unless {
+    pub fn pred(&self) -> Option<Expr> {
+        self.syn.children().find_map(Expr::cast_node)
+    }
+
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
     }
 }
 

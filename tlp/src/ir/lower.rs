@@ -134,6 +134,27 @@ impl<'a> LowerBody<'a> {
                 let expr = expr::Or { exprs };
                 self.alloc(ExprData::Or(expr), span)
             }
+            ast::Expr::When(when) => {
+                let pred = self.lower_opt_ast_expr(when.pred());
+                let block = self.lower_block(when.block());
+
+                let expr = expr::When { pred, block };
+                self.alloc(ExprData::When(expr), span)
+            }
+            ast::Expr::Unless(unless) => {
+                let pred = self.lower_opt_ast_expr(unless.pred());
+                let block = self.lower_block(unless.block());
+
+                let expr = expr::Unless { pred, block };
+                self.alloc(ExprData::Unless(expr), span)
+            }
+            ast::Expr::Set(set) => {
+                let place = self.lower_opt_ast_expr(set.place().map(|ast_path| ast_path.into()));
+                let rhs = self.lower_opt_ast_expr(set.rhs());
+
+                let set = expr::Set { place, rhs };
+                self.alloc(ExprData::Set(set), span)
+            }
             ast::Expr::Let(let_) => {
                 let pat = self.lower_opt_ast_pat(let_.pat());
                 let rhs = self.lower_opt_ast_expr(let_.rhs());
@@ -316,6 +337,18 @@ fn compute_expr_scopes(
             or.exprs.iter().for_each(|expr| {
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
             });
+        }
+        ExprData::When(when) => {
+            self::compute_expr_scopes(when.pred, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(when.block, body_data, scopes, scope_idx);
+        }
+        ExprData::Unless(unless) => {
+            self::compute_expr_scopes(unless.pred, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(unless.block, body_data, scopes, scope_idx);
+        }
+        ExprData::Set(set) => {
+            self::compute_expr_scopes(set.place, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(set.rhs, body_data, scopes, scope_idx);
         }
 
         // --------------------------------------------------------------------------------

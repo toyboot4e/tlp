@@ -99,14 +99,31 @@ impl<'db> Collect<'db> {
         let expr_data = &self.body_data.tables[expr];
 
         let ty = match expr_data {
-            ExprData::Missing => WipTypeData::Data(TypeData::Unknown),
+            ExprData::Missing => {
+                // TODO: reconsider
+                // missing expression can have any type
+                WipTypeData::Var
+            }
+
             ExprData::Block(block) => {
                 block.iter().for_each(|&expr| {
                     self.collect_expr(expr);
                 });
 
-                // TODO: take the last expression's type
-                WipTypeData::Data(TypeData::Stmt)
+                if let Some(last_expr) = block.exprs.last() {
+                    // block has the same type as the last expression
+                    let index = self.expr_types[last_expr];
+
+                    assert!(
+                        self.expr_types.insert(expr, index).is_none(),
+                        "bug: duplicate visit to block"
+                    );
+
+                    return;
+                } else {
+                    // or it returns none
+                    WipTypeData::Data(TypeData::Stmt)
+                }
             }
             ExprData::Let(let_) => {
                 self.collect_expr(let_.rhs);
@@ -160,6 +177,24 @@ impl<'db> Collect<'db> {
 
                 WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
             }
+            ExprData::When(when) => {
+                self.collect_expr(when.pred);
+                self.collect_expr(when.block);
+
+                WipTypeData::Data(TypeData::Stmt)
+            }
+            ExprData::Unless(unless) => {
+                self.collect_expr(unless.pred);
+                self.collect_expr(unless.block);
+
+                WipTypeData::Data(TypeData::Stmt)
+            }
+            ExprData::Set(set) => {
+                self.collect_expr(set.place);
+                self.collect_expr(set.rhs);
+
+                WipTypeData::Data(TypeData::Stmt)
+            }
         };
 
         let index = self.types.push_and_get_key(ty);
@@ -207,6 +242,7 @@ impl<'db> Collect<'db> {
             expr,
             path
         );
+
         true
     }
 
@@ -242,6 +278,8 @@ impl<'db, 'map> Infer<'db, 'map> {
                 block.iter().for_each(|&expr| {
                     self.infer_expr(expr);
                 });
+
+                // block has same type as last expression
             }
             ExprData::Let(let_) => {
                 self.infer_expr(let_.rhs);
@@ -290,6 +328,23 @@ impl<'db, 'map> Infer<'db, 'map> {
                 or.exprs.iter().for_each(|&expr| {
                     self.unify_expected(self.expr_types[&expr], &b);
                 });
+            }
+            ExprData::When(when) => {
+                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
+                self.unify_expected(self.expr_types[&when.pred], &b);
+
+                self.infer_expr(when.block);
+            }
+            ExprData::Unless(unless) => {
+                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
+                self.unify_expected(self.expr_types[&unless.pred], &b);
+
+                self.infer_expr(unless.block);
+            }
+            ExprData::Set(set) => {
+                let i1 = self.expr_types[&set.place];
+                let i2 = self.expr_types[&set.rhs];
+                self.unify_vars(i1, i2);
             }
         }
     }
@@ -374,19 +429,9 @@ impl<'db, 'map> Infer<'db, 'map> {
         let t2 = &self.types[i2].cast_as_data();
 
         match (t1, t2) {
-            (TypeData::Primitive(p1), TypeData::Primitive(p2)) => Self::cmp_primitive(p1, p2),
-            (TypeData::Op(o1), TypeData::Op(o2)) => Self::cmp_builtin_op(o1, o2),
+            (TypeData::Primitive(p1), TypeData::Primitive(p2)) => p1 == p2,
+            (TypeData::Op(o1), TypeData::Op(o2)) => o1 == o2,
             _ => false,
         }
-    }
-
-    fn cmp_primitive(p1: &ty::PrimitiveType, p2: &ty::PrimitiveType) -> bool {
-        todo!()
-    }
-
-    // TODO: remove builtin function comparison?
-    fn cmp_builtin_op(o1: &ty::OpType, o2: &ty::OpType) -> bool {
-        // TODO: need arity check?
-        o1.target_ty == o2.target_ty && o1.kind == o2.kind
     }
 }
