@@ -148,6 +148,19 @@ impl<'a> LowerBody<'a> {
                 let expr = expr::Unless { pred, block };
                 self.alloc(ExprData::Unless(expr), span)
             }
+            ast::Expr::Cond(cond) => {
+                let mut cases = Vec::new();
+                for case in cond.cases() {
+                    let pred = self.lower_opt_ast_expr(case.pred());
+                    let block = self.lower_block(case.block());
+
+                    let case = expr::CondCase { pred, block };
+                    cases.push(case);
+                }
+
+                let expr = expr::Cond { cases };
+                self.alloc(ExprData::Cond(expr), span)
+            }
             ast::Expr::Set(set) => {
                 let place = self.lower_opt_ast_expr(set.place().map(|ast_path| ast_path.into()));
                 let rhs = self.lower_opt_ast_expr(set.rhs());
@@ -345,6 +358,12 @@ fn compute_expr_scopes(
         ExprData::Unless(unless) => {
             self::compute_expr_scopes(unless.pred, body_data, scopes, scope_idx);
             self::compute_expr_scopes(unless.block, body_data, scopes, scope_idx);
+        }
+        ExprData::Cond(cond) => {
+            for case in &cond.cases {
+                self::compute_expr_scopes(case.pred, body_data, scopes, scope_idx);
+                self::compute_expr_scopes(case.block, body_data, scopes, scope_idx);
+            }
         }
         ExprData::Set(set) => {
             self::compute_expr_scopes(set.place, body_data, scopes, scope_idx);

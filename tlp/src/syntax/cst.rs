@@ -98,6 +98,10 @@ pub enum SyntaxKind {
     When,
     /// Unless node
     Unless,
+    /// Cond node
+    Cond,
+    /// Cond case node
+    CondCase,
     /// DefProc node
     DefProc,
     /// DefProc node name node
