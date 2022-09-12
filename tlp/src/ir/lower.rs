@@ -148,6 +148,9 @@ impl<'a> LowerBody<'a> {
                 let expr = expr::Unless { pred, block };
                 self.alloc(ExprData::Unless(expr), span)
             }
+            ast::Expr::Cond(cond) => {
+                todo!()
+            }
             ast::Expr::Set(set) => {
                 let place = self.lower_opt_ast_expr(set.place().map(|ast_path| ast_path.into()));
                 let rhs = self.lower_opt_ast_expr(set.rhs());
