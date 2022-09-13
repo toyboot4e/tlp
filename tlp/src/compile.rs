@@ -245,7 +245,7 @@ impl Compiler {
                 // discard the last value on `true`
                 self.chunk.write_code(Op::Discard);
 
-                self.write_anchor(anchor);
+                anchor.write_ip(&mut self.chunk);
                 // `<none>` is the return value of `when` or `unless`:
                 self.chunk.write_code(Op::PushNone);
             }
@@ -256,7 +256,7 @@ impl Compiler {
                 // discard the last value on `false`
                 self.chunk.write_code(Op::Discard);
 
-                self.write_anchor(anchor);
+                anchor.write_ip(&mut self.chunk);
                 // `<none>` is the return value of `when` or `unless`:
                 self.chunk.write_code(Op::PushNone);
             }
@@ -272,7 +272,7 @@ impl Compiler {
                     case_end_anchors.push(self.chunk.write_jump_u16());
 
                     // go to next cond case on mismatch
-                    self.write_anchor(on_mismatch);
+                    on_mismatch.write_ip(&mut self.chunk);
                 }
 
                 // otherwise: push `<none>`. the case is never reached on `cond` expression
@@ -282,7 +282,7 @@ impl Compiler {
 
                 // jump to IP after `cond` on each end of case
                 for anchor in case_end_anchors {
-                    self.write_anchor(anchor);
+                    anchor.write_ip(&mut self.chunk);
                 }
 
                 // if it's a statement, overwrite the last expression of any type
@@ -351,7 +351,7 @@ impl Compiler {
         }
 
         for anchor in anchors {
-            self.write_anchor(anchor);
+            anchor.write_ip(&mut self.chunk);
         }
     }
 
@@ -381,14 +381,6 @@ impl Compiler {
         self.compile_expr(db, body_data, types, block);
 
         anchor
-    }
-
-    fn write_anchor(&mut self, anchor: JumpAnchor) {
-        let ip = self.chunk.bytes().len();
-        assert!(ip <= u16::MAX as usize);
-        let ip = ip as u16;
-
-        anchor.write_ip(&mut self.chunk, ip);
     }
 
     fn resolve_expr_as_local_index(

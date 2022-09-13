@@ -269,10 +269,44 @@ impl Chunk {
         self.codes.push(Op::SetLocalUnit8 as u8);
         self.codes.push(idx);
     }
+}
 
+/// Instruction pointer for jumping
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Ip(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct JumpAnchor(u16);
+
+impl JumpAnchor {
+    fn new(chunk: &Chunk) -> Self {
+        JumpAnchor(chunk.codes.len() as u16)
+    }
+
+    pub fn write_ip(&self, chunk: &mut Chunk) {
+        let ip = chunk.ip();
+        self.write_ip_at(chunk, ip);
+    }
+
+    pub fn write_ip_at(&self, chunk: &mut Chunk, ip: Ip) {
+        assert!(ip.0 <= u16::MAX as usize);
+        let ip = ip.0 as u16;
+
+        chunk.codes[self.0 as usize] = (ip >> 8) as u8;
+        chunk.codes[self.0 as usize + 1] = ip as u8;
+    }
+}
+
+impl Chunk {
     // --------------------------------------------------------------------------------
     // Jumps
     // --------------------------------------------------------------------------------
+
+    /// Returns current instruction pointer
+    #[inline(always)]
+    pub fn ip(&self) -> Ip {
+        Ip(self.codes.len())
+    }
 
     /// Returns [`JumpAnchor`] for overwriting jump target later
     #[inline(always)]
@@ -299,20 +333,6 @@ impl Chunk {
         let anchor = JumpAnchor::new(self);
         self.write_u16(0);
         anchor
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct JumpAnchor(u16);
-
-impl JumpAnchor {
-    fn new(chunk: &Chunk) -> Self {
-        JumpAnchor(chunk.codes.len() as u16)
-    }
-
-    pub fn write_ip(&self, chunk: &mut Chunk, ip: u16) {
-        chunk.codes[self.0 as usize] = (ip >> 8) as u8;
-        chunk.codes[self.0 as usize + 1] = ip as u8;
     }
 }
 
