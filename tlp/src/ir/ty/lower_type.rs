@@ -240,22 +240,18 @@ impl<'db> Collect<'db> {
             None => return false,
         };
 
-        let index = *match self.pat_types.get(&pat) {
-            Some(x) => x,
-            _ => unreachable!(
-                "bug: found a path that can be resolved but not collected: {:?}",
-                path, // TODO: debug with DB
-            ),
-        };
+        self.share_type_with_pat(expr, pat);
+
+        true
+    }
+
+    fn share_type_with_pat(&mut self, expr: Expr, shared: Pat) {
+        let index = self.pat_types[&shared];
 
         assert!(
             self.expr_types.insert(expr, index).is_none(),
-            "bug: duplicate visit to path: {:?} {:?}",
-            expr,
-            path
+            "bug: duplicate visit (pat)",
         );
-
-        true
     }
 
     fn collect_pat(&mut self, pat: Pat) {
@@ -267,6 +263,7 @@ impl<'db> Collect<'db> {
         };
 
         let index = self.types.push_and_get_key(ty);
+
         assert!(
             self.pat_types.insert(pat, index).is_none(),
             "bug: duplicate visit to pat: {:?} {:?}",
@@ -275,6 +272,8 @@ impl<'db> Collect<'db> {
         );
     }
 }
+
+const BOOL: TypeData = TypeData::Primitive(ty::PrimitiveType::Bool);
 
 impl<'db, 'map> Infer<'db, 'map> {
     pub fn infer_all(&mut self) {
@@ -330,33 +329,28 @@ impl<'db, 'map> Infer<'db, 'map> {
                 // expression
             }
             ExprData::And(and) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
                 and.exprs.iter().for_each(|&expr| {
-                    self.unify_expected(self.expr_types[&expr], &b);
+                    self.unify_expected(self.expr_types[&expr], &BOOL);
                 });
             }
             ExprData::Or(or) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
                 or.exprs.iter().for_each(|&expr| {
-                    self.unify_expected(self.expr_types[&expr], &b);
+                    self.unify_expected(self.expr_types[&expr], &BOOL);
                 });
             }
             ExprData::When(when) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
-                self.unify_expected(self.expr_types[&when.pred], &b);
+                self.unify_expected(self.expr_types[&when.pred], &BOOL);
 
                 self.infer_expr(when.block);
             }
             ExprData::Unless(unless) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
-                self.unify_expected(self.expr_types[&unless.pred], &b);
+                self.unify_expected(self.expr_types[&unless.pred], &BOOL);
 
                 self.infer_expr(unless.block);
             }
             ExprData::Cond(cond) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
                 for case in &cond.cases {
-                    self.unify_expected(self.expr_types[&case.pred], &b);
+                    self.unify_expected(self.expr_types[&case.pred], &BOOL);
                     self.infer_expr(case.block);
                 }
 
