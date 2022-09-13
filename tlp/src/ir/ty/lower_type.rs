@@ -195,7 +195,7 @@ impl<'db> Collect<'db> {
                     self.collect_expr(case.block);
                 }
 
-                if cond.is_expr {
+                if cond.can_be_expr {
                     WipTypeData::Var
                 } else {
                     WipTypeData::Data(TypeData::Stmt)
@@ -360,7 +360,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                     self.infer_expr(case.block);
                 }
 
-                if !cond.is_expr {
+                if !cond.can_be_expr {
                     return;
                 }
 

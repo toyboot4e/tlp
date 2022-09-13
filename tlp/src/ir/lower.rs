@@ -168,7 +168,10 @@ impl<'a> LowerBody<'a> {
                     }
                 });
 
-                let expr = expr::Cond { is_expr, cases };
+                let expr = expr::Cond {
+                    can_be_expr: is_expr,
+                    cases,
+                };
                 self.alloc(ExprData::Cond(expr), span)
             }
             ast::Expr::Set(set) => {

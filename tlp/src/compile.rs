@@ -276,7 +276,7 @@ impl Compiler {
                 }
 
                 // otherwise: push `<none>`. the case is never reached on `cond` expression
-                if !cond.is_expr {
+                if !cond.can_be_expr {
                     self.chunk.write_code(Op::PushNone);
                 }
 
@@ -286,7 +286,7 @@ impl Compiler {
                 }
 
                 // if it's a statement, overwrite the last expression of any type
-                if !cond.is_expr {
+                if !cond.can_be_expr {
                     self.chunk.write_code(Op::Discard);
                     self.chunk.write_code(Op::PushNone);
                 }
