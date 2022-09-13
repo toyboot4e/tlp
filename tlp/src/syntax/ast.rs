@@ -218,7 +218,7 @@ define_enum_node! {
 
 define_enum_node! {
     /// AST expression node (transparent node wrapper)
-    Expr = Let | Call | Set | And | Or | When | Cond | Unless | Literal | Path | Block,
+    Expr = Let | Call | Set | And | Or | When | Cond | Unless | Loop | Literal | Path | Block,
     SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path | SyntaxKind::Block
 }
 
@@ -251,6 +251,9 @@ define_node! {
     ///
     /// It's very similar to `when`.
     CondCase: SyntaxKind::CondCase,
+
+    /// Loop node
+    Loop: SyntaxKind::Loop,
 
     /// "(" "unless" sexp* ")"
     Unless: SyntaxKind::Unless,
