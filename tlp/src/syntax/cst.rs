@@ -104,6 +104,8 @@ pub enum SyntaxKind {
     CondCase,
     /// Loop node
     Loop,
+    /// While node
+    While,
     /// DefProc node
     DefProc,
     /// DefProc node name node

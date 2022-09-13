@@ -177,6 +177,9 @@ impl<'a> LowerBody<'a> {
             ast::Expr::Loop(loop_) => {
                 todo!()
             }
+            ast::Expr::While(while_) => {
+                todo!()
+            }
             ast::Expr::Set(set) => {
                 let place = self.lower_opt_ast_expr(set.place().map(|ast_path| ast_path.into()));
                 let rhs = self.lower_opt_ast_expr(set.rhs());

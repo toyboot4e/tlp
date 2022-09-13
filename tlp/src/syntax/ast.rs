@@ -216,9 +216,10 @@ define_enum_node! {
     SyntaxKind::DefProc
 }
 
+// FIXME: make sure if `Block` is `ast::Expr` or not
 define_enum_node! {
     /// AST expression node (transparent node wrapper)
-    Expr = Let | Call | Set | And | Or | When | Cond | Unless | Loop | Literal | Path | Block,
+    Expr = Let | Call | Set | And | Or | When | Unless | Cond | Loop | While | Literal | Path | Block,
     SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path | SyntaxKind::Block
 }
 
@@ -254,6 +255,9 @@ define_node! {
 
     /// Loop node
     Loop: SyntaxKind::Loop,
+
+    /// While node
+    While: SyntaxKind::While,
 
     /// "(" "unless" sexp* ")"
     Unless: SyntaxKind::Unless,
@@ -381,6 +385,16 @@ impl When {
     }
 }
 
+impl Unless {
+    pub fn pred(&self) -> Option<Expr> {
+        self.syn.children().find_map(Expr::cast_node)
+    }
+
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
+    }
+}
+
 impl Cond {
     pub fn cases(&self) -> impl Iterator<Item = CondCase> {
         self.syn.children().filter_map(CondCase::cast_node)
@@ -397,13 +411,22 @@ impl CondCase {
     }
 }
 
-impl Unless {
+impl Loop {
+    pub fn block(&self) -> Option<Block> {
+        self.syn.children().find_map(Block::cast_node)
+    }
+}
+
+impl While {
     pub fn pred(&self) -> Option<Expr> {
-        self.syn.children().find_map(Expr::cast_node)
+        self.syn
+            .children()
+            .filter(|e| e.kind() != SyntaxKind::Block)
+            .find_map(Expr::cast_node)
     }
 
-    pub fn block(&self) -> Block {
-        self.syn.children().find_map(Block::cast_node).unwrap()
+    pub fn block(&self) -> Option<Block> {
+        self.syn.children().find_map(Block::cast_node)
     }
 }
 
