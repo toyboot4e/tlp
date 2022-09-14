@@ -134,6 +134,9 @@ impl<'a> LowerBody<'a> {
                 let expr = expr::Or { exprs };
                 self.alloc(ExprData::Or(expr), span)
             }
+            ast::Expr::Equal(eq) => {
+                todo!()
+            }
             ast::Expr::When(when) => {
                 let pred = self.lower_opt_ast_expr(when.pred());
                 let block = self.lower_block(when.block());

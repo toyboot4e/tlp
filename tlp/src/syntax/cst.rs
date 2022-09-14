@@ -94,6 +94,8 @@ pub enum SyntaxKind {
     And,
     /// Or node
     Or,
+    /// `=` node
+    Equal,
     /// When node
     When,
     /// Unless node
