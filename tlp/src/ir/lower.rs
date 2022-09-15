@@ -121,8 +121,32 @@ impl<'a> LowerBody<'a> {
             ast::Expr::Call(call) => {
                 let path = self.lower_ast_expr(call.path().into());
                 let args = call.args().map(|expr| self.lower_ast_expr(expr)).collect();
-                let expr = expr::Call { path, args };
-                self.alloc(ExprData::Call(expr), span)
+
+                loop {
+                    // override bulint function call
+                    let path_data = self.tables[path].clone().into_path();
+
+                    if path_data.segments.len() == 1 {
+                        if let Some(kind) =
+                            expr::OpKind::parse(path_data.segments[0].as_str(self.db.base()))
+                        {
+                            let args = call.args().map(|expr| self.lower_ast_expr(expr)).collect();
+
+                            let op_expr = {
+                                let path_span =
+                                    Span::from_rowan_range(call.path().syn.text_range());
+                                self.alloc(ExprData::Op(kind), Ok(path_span))
+                            };
+
+                            let expr = expr::CallOp { op_expr, args };
+                            break self.alloc(ExprData::CallOp(expr), span);
+                        }
+                    }
+
+                    // ordinary funtion call
+                    let expr = expr::Call { path, args };
+                    break self.alloc(ExprData::Call(expr), span);
+                }
             }
             ast::Expr::And(and) => {
                 let exprs = and.exprs().map(|expr| self.lower_ast_expr(expr)).collect();
@@ -133,9 +157,6 @@ impl<'a> LowerBody<'a> {
                 let exprs = or.exprs().map(|expr| self.lower_ast_expr(expr)).collect();
                 let expr = expr::Or { exprs };
                 self.alloc(ExprData::Or(expr), span)
-            }
-            ast::Expr::Equal(eq) => {
-                todo!()
             }
             ast::Expr::When(when) => {
                 let pred = self.lower_opt_ast_expr(when.pred());
@@ -363,6 +384,16 @@ fn compute_expr_scopes(
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
             });
         }
+        ExprData::CallOp(call_op) => {
+            call_op.args.iter().for_each(|expr| {
+                self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
+            });
+        }
+
+        // builtin functions
+        ExprData::Op(op) => {
+            // no children
+        }
         ExprData::And(and) => {
             and.exprs.iter().for_each(|expr| {
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
@@ -373,6 +404,7 @@ fn compute_expr_scopes(
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
             });
         }
+
         ExprData::When(when) => {
             self::compute_expr_scopes(when.pred, body_data, scopes, scope_idx);
             self::compute_expr_scopes(when.block, body_data, scopes, scope_idx);

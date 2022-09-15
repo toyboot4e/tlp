@@ -219,7 +219,7 @@ define_enum_node! {
 // FIXME: make sure if `Block` is `ast::Expr` or not
 define_enum_node! {
     /// AST expression node (transparent node wrapper)
-    Expr = Let | Call | Set | And | Or | Equal | When | Unless | Cond | Loop | While | Literal | Path | Block,
+    Expr = Let | Call | Set | And | Or | When | Unless | Cond | Loop | While | Literal | Path | Block,
     SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path | SyntaxKind::Block
 }
 
@@ -241,9 +241,6 @@ define_node! {
 
     /// "(" "or" sexp* ")"
     Or: SyntaxKind::Or,
-
-    /// "(" "=" sexp* ")"
-    Equal: SyntaxKind::Equal,
 
     /// "(" "when" sexp* ")"
     When: SyntaxKind::When,
@@ -342,7 +339,7 @@ impl Call {
 
     /// Function arguments
     pub fn args(&self) -> impl Iterator<Item = Expr> {
-        // skip function path
+        // NOTE: skip function path
         self.syn.children().filter_map(Expr::cast_node).skip(1)
     }
 }
@@ -373,12 +370,6 @@ impl And {
 }
 
 impl Or {
-    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
-        self.syn.children().filter_map(Expr::cast_node)
-    }
-}
-
-impl Equal {
     pub fn exprs(&self) -> impl Iterator<Item = Expr> {
         self.syn.children().filter_map(Expr::cast_node)
     }

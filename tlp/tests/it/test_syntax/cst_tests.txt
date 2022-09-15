@@ -292,15 +292,16 @@ While@0..16
     RParen@15..16
 ----------------------------------------
 
-# equal
+# operators are not given special nodes
 = (= 0 1)
 ----------------------------------------
 Path@0..1
     Ident@0..1
 Ws@1..2
-Equal@2..9
+Call@2..9
     LParen@2..3
-    Ident@3..4
+    Path@3..4
+        Ident@3..4
     Ws@4..5
     Literal@5..6
         Num@5..6

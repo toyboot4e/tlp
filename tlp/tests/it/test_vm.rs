@@ -152,6 +152,17 @@ fn stack_balance() {
 }
 
 #[test]
+fn comparison() {
+    test_expr("(= true true)", true);
+    test_expr("(= true false)", false);
+    test_expr("(= false true)", false);
+    test_expr("(= false false)", true);
+
+    test_expr("(= 0 2)", false);
+    test_expr("(= 2 2)", true);
+}
+
+#[test]
 fn control_flow() {
     test_expr("(let a 0) (when true (set a 10)) a", 10);
     test_expr("(unless false true) 15", 15);
@@ -162,4 +173,8 @@ fn control_flow() {
 
     // cond statement
     test_expr("(cond (false 10) (false 15))", 0);
+
+    // TODO: comparison operators
+    // TODO: +=, -=, inc, dec
+    // test_expr("(let a 10) (let n 0) (while (< a 0) (set a (- a 1)) (set n (+ n 1))) n");
 }

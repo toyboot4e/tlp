@@ -160,42 +160,53 @@ impl Compiler {
                 // TODO: handle tail expression's return value: return or discard
             }
             ExprData::Call(call) => {
-                if let ty::TypeData::Op(op) = &types[call.path] {
-                    assert_eq!(
-                        call.args.len(),
-                        2,
-                        "binary operator must take just two arguments"
-                    );
+                // let path = body_data.tables[call.path].clone().into_path();
+                let path = body_data.tables[call.path].cast_as_path();
 
-                    let lhs_idx = call.args[0];
-                    self.compile_expr(db, body_data, types, lhs_idx);
+                // TODO: maybe support dot-separated path
+                let name = path.segments[0].clone();
 
-                    let rhs_idx = call.args[1];
-                    self.compile_expr(db, body_data, types, rhs_idx);
-
-                    let op = match (op.kind, op.target_ty) {
-                        (ty::OpKind::Add, ty::OpTargetType::I32) => Op::AddI32,
-                        (ty::OpKind::Add, ty::OpTargetType::F32) => Op::AddF32,
-                        (ty::OpKind::Sub, ty::OpTargetType::I32) => Op::SubI32,
-                        (ty::OpKind::Sub, ty::OpTargetType::F32) => Op::SubF32,
-                        (ty::OpKind::Mul, ty::OpTargetType::I32) => Op::MulI32,
-                        (ty::OpKind::Mul, ty::OpTargetType::F32) => Op::MulF32,
-                        (ty::OpKind::Div, ty::OpTargetType::I32) => Op::DivI32,
-                        (ty::OpKind::Div, ty::OpTargetType::F32) => Op::DivF32,
-                        _ => todo!("{:?}", op),
-                    };
-
-                    self.chunk.write_code(op);
-                } else {
-                    // TODO: resolve `Call` to typed builtin methods
-                    let path = body_data.tables[call.path].clone().into_path();
-
-                    // TODO: maybe support dot-separated path
-                    let name = path.segments[0].clone();
-
-                    todo!("non-builtin function call: {:?}", call);
-                }
+                todo!("non-builtin function call: {:?}", call);
             }
+            ExprData::CallOp(call_op) => {
+                assert_eq!(
+                    call_op.args.len(),
+                    2,
+                    "operator must take just two arguments (for now)"
+                );
+
+                let lhs_idx = call_op.args[0];
+                self.compile_expr(db, body_data, types, lhs_idx);
+
+                let rhs_idx = call_op.args[1];
+                self.compile_expr(db, body_data, types, rhs_idx);
+
+                let op_ty = match &types[call_op.op_expr] {
+                    ty::TypeData::Op(op_ty) => op_ty,
+                    _ => unreachable!(),
+                };
+
+                let op = match (op_ty.kind, op_ty.operand_ty) {
+                    (expr::OpKind::Add, ty::OpOperandType::I32) => Op::AddI32,
+                    (expr::OpKind::Add, ty::OpOperandType::F32) => Op::AddF32,
+                    (expr::OpKind::Sub, ty::OpOperandType::I32) => Op::SubI32,
+                    (expr::OpKind::Sub, ty::OpOperandType::F32) => Op::SubF32,
+                    (expr::OpKind::Mul, ty::OpOperandType::I32) => Op::MulI32,
+                    (expr::OpKind::Mul, ty::OpOperandType::F32) => Op::MulF32,
+                    (expr::OpKind::Div, ty::OpOperandType::I32) => Op::DivI32,
+                    (expr::OpKind::Div, ty::OpOperandType::F32) => Op::DivF32,
+                    (expr::OpKind::Eq, ty::OpOperandType::Bool) => Op::EqBool,
+                    (expr::OpKind::Eq, ty::OpOperandType::I32) => Op::EqI32,
+                    (expr::OpKind::Eq, ty::OpOperandType::F32) => Op::EqF32,
+                    _ => todo!("{:?}", call_op),
+                };
+
+                self.chunk.write_code(op);
+            }
+            ExprData::Op(op) => {
+                todo!()
+            }
+
             ExprData::Let(let_) => {
                 let rhs_idx = let_.rhs;
                 let rhs = self.compile_expr(db, body_data, types, rhs_idx);

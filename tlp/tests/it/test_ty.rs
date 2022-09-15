@@ -1,6 +1,6 @@
 use tlp::{
     ir::{
-        body::expr::{Expr, ExprData},
+        body::expr::{self, Expr, ExprData},
         item::{self, Item},
         ty::{self, PrimitiveType, TypeData},
         InputFileExt, IrDb,
@@ -51,22 +51,22 @@ fn type_of_plus_i32_f32() {
     let types = proc.type_table(&db);
 
     match &expr_data[0] {
-        ExprData::Call(call) => {
+        ExprData::CallOp(call_op) => {
             assert_eq!(
-                &types[call.args[0]],
+                &types[call_op.args[0]],
                 &TypeData::Primitive(PrimitiveType::I32)
             );
 
             assert_eq!(
-                &types[call.args[1]],
+                &types[call_op.args[1]],
                 &TypeData::Primitive(PrimitiveType::F32)
             );
 
             assert_eq!(
-                &types[call.path],
+                &types[call_op.op_expr],
                 &TypeData::Op(ty::OpType {
-                    kind: ty::OpKind::Add,
-                    target_ty: ty::OpTargetType::I32,
+                    kind: expr::OpKind::Add,
+                    operand_ty: ty::OpOperandType::I32,
                 })
             );
         }
@@ -84,22 +84,22 @@ fn type_of_mul_f32_i32() {
     let types = proc.type_table(&db);
 
     match &expr_data[0] {
-        ExprData::Call(call) => {
+        ExprData::CallOp(call_op) => {
             assert_eq!(
-                &types[call.args[0]],
+                &types[call_op.args[0]],
                 &TypeData::Primitive(PrimitiveType::F32)
             );
 
             assert_eq!(
-                &types[call.args[1]],
+                &types[call_op.args[1]],
                 &TypeData::Primitive(PrimitiveType::I32)
             );
 
             assert_eq!(
-                &types[call.path],
+                &types[call_op.op_expr],
                 &TypeData::Op(ty::OpType {
-                    kind: ty::OpKind::Mul,
-                    target_ty: ty::OpTargetType::F32,
+                    kind: expr::OpKind::Mul,
+                    operand_ty: ty::OpOperandType::F32,
                 })
             );
         }
@@ -138,13 +138,17 @@ fn let_type() {
     };
 
     match &root_exprs[1].1 {
-        ExprData::Call(call) => {
+        ExprData::CallOp(op_call) => {
             assert_eq!(
-                body_data.tables[call.args[0]].clone().into_path().segments[0].as_str(&db),
+                body_data.tables[op_call.args[0]]
+                    .clone()
+                    .into_path()
+                    .segments[0]
+                    .as_str(&db),
                 "x"
             );
             // both `x` have to point to the same type data
-            assert_eq!(types[call.args[0]], types[x_pat]);
+            assert_eq!(types[op_call.args[0]], types[x_pat]);
         }
 
         x => unreachable!("{x:?}"),

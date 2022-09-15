@@ -260,7 +260,6 @@ impl ParseState {
             "loop" => self.bump_list_loop(pcx, checkpoint),
             "while" => self.bump_list_while(pcx, checkpoint),
             "and" | "or" => self.bump_list_logic_oper(pcx, checkpoint),
-            "=" => self.bump_list_cmp_oper(pcx, checkpoint),
             _ => self.bump_list_call(pcx, checkpoint),
         }
     }
@@ -444,18 +443,6 @@ impl ParseState {
             "and" => SyntaxKind::And,
             "or" => SyntaxKind::Or,
             x => unreachable!("not `and` or `or`: {}", x),
-        };
-
-        self._bump_rest_list_wrapping(pcx, checkpoint, kind);
-    }
-
-    /// "=" Sexp* ")"
-    fn bump_list_cmp_oper(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
-        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
-
-        let kind = match tk.slice(pcx.src) {
-            "=" => SyntaxKind::Equal,
-            x => unreachable!("not `=`: {}", x),
         };
 
         self._bump_rest_list_wrapping(pcx, checkpoint, kind);

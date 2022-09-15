@@ -54,6 +54,11 @@ pub enum Op {
     SubI32,
     MulI32,
     DivI32,
+
+    // comparison
+    EqBool,
+    EqF32,
+    EqI32,
 }
 
 impl Op {
@@ -97,6 +102,9 @@ impl Op {
             Op::SubI32 => "sub-i32",
             Op::MulI32 => "mul-i32",
             Op::DivI32 => "div-i32",
+            Op::EqBool => "eq-bool",
+            Op::EqI32 => "eq-i32",
+            Op::EqF32 => "eq-f32",
         }
     }
 }
