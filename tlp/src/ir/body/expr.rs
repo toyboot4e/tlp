@@ -276,3 +276,14 @@ pub struct CondCase {
     pub pred: Expr,
     pub block: Expr,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Loop {
+    pub block: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct While {
+    pub pred: Expr,
+    pub block: Expr,
+}

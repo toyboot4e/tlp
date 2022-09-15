@@ -199,10 +199,18 @@ impl<'a> LowerBody<'a> {
                 self.alloc(ExprData::Cond(expr), span)
             }
             ast::Expr::Loop(loop_) => {
-                todo!()
+                let block = self.lower_opt_ast_expr(loop_.block().map(|b| b.into()));
+
+                let loop_ = expr::Loop { block };
+                self.alloc(ExprData::Loop(loop_), span)
             }
             ast::Expr::While(while_) => {
-                todo!()
+                assert!(while_.pred().is_some());
+                let pred = self.lower_opt_ast_expr(while_.pred().map(|b| b.into()));
+                let block = self.lower_opt_ast_expr(while_.block().map(|b| b.into()));
+
+                let while_ = expr::While { pred, block };
+                self.alloc(ExprData::While(while_), span)
             }
             ast::Expr::Set(set) => {
                 let place = self.lower_opt_ast_expr(set.place().map(|ast_path| ast_path.into()));
@@ -418,6 +426,13 @@ fn compute_expr_scopes(
                 self::compute_expr_scopes(case.pred, body_data, scopes, scope_idx);
                 self::compute_expr_scopes(case.block, body_data, scopes, scope_idx);
             }
+        }
+        ExprData::Loop(loop_) => {
+            self::compute_expr_scopes(loop_.block, body_data, scopes, scope_idx);
+        }
+        ExprData::While(while_) => {
+            self::compute_expr_scopes(while_.pred, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(while_.block, body_data, scopes, scope_idx);
         }
         ExprData::Set(set) => {
             self::compute_expr_scopes(set.place, body_data, scopes, scope_idx);

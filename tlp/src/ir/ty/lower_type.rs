@@ -214,6 +214,18 @@ impl<'db> Collect<'db> {
                     WipTypeData::Data(TypeData::Stmt)
                 }
             }
+            ExprData::Loop(loop_) => {
+                self.collect_expr(loop_.block);
+
+                // TODO: loop can be an expression
+                WipTypeData::Data(TypeData::Stmt)
+            }
+            ExprData::While(while_) => {
+                self.collect_expr(while_.pred);
+                self.collect_expr(while_.block);
+
+                WipTypeData::Data(TypeData::Stmt)
+            }
             ExprData::Set(set) => {
                 self.collect_expr(set.place);
                 self.collect_expr(set.rhs);
@@ -387,6 +399,15 @@ impl<'db, 'map> Infer<'db, 'map> {
 
                 let ty_index = self.expr_types[&expr];
                 self.types[ty_index] = ty;
+            }
+            ExprData::Loop(loop_) => {
+                // TODO: loop expression
+                self.infer_expr(loop_.block);
+            }
+            ExprData::While(while_) => {
+                self.infer_expr(while_.pred);
+                self.unify_expected(self.expr_types[&while_.pred], &BOOL);
+                self.infer_expr(while_.block);
             }
             ExprData::Set(set) => {
                 self.infer_expr(set.place);

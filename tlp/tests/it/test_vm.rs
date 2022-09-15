@@ -223,7 +223,15 @@ fn control_flow() {
     // cond statement
     test_expr("(cond (false 10) (false 15))", 0);
 
-    // TODO: comparison operators
-    // TODO: +=, -=, inc, dec
-    // test_expr("(let a 10) (let n 0) (while (< a 0) (set a (- a 1)) (set n (+ n 1))) n");
+    // while
+    test_expr(
+        "
+(let a 0)
+(while (< a 3)
+    (set a (+ a 1)))
+a",
+        3,
+    );
+
+    // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
 }

@@ -327,12 +327,12 @@ impl JumpAnchor {
         JumpAnchor(chunk.codes.len() as u16)
     }
 
-    pub fn write_ip(&self, chunk: &mut Chunk) {
+    pub fn set_ip(&self, chunk: &mut Chunk) {
         let ip = chunk.ip();
-        self.write_ip_at(chunk, ip);
+        self.set_ip_at(chunk, ip);
     }
 
-    pub fn write_ip_at(&self, chunk: &mut Chunk, ip: Ip) {
+    pub fn set_ip_at(&self, chunk: &mut Chunk, ip: Ip) {
         assert!(ip.0 <= u16::MAX as usize);
         let ip = ip.0 as u16;
 
