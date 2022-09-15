@@ -281,6 +281,7 @@ impl<'db, 'map> Infer<'db, 'map> {
         self.infer_expr(self.body_data.root_block)
     }
 
+    /// NOTE: Unify first
     fn infer_expr(&mut self, expr: Expr) {
         let expr_data = &self.body_data.tables[expr];
 
@@ -336,26 +337,31 @@ impl<'db, 'map> Infer<'db, 'map> {
             }
             ExprData::And(and) => {
                 and.exprs.iter().for_each(|&expr| {
+                    self.infer_expr(expr);
                     self.unify_expected(self.expr_types[&expr], &BOOL);
                 });
             }
             ExprData::Or(or) => {
                 or.exprs.iter().for_each(|&expr| {
+                    self.infer_expr(expr);
                     self.unify_expected(self.expr_types[&expr], &BOOL);
                 });
             }
             ExprData::When(when) => {
+                self.infer_expr(when.pred);
                 self.unify_expected(self.expr_types[&when.pred], &BOOL);
 
                 self.infer_expr(when.block);
             }
             ExprData::Unless(unless) => {
+                self.infer_expr(unless.pred);
                 self.unify_expected(self.expr_types[&unless.pred], &BOOL);
 
                 self.infer_expr(unless.block);
             }
             ExprData::Cond(cond) => {
                 for case in &cond.cases {
+                    self.infer_expr(case.pred);
                     self.unify_expected(self.expr_types[&case.pred], &BOOL);
                     self.infer_expr(case.block);
                 }
@@ -365,8 +371,11 @@ impl<'db, 'map> Infer<'db, 'map> {
                 }
 
                 // unify blocks
-                let tys = cond.cases.iter().map(|case| self.expr_types[&case.block]);
-                self.unify_many_vars(tys);
+                let tys = cond
+                    .cases
+                    .iter()
+                    .map(|case| (case.block, self.expr_types[&case.block]));
+                self.infer_and_unify_many_vars(tys);
 
                 // FIXME: Get unified type and use it for the cond's type
                 let ty = if let Some(case) = cond.cases.first() {
@@ -380,8 +389,12 @@ impl<'db, 'map> Infer<'db, 'map> {
                 self.types[ty_index] = ty;
             }
             ExprData::Set(set) => {
+                self.infer_expr(set.place);
                 let i1 = self.expr_types[&set.place];
+
+                self.infer_expr(set.rhs);
                 let i2 = self.expr_types[&set.rhs];
+
                 self.unify_2vars(i1, i2);
             }
         }
@@ -394,8 +407,11 @@ impl<'db, 'map> Infer<'db, 'map> {
                 self.infer_expr(*expr);
             });
 
-            let tys = call_op.args.iter().map(|expr| self.expr_types[expr]);
-            self.unify_many_vars(tys);
+            let tys = call_op
+                .args
+                .iter()
+                .map(|expr| (*expr, self.expr_types[expr]));
+            self.infer_and_unify_many_vars(tys);
         }
 
         let operand_ty = call_op
@@ -480,25 +496,34 @@ impl<'db, 'map> Infer<'db, 'map> {
     }
 
     // pub fn unify_many_vars(&mut self, tys: &[TyIndex]) -> bool {
-    pub fn unify_many_vars(&mut self, mut tys: impl Iterator<Item = TyIndex>) -> bool {
+    pub fn infer_and_unify_many_vars(
+        &mut self,
+        mut tys: impl Iterator<Item = (Expr, TyIndex)>,
+    ) -> bool {
         let mut res = true;
 
         // window(2)
-        let mut t1 = match tys.next() {
+        let (mut e1, mut t1) = match tys.next() {
             Some(x) => x,
             None => return false,
         };
-        let mut t2 = match tys.next() {
+
+        self.infer_expr(e1);
+
+        let (mut e2, mut t2) = match tys.next() {
             Some(x) => x,
             None => return false,
         };
 
         loop {
+            self.infer_expr(e2);
             res &= self.unify_2vars(t1, t2);
 
-            if let Some(t) = tys.next() {
+            if let Some((e, t)) = tys.next() {
                 t1 = t2;
+                e1 = e2;
                 t2 = t;
+                e2 = e;
             } else {
                 break;
             }

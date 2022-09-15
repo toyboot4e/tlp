@@ -1,5 +1,7 @@
 //! Run all test cases in `cst_tests.txt` (on `cargo test`)
 
+use std::fmt::Write;
+
 use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
 use crate::test_syntax::utils::{self, Test, TestError};
@@ -82,11 +84,12 @@ fn cst() {
         return;
     }
 
-    eprintln!("Errors:");
+    let mut s = String::new();
+    writeln!(s, "Errors:").unwrap();
     for e in &errs {
-        eprintln!("- {}", e);
-        eprintln!("");
+        writeln!(s, "- {}", e).unwrap();
+        writeln!(s, "").unwrap();
     }
 
-    panic!("See `cargo text -- -no-capture --test-threads=1`");
+    panic!("{}", s);
 }

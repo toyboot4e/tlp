@@ -153,13 +153,23 @@ fn stack_balance() {
 
 #[test]
 fn comparison() {
+    // bool
     test_expr("(= true true)", true);
     test_expr("(= true false)", false);
     test_expr("(= false true)", false);
     test_expr("(= false false)", true);
 
+    test_expr("(!= true true)", !true);
+    test_expr("(!= true false)", !false);
+    test_expr("(!= false true)", !false);
+    test_expr("(!= false false)", !true);
+
+    // i32
     test_expr("(= 0 2)", false);
     test_expr("(= 2 2)", true);
+
+    test_expr("(!= 0 2)", !false);
+    test_expr("(!= 2 2)", !true);
 
     test_expr("(< 2 4)", true);
     test_expr("(< 3 3)", false);
@@ -176,6 +186,29 @@ fn comparison() {
     test_expr("(>= 2 4)", false);
     test_expr("(>= 3 3)", true);
     test_expr("(>= 4 2)", true);
+
+    // f32
+    test_expr("(= 0.0 2.2)", false);
+    test_expr("(= 2.2 2.2)", true);
+
+    test_expr("(!= 0.0 2.2)", !false);
+    test_expr("(!= 2.2 2.2)", !true);
+
+    test_expr("(< 2.2 4.4)", true);
+    test_expr("(< 3.3 3.3)", false);
+    test_expr("(< 4.4 2.2)", false);
+
+    test_expr("(<= 2.2 4.4)", true);
+    test_expr("(<= 3.3 3.3)", true);
+    test_expr("(<= 4.4 2.2)", false);
+
+    test_expr("(> 2.2 4.4)", false);
+    test_expr("(> 3.3 3.3)", false);
+    test_expr("(> 4.4 2.2)", true);
+
+    test_expr("(>= 2.2 4.4)", false);
+    test_expr("(>= 3.3 3.3)", true);
+    test_expr("(>= 4.4 2.2)", true);
 }
 
 #[test]
