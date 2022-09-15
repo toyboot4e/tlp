@@ -215,6 +215,44 @@ impl Vm {
                 op @ Op::EqF32 => {
                     self.binary_op_2::<f32, bool>(op, |x1, x2| x1 == x2)?;
                 }
+
+                op @ Op::NotEqBool => {
+                    self.binary_op_2::<bool, bool>(op, |x1, x2| x1 != x2)?;
+                }
+                op @ Op::NotEqI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 != x2)?;
+                }
+                op @ Op::NotEqF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 != x2)?;
+                }
+
+                op @ Op::LtI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 < x2)?;
+                }
+                op @ Op::LtF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 < x2)?;
+                }
+
+                op @ Op::LeI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 <= x2)?;
+                }
+                op @ Op::LeF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 <= x2)?;
+                }
+
+                op @ Op::GtI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 > x2)?;
+                }
+                op @ Op::GtF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 > x2)?;
+                }
+
+                op @ Op::GeI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 >= x2)?;
+                }
+                op @ Op::GeF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 >= x2)?;
+                }
             }
         }
 

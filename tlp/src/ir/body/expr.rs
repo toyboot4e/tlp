@@ -125,11 +125,26 @@ pub struct CallOp {
 /// Builtin operator kinds
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OpKind {
+    /// `+`
     Add,
+    /// `-`
     Sub,
+    /// `*`
     Mul,
+    /// `/`
     Div,
+    /// `=`
     Eq,
+    /// `!=`
+    NotEq,
+    /// `<`
+    Lt,
+    /// `<=`
+    Le,
+    /// `>`
+    Gt,
+    /// `>=`
+    Ge,
 }
 
 impl OpKind {
@@ -140,6 +155,12 @@ impl OpKind {
             "*" => Self::Mul,
             "/" => Self::Div,
             "=" => Self::Eq,
+            "=" => Self::Eq,
+            "!=" => Self::NotEq,
+            "<" => Self::Lt,
+            "<=" => Self::Le,
+            ">" => Self::Gt,
+            ">=" => Self::Ge,
             _ => return None,
         };
 

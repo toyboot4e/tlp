@@ -160,6 +160,22 @@ fn comparison() {
 
     test_expr("(= 0 2)", false);
     test_expr("(= 2 2)", true);
+
+    test_expr("(< 2 4)", true);
+    test_expr("(< 3 3)", false);
+    test_expr("(< 4 2)", false);
+
+    test_expr("(<= 2 4)", true);
+    test_expr("(<= 3 3)", true);
+    test_expr("(<= 4 2)", false);
+
+    test_expr("(> 2 4)", false);
+    test_expr("(> 3 3)", false);
+    test_expr("(> 4 2)", true);
+
+    test_expr("(>= 2 4)", false);
+    test_expr("(>= 3 3)", true);
+    test_expr("(>= 4 2)", true);
 }
 
 #[test]

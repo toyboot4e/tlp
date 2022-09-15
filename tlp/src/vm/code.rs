@@ -59,6 +59,20 @@ pub enum Op {
     EqBool,
     EqF32,
     EqI32,
+
+    NotEqBool,
+    NotEqF32,
+    NotEqI32,
+
+    GtF32,
+    GtI32,
+    GeF32,
+    GeI32,
+
+    LtF32,
+    LtI32,
+    LeF32,
+    LeI32,
 }
 
 impl Op {
@@ -92,19 +106,41 @@ impl Op {
             Op::Jump16 => "jump-16",
             Op::JumpIf16 => "jump-if-16",
             Op::JumpIfNot16 => "jump-if-not-16",
+
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
             Op::SubF32 => "sub-f32",
             Op::MulF32 => "mul-f32",
             Op::DivF32 => "div-f32",
+
             Op::NegI32 => "neg-i32",
             Op::AddI32 => "add-i32",
             Op::SubI32 => "sub-i32",
             Op::MulI32 => "mul-i32",
             Op::DivI32 => "div-i32",
+
             Op::EqBool => "eq-bool",
             Op::EqI32 => "eq-i32",
             Op::EqF32 => "eq-f32",
+
+            Op::NotEqBool => "not-eq-bool",
+            Op::NotEqI32 => "not-eq-i32",
+            Op::NotEqF32 => "not-eq-f32",
+
+            Op::NotEqI32 => "not-eq-i32",
+            Op::NotEqF32 => "not-eq-f32",
+
+            Op::LtI32 => "lt-i32",
+            Op::LtF32 => "lt-f32",
+
+            Op::LeI32 => "le-i32",
+            Op::LeF32 => "le-f32",
+
+            Op::GtI32 => "gt-i32",
+            Op::GtF32 => "gt-f32",
+
+            Op::GeI32 => "ge-i32",
+            Op::GeF32 => "ge-f32",
         }
     }
 }
