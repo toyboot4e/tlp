@@ -14,16 +14,13 @@ pub struct IrJar(
     item::Proc,
     // TODO: Consider ditching? Though it adds lifetimes to `Resolver`
     item_scope::ItemScope,
-
     body::Body,
     // TODO: Consider ditching? Thoguh it adds lifetimes to `Resolver`
     body::expr_scope::ExprScopeMap,
-
     lower::lower_items,
     lower::lower_item_scope,
     lower::lower_body,
     lower::lower_proc_expr_scope,
-
     ty::lower_type::lower_body_types,
 );
 

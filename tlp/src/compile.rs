@@ -12,7 +12,7 @@ use crate::{
         body::{
             expr::{self, Expr, ExprData},
             pat::{Pat, PatData},
-            BodyData,
+            Body, BodyData,
         },
         item,
         ty::{self, TypeTable},
@@ -31,9 +31,12 @@ pub enum CompileError {
     CantResolvePattern { name: String },
 }
 
-pub fn compile(db: &Db, krate: InputFile) -> (Chunk, Vec<CompileError>) {
-    let mut compiler = Compiler::default();
-    compiler.compile_crate(db, krate);
+pub fn compile(db: &Db, main_file: InputFile) -> (Chunk, Vec<CompileError>) {
+    let main_proc = self::find_procedure_by_name(db, main_file, "main");
+
+    let mut compiler = CompileProc::new(db, main_file, main_proc);
+    compiler.compile_proc();
+
     (compiler.chunk, compiler.errs)
 }
 
@@ -89,28 +92,42 @@ impl CallFrame {
     }
 }
 
-#[derive(Debug, Default)]
-struct Compiler {
+struct CompileProc<'db> {
     chunk: Chunk,
     errs: Vec<CompileError>,
     /// Current function's call frame information
     call_frame: Option<CallFrame>,
+    // context
+    db: &'db Db,
+    proc: item::Proc,
+    body: Body,
+    body_data: &'db BodyData,
+    types: &'db ty::TypeTable,
 }
 
-impl Compiler {
-    pub fn compile_crate(&mut self, db: &Db, krate: InputFile) {
-        let main_proc = self::find_procedure_by_name(db, krate, "main");
-        self.compile_proc(db, main_proc);
+impl<'db> CompileProc<'db> {
+    fn new(db: &'db Db, file: InputFile, proc: item::Proc) -> Self {
+        let body = proc.body(db);
+        let body_data = body.data(db);
+        let types = proc.type_table(db);
+
+        Self {
+            chunk: Default::default(),
+            errs: Default::default(),
+            call_frame: Default::default(),
+            db,
+            proc,
+            body,
+            body_data,
+            types,
+        }
     }
 
     #[allow(unused)]
-    fn compile_proc(&mut self, db: &Db, proc: item::Proc) {
-        let body = proc.body(db);
-        let body_data = body.data(db);
-
-        // push frame
+    pub fn compile_proc(&mut self) {
+        // calle frame
         {
-            let call_frame = CallFrame::new(db, proc);
+            let call_frame = CallFrame::new(self.db, self.proc);
 
             // FIXME:
             self.chunk
@@ -119,19 +136,17 @@ impl Compiler {
         }
 
         // body
-        {
-            let types = proc.type_table(db);
-            self.compile_expr(db, body_data, types, body_data.root_block);
-        }
+        self.compile_expr(self.body_data.root_block);
 
         // pop frame
-        // FIXME: Handle frame stack pop and return value
         self.chunk.write_code(Op::Ret);
+
+        // TODO: Handle frame stack pop and return value
     }
 
     /// Compiles an expression. It returns some value or `<none>`
-    fn compile_expr(&mut self, db: &Db, body_data: &BodyData, types: &TypeTable, expr: Expr) {
-        let expr_data = &body_data.tables[expr];
+    fn compile_expr(&mut self, expr: Expr) {
+        let expr_data = &self.body_data.tables[expr];
 
         match expr_data {
             ExprData::Missing => {
@@ -148,22 +163,25 @@ impl Compiler {
 
                 for &expr in exprs {
                     // TODO: move validation in `validate` path
-                    assert_ne!(types[expr], ty::TypeData::Unknown);
+                    assert_ne!(self.types[expr], ty::TypeData::Unknown);
 
                     // return values other than the last one are discarded
-                    self.compile_expr(db, &body_data, types, expr);
+                    self.compile_expr(expr);
                     self.chunk.write_code(Op::Discard);
                 }
 
-                self.compile_expr(db, &body_data, types, *last);
+                self.compile_expr(*last);
 
                 // TODO: handle tail expression's return value: return or discard
             }
             ExprData::Call(call) => {
-                // let path = body_data.tables[call.path].clone().into_path();
-                let path = body_data.tables[call.path].cast_as_path();
+                let path = self.body_data.tables[call.path].cast_as_path();
 
-                // TODO: maybe support dot-separated path
+                assert_eq!(
+                    path.segments.len(),
+                    1,
+                    "TODO: maybe support dot-separated path"
+                );
                 let name = path.segments[0].clone();
 
                 todo!("non-builtin function call: {:?}", call);
@@ -176,12 +194,12 @@ impl Compiler {
                 );
 
                 let lhs_idx = call_op.args[0];
-                self.compile_expr(db, body_data, types, lhs_idx);
+                self.compile_expr(lhs_idx);
 
                 let rhs_idx = call_op.args[1];
-                self.compile_expr(db, body_data, types, rhs_idx);
+                self.compile_expr(rhs_idx);
 
-                let op_ty = match &types[call_op.op_expr] {
+                let op_ty = match &self.types[call_op.op_expr] {
                     ty::TypeData::Op(op_ty) => op_ty,
                     x => unreachable!("not operator type: {:?} for operator {:?}", x, call_op),
                 };
@@ -236,7 +254,7 @@ impl Compiler {
 
             ExprData::Let(let_) => {
                 let rhs_idx = let_.rhs;
-                let rhs = self.compile_expr(db, body_data, types, rhs_idx);
+                let rhs = self.compile_expr(rhs_idx);
 
                 let local_idx = self.call_frame.as_ref().unwrap().locals[&let_.pat];
                 assert!(local_idx <= u8::MAX as usize);
@@ -266,19 +284,19 @@ impl Compiler {
                 _ => todo!("{:?}", lit),
             },
             ExprData::Path(path) => {
-                let local_idx = self.resolve_path_as_local_index(db, body_data, types, expr, path);
+                let local_idx = self.resolve_path_as_local_index(expr, path);
                 self.chunk.write_push_local_u8(local_idx as u8);
             }
             ExprData::And(and) => {
                 //
-                self.compile_bool_oper(db, body_data, types, &and.exprs, true);
+                self.compile_bool_oper(&and.exprs, true);
             }
             ExprData::Or(or) => {
                 //
-                self.compile_bool_oper(db, body_data, types, &or.exprs, false);
+                self.compile_bool_oper(&or.exprs, false);
             }
             ExprData::When(when) => {
-                let anchor = self.compile_branch(db, body_data, types, when.pred, when.block, true);
+                let anchor = self.compile_branch(when.pred, when.block, true);
 
                 // discard the last value on `true`
                 self.chunk.write_code(Op::Discard);
@@ -288,8 +306,7 @@ impl Compiler {
                 self.chunk.write_code(Op::PushNone);
             }
             ExprData::Unless(unless) => {
-                let anchor =
-                    self.compile_branch(db, body_data, types, unless.pred, unless.block, false);
+                let anchor = self.compile_branch(unless.pred, unless.block, false);
 
                 // discard the last value on `false`
                 self.chunk.write_code(Op::Discard);
@@ -303,8 +320,7 @@ impl Compiler {
                 let mut case_end_anchors = Vec::new();
 
                 for case in &cond.cases {
-                    let on_mismatch =
-                        self.compile_branch(db, body_data, types, case.pred, case.block, true);
+                    let on_mismatch = self.compile_branch(case.pred, case.block, true);
 
                     // go to the end of `cond` on match
                     case_end_anchors.push(self.chunk.write_jump_u16());
@@ -336,10 +352,10 @@ impl Compiler {
             ExprData::While(while_) => {
                 let start = self.chunk.ip();
 
-                self.compile_expr(db, body_data, types, while_.pred);
+                self.compile_expr(while_.pred);
                 let to_end = self.chunk.write_jump_if_not_u16();
 
-                self.compile_expr(db, body_data, types, while_.block);
+                self.compile_expr(while_.block);
                 self.chunk.write_code(Op::Discard);
 
                 let to_start = self.chunk.write_jump_u16();
@@ -350,8 +366,8 @@ impl Compiler {
                 self.chunk.write_code(Op::PushNone);
             }
             ExprData::Set(set) => {
-                self.compile_expr(db, body_data, types, set.rhs);
-                let local_idx = self.resolve_expr_as_local_index(db, body_data, types, set.place);
+                self.compile_expr(set.rhs);
+                let local_idx = self.resolve_expr_as_local_index(set.place);
                 self.chunk.write_set_local_u8(local_idx as u8);
 
                 // return value is `<none>`
@@ -361,14 +377,7 @@ impl Compiler {
     }
 
     /// `and` or `or`
-    fn compile_bool_oper(
-        &mut self,
-        db: &Db,
-        body_data: &BodyData,
-        types: &TypeTable,
-        exprs: &[Expr],
-        is_and: bool,
-    ) {
+    fn compile_bool_oper(&mut self, exprs: &[Expr], is_and: bool) {
         let mut anchors = Vec::new();
 
         if is_and {
@@ -380,14 +389,14 @@ impl Compiler {
         }
 
         for &expr in exprs {
-            let expr_data = &body_data.tables[expr];
+            let expr_data = &self.body_data.tables[expr];
 
             assert_eq!(
-                types[expr],
+                self.types[expr],
                 ty::TypeData::Primitive(ty::PrimitiveType::Bool)
             );
 
-            self.compile_expr(db, body_data, types, expr);
+            self.compile_expr(expr);
 
             let anchor = if is_and {
                 // `and`: short circuit on `false`
@@ -414,21 +423,13 @@ impl Compiler {
     }
 
     /// Compiles a branch without discarding the last value
-    fn compile_branch(
-        &mut self,
-        db: &Db,
-        body_data: &BodyData,
-        types: &TypeTable,
-        pred: Expr,
-        block: Expr,
-        is_when: bool,
-    ) -> JumpAnchor {
+    fn compile_branch(&mut self, pred: Expr, block: Expr, is_when: bool) -> JumpAnchor {
         assert_eq!(
-            types[pred],
+            self.types[pred],
             ty::TypeData::Primitive(ty::PrimitiveType::Bool)
         );
 
-        self.compile_expr(db, body_data, types, pred);
+        self.compile_expr(pred);
 
         let anchor = if is_when {
             self.chunk.write_jump_if_not_u16()
@@ -436,39 +437,26 @@ impl Compiler {
             self.chunk.write_jump_if_u16()
         };
 
-        self.compile_expr(db, body_data, types, block);
+        self.compile_expr(block);
 
         anchor
     }
 
-    fn resolve_expr_as_local_index(
-        &mut self,
-        db: &Db,
-        body_data: &BodyData,
-        types: &TypeTable,
-        expr: Expr,
-    ) -> usize {
-        let path = match &body_data.tables[expr] {
+    fn resolve_expr_as_local_index(&mut self, expr: Expr) -> usize {
+        let path = match &self.body_data.tables[expr] {
             ExprData::Path(p) => p,
             x => panic!("not a place: {:?}", x),
         };
 
-        self.resolve_path_as_local_index(db, body_data, types, expr, path)
+        self.resolve_path_as_local_index(expr, path)
     }
 
-    fn resolve_path_as_local_index(
-        &mut self,
-        db: &Db,
-        body_data: &BodyData,
-        types: &TypeTable,
-        expr: Expr,
-        path: &expr::Path,
-    ) -> usize {
+    fn resolve_path_as_local_index(&mut self, expr: Expr, path: &expr::Path) -> usize {
         let local_idx = self
             .call_frame
             .as_ref()
             .unwrap()
-            .resolve_path(db, expr, path)
+            .resolve_path(self.db, expr, path)
             .unwrap_or_else(|| panic!("can't resolve as place: {:?}", path));
 
         local_idx

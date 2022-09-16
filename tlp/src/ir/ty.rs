@@ -1,4 +1,4 @@
-//! Types expressions
+//! Types of patterns and expressions
 
 // TODO: resolve path to a pattern without making duplicates?
 
