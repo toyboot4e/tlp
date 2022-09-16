@@ -94,6 +94,8 @@ pub enum SyntaxKind {
     And,
     /// Or node
     Or,
+    /// `=` node
+    Equal,
     /// When node
     When,
     /// Unless node
@@ -102,6 +104,10 @@ pub enum SyntaxKind {
     Cond,
     /// Cond case node
     CondCase,
+    /// Loop node
+    Loop,
+    /// While node
+    While,
     /// DefProc node
     DefProc,
     /// DefProc node name node

@@ -257,7 +257,9 @@ impl ParseState {
             "set" => self.bump_list_set(pcx, checkpoint),
             "when" | "unless" => self.bump_list_when_unless(pcx, checkpoint),
             "cond" => self.bump_list_cond(pcx, checkpoint),
-            "and" | "or" => self.bump_list_bool_oper(pcx, checkpoint),
+            "loop" => self.bump_list_loop(pcx, checkpoint),
+            "while" => self.bump_list_while(pcx, checkpoint),
+            "and" | "or" => self.bump_list_logic_oper(pcx, checkpoint),
             _ => self.bump_list_call(pcx, checkpoint),
         }
     }
@@ -434,7 +436,7 @@ impl ParseState {
     }
 
     /// ("and" | "or") Pat Sexp* ")"
-    fn bump_list_bool_oper(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+    fn bump_list_logic_oper(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
 
         let kind = match tk.slice(pcx.src) {
@@ -522,6 +524,55 @@ impl ParseState {
 
         self.builder.finish_node();
         Some(())
+    }
+
+    /// "loop" sexp* ")"
+    fn bump_list_loop(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        assert_eq!(tk.slice(pcx.src), "loop");
+
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Loop.into());
+
+        self.maybe_bump_ws(pcx);
+
+        // inline block
+        let block_checkpoint = self.builder.checkpoint();
+        self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
+
+        if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_none() {
+            // TODO: better recovery on failure
+        }
+
+        self.builder.finish_node();
+    }
+
+    /// "while" sexp sexp* ")"
+    fn bump_list_while(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        assert_eq!(tk.slice(pcx.src), "while");
+
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::While.into());
+
+        self.maybe_bump_ws(pcx);
+
+        // pred
+        if self.maybe_bump_sexp(pcx).is_none() {
+            // TODO: better recovery on failure
+        }
+
+        self.maybe_bump_ws(pcx);
+
+        // inline block
+        let block_checkpoint = self.builder.checkpoint();
+        self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
+
+        if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_none() {
+            // TODO: better recovery on failure
+        }
+
+        self.builder.finish_node();
     }
 
     /// Call → "(" Path Sexp* ")"

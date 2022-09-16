@@ -25,13 +25,16 @@ id! {
     pub struct Expr;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprData {
     // TODO: consider removing missing expr
     Missing,
     Block(Block),
     Let(Let),
     Call(Call),
+    /// Arithmetic: `+`, `-`, `*`, `/`. Comparison: `=`
+    CallOp(CallOp),
+    Op(OpKind),
     Literal(Literal),
     Path(Path),
     And(And),
@@ -40,9 +43,18 @@ pub enum ExprData {
     When(When),
     Unless(Unless),
     Cond(Cond),
+    Loop(Loop),
+    While(While),
 }
 
 impl ExprData {
+    pub fn cast_as_path(&self) -> &Path {
+        match self {
+            Self::Path(x) => x,
+            _ => panic!("unable to unwrap `ExprData` as path"),
+        }
+    }
+
     pub fn into_path(self) -> Path {
         match self {
             Self::Path(x) => x,
@@ -68,7 +80,7 @@ impl_from! {
 }
 
 /// Code block of S-expressions
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Block {
     // TODO: statements?
     pub exprs: Box<[Expr]>,
@@ -90,17 +102,70 @@ impl<'a> IntoIterator for &'a Block {
 }
 
 /// Code block of S-expressions
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Let {
     pub pat: Pat,
     pub rhs: Expr,
 }
 
 /// Procedure call
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Call {
     pub path: Expr,
     pub args: Box<[Expr]>,
+}
+
+/// Builtin operator call
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CallOp {
+    pub op_expr: Expr,
+    pub args: Box<[Expr]>,
+}
+
+/// Builtin operator kinds
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OpKind {
+    /// `+`
+    Add,
+    /// `-`
+    Sub,
+    /// `*`
+    Mul,
+    /// `/`
+    Div,
+    /// `=`
+    Eq,
+    /// `!=`
+    NotEq,
+    /// `<`
+    Lt,
+    /// `<=`
+    Le,
+    /// `>`
+    Gt,
+    /// `>=`
+    Ge,
+}
+
+impl OpKind {
+    pub fn parse(s: &str) -> Option<Self> {
+        let op = match s {
+            "+" => Self::Add,
+            "-" => Self::Sub,
+            "*" => Self::Mul,
+            "/" => Self::Div,
+            "=" => Self::Eq,
+            "=" => Self::Eq,
+            "!=" => Self::NotEq,
+            "<" => Self::Lt,
+            "<=" => Self::Le,
+            ">" => Self::Gt,
+            ">=" => Self::Ge,
+            _ => return None,
+        };
+
+        Some(op)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -201,11 +266,24 @@ pub struct Unless {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Cond {
+    /// If any of the cond cases has `true` test, it can be an expression
+    pub can_be_expr: bool,
     pub cases: Vec<CondCase>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CondCase {
+    pub pred: Expr,
+    pub block: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Loop {
+    pub block: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct While {
     pub pred: Expr,
     pub block: Expr,
 }

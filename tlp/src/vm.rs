@@ -174,17 +174,17 @@ impl Vm {
                     self.unit_op(|x: f32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
                 }
-                Op::AddF32 => {
-                    self.binary_op::<f32>(Op::AddF32, ops::Add::<f32>::add)?;
+                op @ Op::AddF32 => {
+                    self.binary_op::<f32>(op, ops::Add::<f32>::add)?;
                 }
-                Op::SubF32 => {
-                    self.binary_op::<f32>(Op::SubF32, ops::Sub::<f32>::sub)?;
+                op @ Op::SubF32 => {
+                    self.binary_op::<f32>(op, ops::Sub::<f32>::sub)?;
                 }
-                Op::MulF32 => {
-                    self.binary_op::<f32>(Op::MulF32, ops::Mul::<f32>::mul)?;
+                op @ Op::MulF32 => {
+                    self.binary_op::<f32>(op, ops::Mul::<f32>::mul)?;
                 }
-                Op::DivF32 => {
-                    self.binary_op::<f32>(Op::DivF32, ops::Div::<f32>::div)?;
+                op @ Op::DivF32 => {
+                    self.binary_op::<f32>(op, ops::Div::<f32>::div)?;
                 }
 
                 // `i32` operators (builtin)
@@ -192,17 +192,66 @@ impl Vm {
                     self.unit_op(|x: i32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
                 }
-                Op::AddI32 => {
-                    self.binary_op::<i32>(Op::AddI32, ops::Add::<i32>::add)?;
+                op @ Op::AddI32 => {
+                    self.binary_op::<i32>(op, ops::Add::<i32>::add)?;
                 }
-                Op::SubI32 => {
-                    self.binary_op::<i32>(Op::SubI32, ops::Sub::<i32>::sub)?;
+                op @ Op::SubI32 => {
+                    self.binary_op::<i32>(op, ops::Sub::<i32>::sub)?;
                 }
-                Op::MulI32 => {
-                    self.binary_op::<i32>(Op::MulI32, ops::Mul::<i32>::mul)?;
+                op @ Op::MulI32 => {
+                    self.binary_op::<i32>(op, ops::Mul::<i32>::mul)?;
                 }
-                Op::DivI32 => {
-                    self.binary_op::<i32>(Op::DivI32, ops::Div::<i32>::div)?;
+                op @ Op::DivI32 => {
+                    self.binary_op::<i32>(op, ops::Div::<i32>::div)?;
+                }
+
+                // comparison
+                op @ Op::EqBool => {
+                    self.binary_op_2::<bool, bool>(op, |x1, x2| x1 == x2)?;
+                }
+                op @ Op::EqI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 == x2)?;
+                }
+                op @ Op::EqF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 == x2)?;
+                }
+
+                op @ Op::NotEqBool => {
+                    self.binary_op_2::<bool, bool>(op, |x1, x2| x1 != x2)?;
+                }
+                op @ Op::NotEqI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 != x2)?;
+                }
+                op @ Op::NotEqF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 != x2)?;
+                }
+
+                op @ Op::LtI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 < x2)?;
+                }
+                op @ Op::LtF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 < x2)?;
+                }
+
+                op @ Op::LeI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 <= x2)?;
+                }
+                op @ Op::LeF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 <= x2)?;
+                }
+
+                op @ Op::GtI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 > x2)?;
+                }
+                op @ Op::GtF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 > x2)?;
+                }
+
+                op @ Op::GeI32 => {
+                    self.binary_op_2::<i32, bool>(op, |x1, x2| x1 >= x2)?;
+                }
+                op @ Op::GeF32 => {
+                    self.binary_op_2::<f32, bool>(op, |x1, x2| x1 >= x2)?;
                 }
             }
         }
@@ -221,10 +270,19 @@ impl Vm {
 
     /// Pushes binary operator to the stack
     fn binary_op<T: UnitVariant>(&mut self, op: Op, oper: impl Fn(T, T) -> T) -> Result<()> {
+        self.binary_op_2::<T, T>(op, oper)
+    }
+
+    /// Pushes binary operator to the stack
+    fn binary_op_2<T: UnitVariant, Res: UnitVariant>(
+        &mut self,
+        op: Op,
+        oper: impl Fn(T, T) -> Res,
+    ) -> Result<()> {
         let y = self.stack.pop().ok_or_else(|| VmError::EobWhileOp { op })?;
         let x = self.stack.pop().ok_or_else(|| VmError::EobWhileOp { op })?;
 
-        let out_unit = T::into_unit(oper(T::from_unit(x), T::from_unit(y)));
+        let out_unit = Res::into_unit(oper(T::from_unit(x), T::from_unit(y)));
         self.stack.push(out_unit);
 
         Ok(())
@@ -250,7 +308,7 @@ pub trait UnitVariant {
 }
 
 fn debug_assert_zeros(unit: Unit, n: usize) {
-    for i in n..8 {
+    for i in n..::core::mem::size_of::<Unit>() {
         debug_assert_eq!(unit[i], 0)
     }
 }

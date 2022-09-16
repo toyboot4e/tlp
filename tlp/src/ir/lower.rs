@@ -121,8 +121,32 @@ impl<'a> LowerBody<'a> {
             ast::Expr::Call(call) => {
                 let path = self.lower_ast_expr(call.path().into());
                 let args = call.args().map(|expr| self.lower_ast_expr(expr)).collect();
-                let expr = expr::Call { path, args };
-                self.alloc(ExprData::Call(expr), span)
+
+                loop {
+                    // override bulint function call
+                    let path_data = self.tables[path].clone().into_path();
+
+                    if path_data.segments.len() == 1 {
+                        if let Some(kind) =
+                            expr::OpKind::parse(path_data.segments[0].as_str(self.db.base()))
+                        {
+                            let args = call.args().map(|expr| self.lower_ast_expr(expr)).collect();
+
+                            let op_expr = {
+                                let path_span =
+                                    Span::from_rowan_range(call.path().syn.text_range());
+                                self.alloc(ExprData::Op(kind), Ok(path_span))
+                            };
+
+                            let expr = expr::CallOp { op_expr, args };
+                            break self.alloc(ExprData::CallOp(expr), span);
+                        }
+                    }
+
+                    // ordinary funtion call
+                    let expr = expr::Call { path, args };
+                    break self.alloc(ExprData::Call(expr), span);
+                }
             }
             ast::Expr::And(and) => {
                 let exprs = and.exprs().map(|expr| self.lower_ast_expr(expr)).collect();
@@ -158,8 +182,35 @@ impl<'a> LowerBody<'a> {
                     cases.push(case);
                 }
 
-                let expr = expr::Cond { cases };
+                // If there's any case that has `true` test case, it's an expression.
+                // Otherwise it's a statement
+                let is_expr = cond.cases().any(|case| {
+                    if let Some(ast::Expr::Literal(lit)) = case.pred() {
+                        matches!(lit.kind(), ast::LiteralKind::True(_))
+                    } else {
+                        false
+                    }
+                });
+
+                let expr = expr::Cond {
+                    can_be_expr: is_expr,
+                    cases,
+                };
                 self.alloc(ExprData::Cond(expr), span)
+            }
+            ast::Expr::Loop(loop_) => {
+                let block = self.lower_opt_ast_expr(loop_.block().map(|b| b.into()));
+
+                let loop_ = expr::Loop { block };
+                self.alloc(ExprData::Loop(loop_), span)
+            }
+            ast::Expr::While(while_) => {
+                assert!(while_.pred().is_some());
+                let pred = self.lower_opt_ast_expr(while_.pred().map(|b| b.into()));
+                let block = self.lower_opt_ast_expr(while_.block().map(|b| b.into()));
+
+                let while_ = expr::While { pred, block };
+                self.alloc(ExprData::While(while_), span)
             }
             ast::Expr::Set(set) => {
                 let place = self.lower_opt_ast_expr(set.place().map(|ast_path| ast_path.into()));
@@ -341,6 +392,16 @@ fn compute_expr_scopes(
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
             });
         }
+        ExprData::CallOp(call_op) => {
+            call_op.args.iter().for_each(|expr| {
+                self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
+            });
+        }
+
+        // builtin functions
+        ExprData::Op(op) => {
+            // no children
+        }
         ExprData::And(and) => {
             and.exprs.iter().for_each(|expr| {
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
@@ -351,6 +412,7 @@ fn compute_expr_scopes(
                 self::compute_expr_scopes(*expr, body_data, scopes, scope_idx);
             });
         }
+
         ExprData::When(when) => {
             self::compute_expr_scopes(when.pred, body_data, scopes, scope_idx);
             self::compute_expr_scopes(when.block, body_data, scopes, scope_idx);
@@ -364,6 +426,13 @@ fn compute_expr_scopes(
                 self::compute_expr_scopes(case.pred, body_data, scopes, scope_idx);
                 self::compute_expr_scopes(case.block, body_data, scopes, scope_idx);
             }
+        }
+        ExprData::Loop(loop_) => {
+            self::compute_expr_scopes(loop_.block, body_data, scopes, scope_idx);
+        }
+        ExprData::While(while_) => {
+            self::compute_expr_scopes(while_.pred, body_data, scopes, scope_idx);
+            self::compute_expr_scopes(while_.block, body_data, scopes, scope_idx);
         }
         ExprData::Set(set) => {
             self::compute_expr_scopes(set.place, body_data, scopes, scope_idx);

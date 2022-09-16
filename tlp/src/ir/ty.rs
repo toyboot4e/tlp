@@ -1,4 +1,4 @@
-//! Types expressions
+//! Types of patterns and expressions
 
 // TODO: resolve path to a pattern without making duplicates?
 
@@ -10,7 +10,10 @@ use std::ops;
 use rustc_hash::FxHashMap;
 use typed_index_collections::TiVec;
 
-use crate::ir::body::{expr::Expr, pat::Pat};
+use crate::ir::body::{
+    expr::{self, Expr},
+    pat::Pat,
+};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TypeTable {
@@ -86,30 +89,33 @@ pub enum TypeData {
     Stmt,
     /// Primitive type
     Primitive(PrimitiveType),
-    /// Builtin bimnary operator type
+    /// Builtin operator (function) type
     Op(OpType),
 }
 
+// Builtin operator (function) type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OpType {
-    pub kind: OpKind,
-    pub target_ty: OpTargetType,
+    pub kind: expr::OpKind,
+    pub operand_ty: OpOperandType,
 }
 
 /// Builtin operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum OpTargetType {
+pub enum OpOperandType {
     Unknown,
     I32,
     F32,
+    Bool,
 }
 
-impl OpTargetType {
+impl OpOperandType {
     pub fn from_wip_type(ty: &WipTypeData) -> Option<Self> {
         match ty {
             WipTypeData::Data(TypeData::Primitive(prim)) => match prim {
-                PrimitiveType::I32 => Some(OpTargetType::I32),
-                PrimitiveType::F32 => Some(OpTargetType::F32),
+                PrimitiveType::Bool => Some(OpOperandType::Bool),
+                PrimitiveType::I32 => Some(OpOperandType::I32),
+                PrimitiveType::F32 => Some(OpOperandType::F32),
                 _ => None,
             },
             _ => None,
@@ -121,32 +127,10 @@ impl OpTargetType {
             Self::Unknown => return None,
             Self::I32 => PrimitiveType::I32,
             Self::F32 => PrimitiveType::F32,
+            Self::Bool => PrimitiveType::Bool,
         };
 
         Some(WipTypeData::Data(TypeData::Primitive(prim)))
-    }
-}
-
-/// Builtin operator kinds
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum OpKind {
-    Add,
-    Sub,
-    Mul,
-    Div,
-}
-
-impl OpKind {
-    pub fn parse(s: &str) -> Option<Self> {
-        let op = match s {
-            "+" => Self::Add,
-            "-" => Self::Sub,
-            "*" => Self::Mul,
-            "/" => Self::Div,
-            _ => return None,
-        };
-
-        Some(op)
     }
 }
 

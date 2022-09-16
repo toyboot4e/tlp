@@ -61,7 +61,7 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
         chunk
     };
 
-    // println!("{}", log_chunk(&src, &chunk).unwrap());
+    println!("{}", log_chunk(&src, &chunk).unwrap());
 
     let mut vm = Vm::new(chunk.clone());
     if let Err(e) = vm.run() {
@@ -152,10 +152,86 @@ fn stack_balance() {
 }
 
 #[test]
+fn comparison() {
+    // bool
+    test_expr("(= true true)", true);
+    test_expr("(= true false)", false);
+    test_expr("(= false true)", false);
+    test_expr("(= false false)", true);
+
+    test_expr("(!= true true)", !true);
+    test_expr("(!= true false)", !false);
+    test_expr("(!= false true)", !false);
+    test_expr("(!= false false)", !true);
+
+    // i32
+    test_expr("(= 0 2)", false);
+    test_expr("(= 2 2)", true);
+
+    test_expr("(!= 0 2)", !false);
+    test_expr("(!= 2 2)", !true);
+
+    test_expr("(< 2 4)", true);
+    test_expr("(< 3 3)", false);
+    test_expr("(< 4 2)", false);
+
+    test_expr("(<= 2 4)", true);
+    test_expr("(<= 3 3)", true);
+    test_expr("(<= 4 2)", false);
+
+    test_expr("(> 2 4)", false);
+    test_expr("(> 3 3)", false);
+    test_expr("(> 4 2)", true);
+
+    test_expr("(>= 2 4)", false);
+    test_expr("(>= 3 3)", true);
+    test_expr("(>= 4 2)", true);
+
+    // f32
+    test_expr("(= 0.0 2.2)", false);
+    test_expr("(= 2.2 2.2)", true);
+
+    test_expr("(!= 0.0 2.2)", !false);
+    test_expr("(!= 2.2 2.2)", !true);
+
+    test_expr("(< 2.2 4.4)", true);
+    test_expr("(< 3.3 3.3)", false);
+    test_expr("(< 4.4 2.2)", false);
+
+    test_expr("(<= 2.2 4.4)", true);
+    test_expr("(<= 3.3 3.3)", true);
+    test_expr("(<= 4.4 2.2)", false);
+
+    test_expr("(> 2.2 4.4)", false);
+    test_expr("(> 3.3 3.3)", false);
+    test_expr("(> 4.4 2.2)", true);
+
+    test_expr("(>= 2.2 4.4)", false);
+    test_expr("(>= 3.3 3.3)", true);
+    test_expr("(>= 4.4 2.2)", true);
+}
+
+#[test]
 fn control_flow() {
     test_expr("(let a 0) (when true (set a 10)) a", 10);
     test_expr("(unless false true) 15", 15);
 
+    // cond expression
     test_expr("(cond (false 10) (true 15))", 15);
     test_expr("(cond (true 10) (false 15))", 10);
+
+    // cond statement
+    test_expr("(cond (false 10) (false 15))", 0);
+
+    // while
+    test_expr(
+        "
+(let a 0)
+(while (< a 3)
+    (set a (+ a 1)))
+a",
+        3,
+    );
+
+    // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
 }

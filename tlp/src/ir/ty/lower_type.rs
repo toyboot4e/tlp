@@ -134,10 +134,25 @@ impl<'db> Collect<'db> {
                 call.args.iter().for_each(|&expr| {
                     self.collect_expr(expr);
                 });
-                self.collect_expr(call.path);
-                // FIXME: call's return type
-                WipTypeData::Data(TypeData::Stmt)
+
+                // FIXME: function call return type should be resolved to the annotated type
+                WipTypeData::Var
             }
+            ExprData::CallOp(op) => {
+                op.args.iter().for_each(|&expr| {
+                    self.collect_expr(expr);
+                });
+
+                self.collect_expr(op.op_expr);
+
+                // FIXME: return type of the builtin function call needs to be inferred
+                WipTypeData::Var
+            }
+            ExprData::Op(kind) => {
+                // builtin operator type needs to be inferred
+                WipTypeData::Var
+            }
+
             ExprData::Literal(lit) => match lit {
                 expr::Literal::String(_) => todo!(),
                 expr::Literal::Char(_) => todo!(),
@@ -153,10 +168,8 @@ impl<'db> Collect<'db> {
             },
             // TODO: use name resolution to know the type
             ExprData::Path(path) => {
-                if let Some(ty) = self.collect_builtin_op(path) {
-                    ty
-                } else if self.collect_path(path, expr) {
-                    // resolved; there's no new type data
+                if self.resolve_path(path, expr) {
+                    // no new type data
                     return;
                 } else {
                     // path to nothing
@@ -195,8 +208,23 @@ impl<'db> Collect<'db> {
                     self.collect_expr(case.block);
                 }
 
-                // `cond` return types needs to be inferred
-                WipTypeData::Var
+                if cond.can_be_expr {
+                    WipTypeData::Var
+                } else {
+                    WipTypeData::Data(TypeData::Stmt)
+                }
+            }
+            ExprData::Loop(loop_) => {
+                self.collect_expr(loop_.block);
+
+                // TODO: loop can be an expression
+                WipTypeData::Data(TypeData::Stmt)
+            }
+            ExprData::While(while_) => {
+                self.collect_expr(while_.pred);
+                self.collect_expr(while_.block);
+
+                WipTypeData::Data(TypeData::Stmt)
             }
             ExprData::Set(set) => {
                 self.collect_expr(set.place);
@@ -215,20 +243,8 @@ impl<'db> Collect<'db> {
         );
     }
 
-    /// Builtin operators can be overloaded so they're given type variables
-    fn collect_builtin_op(&mut self, path: &expr::Path) -> Option<WipTypeData> {
-        if path.segments.len() == 1 {
-            let ident = path.segments[0].as_str(self.db.base());
-            if let Some(_) = ty::OpKind::parse(ident) {
-                return Some(WipTypeData::Var);
-            }
-        }
-
-        None
-    }
-
     /// Resolves path to a variable and point to the same type
-    fn collect_path(&mut self, path: &expr::Path, expr: Expr) -> bool {
+    fn resolve_path(&mut self, path: &expr::Path, expr: Expr) -> bool {
         // FIXME(perf)
         let resolver = self.proc.expr_resolver(self.db, expr);
 
@@ -237,22 +253,18 @@ impl<'db> Collect<'db> {
             None => return false,
         };
 
-        let index = *match self.pat_types.get(&pat) {
-            Some(x) => x,
-            _ => unreachable!(
-                "bug: found a path that can be resolved but not collected: {:?}",
-                path, // TODO: debug with DB
-            ),
-        };
+        self.share_type_with_pat(expr, pat);
+
+        true
+    }
+
+    fn share_type_with_pat(&mut self, expr: Expr, shared: Pat) {
+        let index = self.pat_types[&shared];
 
         assert!(
             self.expr_types.insert(expr, index).is_none(),
-            "bug: duplicate visit to path: {:?} {:?}",
-            expr,
-            path
+            "bug: duplicate visit (pat)",
         );
-
-        true
     }
 
     fn collect_pat(&mut self, pat: Pat) {
@@ -264,6 +276,7 @@ impl<'db> Collect<'db> {
         };
 
         let index = self.types.push_and_get_key(ty);
+
         assert!(
             self.pat_types.insert(pat, index).is_none(),
             "bug: duplicate visit to pat: {:?} {:?}",
@@ -273,11 +286,14 @@ impl<'db> Collect<'db> {
     }
 }
 
+const BOOL: TypeData = TypeData::Primitive(ty::PrimitiveType::Bool);
+
 impl<'db, 'map> Infer<'db, 'map> {
     pub fn infer_all(&mut self) {
         self.infer_expr(self.body_data.root_block)
     }
 
+    /// NOTE: Unify first
     fn infer_expr(&mut self, expr: Expr) {
         let expr_data = &self.body_data.tables[expr];
 
@@ -309,57 +325,69 @@ impl<'db, 'map> Infer<'db, 'map> {
                         ExprData::Path(path) => path,
                         _ => todo!("call path"),
                     };
-                    assert_eq!(path.segments.len(), 1);
+                    assert_eq!(
+                        path.segments.len(),
+                        1,
+                        "TODO: handle path.. or normalize it"
+                    );
 
                     &path.segments[0]
                 };
                 let name = ident.as_str(self.db.base());
 
-                if let Some(kind) = ty::OpKind::parse(name) {
-                    self.infer_builtin_op(expr, call, kind);
-                } else {
-                    // TODO: handle user function call
-                }
+                // TODO: handle user function call
             }
+            ExprData::CallOp(op) => self.infer_builtin_op(expr, op),
+            ExprData::Op(_kind) => {
+                // the operator type is unified on visiting `CallOp`
+            }
+
             ExprData::Literal(_lit) => {}
             ExprData::Path(_path) => {
                 // path is alread resolve to a pattern and the pattern's type is shared the path
                 // expression
             }
             ExprData::And(and) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
                 and.exprs.iter().for_each(|&expr| {
-                    self.unify_expected(self.expr_types[&expr], &b);
+                    self.infer_expr(expr);
+                    self.unify_expected(self.expr_types[&expr], &BOOL);
                 });
             }
             ExprData::Or(or) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
                 or.exprs.iter().for_each(|&expr| {
-                    self.unify_expected(self.expr_types[&expr], &b);
+                    self.infer_expr(expr);
+                    self.unify_expected(self.expr_types[&expr], &BOOL);
                 });
             }
             ExprData::When(when) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
-                self.unify_expected(self.expr_types[&when.pred], &b);
+                self.infer_expr(when.pred);
+                self.unify_expected(self.expr_types[&when.pred], &BOOL);
 
                 self.infer_expr(when.block);
             }
             ExprData::Unless(unless) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
-                self.unify_expected(self.expr_types[&unless.pred], &b);
+                self.infer_expr(unless.pred);
+                self.unify_expected(self.expr_types[&unless.pred], &BOOL);
 
                 self.infer_expr(unless.block);
             }
             ExprData::Cond(cond) => {
-                let b = TypeData::Primitive(ty::PrimitiveType::Bool);
                 for case in &cond.cases {
-                    self.unify_expected(self.expr_types[&case.pred], &b);
+                    self.infer_expr(case.pred);
+                    self.unify_expected(self.expr_types[&case.pred], &BOOL);
                     self.infer_expr(case.block);
                 }
 
+                if !cond.can_be_expr {
+                    return;
+                }
+
                 // unify blocks
-                let tys = cond.cases.iter().map(|case| self.expr_types[&case.block]);
-                self.unify_many_vars(tys);
+                let tys = cond
+                    .cases
+                    .iter()
+                    .map(|case| (case.block, self.expr_types[&case.block]));
+                self.infer_and_unify_many_vars(tys);
 
                 // FIXME: Get unified type and use it for the cond's type
                 let ty = if let Some(case) = cond.cases.first() {
@@ -372,30 +400,63 @@ impl<'db, 'map> Infer<'db, 'map> {
                 let ty_index = self.expr_types[&expr];
                 self.types[ty_index] = ty;
             }
+            ExprData::Loop(loop_) => {
+                // TODO: loop expression
+                self.infer_expr(loop_.block);
+            }
+            ExprData::While(while_) => {
+                self.infer_expr(while_.pred);
+                self.unify_expected(self.expr_types[&while_.pred], &BOOL);
+                self.infer_expr(while_.block);
+            }
             ExprData::Set(set) => {
+                self.infer_expr(set.place);
                 let i1 = self.expr_types[&set.place];
+
+                self.infer_expr(set.rhs);
                 let i2 = self.expr_types[&set.rhs];
+
                 self.unify_2vars(i1, i2);
             }
         }
     }
 
-    fn infer_builtin_op(&mut self, call_expr: Expr, call: &expr::Call, kind: ty::OpKind) {
-        // handle builtin operators
-        let target_ty = call
+    fn infer_builtin_op(&mut self, call_op_expr: Expr, call_op: &expr::CallOp) {
+        // infer and unify the argument types
+        {
+            call_op.args.iter().for_each(|expr| {
+                self.infer_expr(*expr);
+            });
+
+            let tys = call_op
+                .args
+                .iter()
+                .map(|expr| (*expr, self.expr_types[expr]));
+            self.infer_and_unify_many_vars(tys);
+        }
+
+        let operand_ty = call_op
             .args
             .iter()
             .find_map(|expr| {
                 let index = self.expr_types[expr];
                 let ty = &self.types[index];
-                ty::OpTargetType::from_wip_type(ty)
+                ty::OpOperandType::from_wip_type(ty)
             })
-            .unwrap_or(ty::OpTargetType::Unknown);
+            .unwrap_or(ty::OpOperandType::Unknown);
 
-        let op_type = ty::OpType { kind, target_ty };
+        let kind = match &self.body_data.tables[call_op.op_expr] {
+            ExprData::Op(op) => *op,
+            _ => unreachable!(),
+        };
 
-        self.types[self.expr_types[&call.path]] = WipTypeData::Data(TypeData::Op(op_type));
-        self.types[self.expr_types[&call_expr]] = target_ty.to_wip_type().unwrap();
+        let op_type = ty::OpType { kind, operand_ty };
+
+        // call node
+        self.types[self.expr_types[&call_op.op_expr]] = WipTypeData::Data(TypeData::Op(op_type));
+
+        // operator function
+        self.types[self.expr_types[&call_op_expr]] = operand_ty.to_wip_type().unwrap();
     }
 
     fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {
@@ -404,6 +465,7 @@ impl<'db, 'map> Infer<'db, 'map> {
 }
 
 impl<'db, 'map> Infer<'db, 'map> {
+    // FIXME: do occur check
     // /// Returns true if the type variable occurs in the compared type. This is used in [`unify`] to avoid inifinite call cycle.
     // fn occur(&self, var: TypeId, ty: TypeId) -> bool {
     //     assert_eq!(
@@ -455,25 +517,34 @@ impl<'db, 'map> Infer<'db, 'map> {
     }
 
     // pub fn unify_many_vars(&mut self, tys: &[TyIndex]) -> bool {
-    pub fn unify_many_vars(&mut self, mut tys: impl Iterator<Item = TyIndex>) -> bool {
+    pub fn infer_and_unify_many_vars(
+        &mut self,
+        mut tys: impl Iterator<Item = (Expr, TyIndex)>,
+    ) -> bool {
         let mut res = true;
 
         // window(2)
-        let mut t1 = match tys.next() {
+        let (mut e1, mut t1) = match tys.next() {
             Some(x) => x,
             None => return false,
         };
-        let mut t2 = match tys.next() {
+
+        self.infer_expr(e1);
+
+        let (mut e2, mut t2) = match tys.next() {
             Some(x) => x,
             None => return false,
         };
 
         loop {
+            self.infer_expr(e2);
             res &= self.unify_2vars(t1, t2);
 
-            if let Some(t) = tys.next() {
+            if let Some((e, t)) = tys.next() {
                 t1 = t2;
+                e1 = e2;
                 t2 = t;
+                e2 = e;
             } else {
                 break;
             }

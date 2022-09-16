@@ -47,8 +47,8 @@ impl Stack {
     pub fn pop(&mut self) -> Option<Unit> {
         debug_run(|| {
             let n = self.units.len();
-            if n + 1 <= self.tmp_offset() {
-                panic!("invalid pop detected");
+            if n <= self.tmp_offset() {
+                panic!("invalid pop detected\nstack: {:?}", self.units);
             }
         });
 

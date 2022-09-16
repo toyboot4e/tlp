@@ -54,6 +54,25 @@ pub enum Op {
     SubI32,
     MulI32,
     DivI32,
+
+    // comparison
+    EqBool,
+    EqF32,
+    EqI32,
+
+    NotEqBool,
+    NotEqF32,
+    NotEqI32,
+
+    GtF32,
+    GtI32,
+    GeF32,
+    GeI32,
+
+    LtF32,
+    LtI32,
+    LeF32,
+    LeI32,
 }
 
 impl Op {
@@ -87,16 +106,41 @@ impl Op {
             Op::Jump16 => "jump-16",
             Op::JumpIf16 => "jump-if-16",
             Op::JumpIfNot16 => "jump-if-not-16",
+
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
             Op::SubF32 => "sub-f32",
             Op::MulF32 => "mul-f32",
             Op::DivF32 => "div-f32",
+
             Op::NegI32 => "neg-i32",
             Op::AddI32 => "add-i32",
             Op::SubI32 => "sub-i32",
             Op::MulI32 => "mul-i32",
             Op::DivI32 => "div-i32",
+
+            Op::EqBool => "eq-bool",
+            Op::EqI32 => "eq-i32",
+            Op::EqF32 => "eq-f32",
+
+            Op::NotEqBool => "not-eq-bool",
+            Op::NotEqI32 => "not-eq-i32",
+            Op::NotEqF32 => "not-eq-f32",
+
+            Op::NotEqI32 => "not-eq-i32",
+            Op::NotEqF32 => "not-eq-f32",
+
+            Op::LtI32 => "lt-i32",
+            Op::LtF32 => "lt-f32",
+
+            Op::LeI32 => "le-i32",
+            Op::LeF32 => "le-f32",
+
+            Op::GtI32 => "gt-i32",
+            Op::GtF32 => "gt-f32",
+
+            Op::GeI32 => "ge-i32",
+            Op::GeF32 => "ge-f32",
         }
     }
 }
@@ -269,10 +313,44 @@ impl Chunk {
         self.codes.push(Op::SetLocalUnit8 as u8);
         self.codes.push(idx);
     }
+}
 
+/// Instruction pointer for jumping
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Ip(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct JumpAnchor(u16);
+
+impl JumpAnchor {
+    fn new(chunk: &Chunk) -> Self {
+        JumpAnchor(chunk.codes.len() as u16)
+    }
+
+    pub fn set_ip(&self, chunk: &mut Chunk) {
+        let ip = chunk.ip();
+        self.set_ip_at(chunk, ip);
+    }
+
+    pub fn set_ip_at(&self, chunk: &mut Chunk, ip: Ip) {
+        assert!(ip.0 <= u16::MAX as usize);
+        let ip = ip.0 as u16;
+
+        chunk.codes[self.0 as usize] = (ip >> 8) as u8;
+        chunk.codes[self.0 as usize + 1] = ip as u8;
+    }
+}
+
+impl Chunk {
     // --------------------------------------------------------------------------------
     // Jumps
     // --------------------------------------------------------------------------------
+
+    /// Returns current instruction pointer
+    #[inline(always)]
+    pub fn ip(&self) -> Ip {
+        Ip(self.codes.len())
+    }
 
     /// Returns [`JumpAnchor`] for overwriting jump target later
     #[inline(always)]
@@ -299,20 +377,6 @@ impl Chunk {
         let anchor = JumpAnchor::new(self);
         self.write_u16(0);
         anchor
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct JumpAnchor(u16);
-
-impl JumpAnchor {
-    fn new(chunk: &Chunk) -> Self {
-        JumpAnchor(chunk.codes.len() as u16)
-    }
-
-    pub fn write_ip(&self, chunk: &mut Chunk, ip: u16) {
-        chunk.codes[self.0 as usize] = (ip >> 8) as u8;
-        chunk.codes[self.0 as usize + 1] = ip as u8;
     }
 }
 
