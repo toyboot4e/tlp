@@ -50,11 +50,10 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
     let (_doc, errs) = ast::parse(src).into_tuple();
     self::print_errors(&errs, src, "parse error");
 
-    let src = format!("(proc main () {})", src);
     let chunk = {
         let mut db = Db::default();
 
-        let file = db.new_input_file("main.tlp", src.clone());
+        let file = db.new_input_file("main.tlp", src.to_string());
 
         let (chunk, errs) = compile::compile(&db, file);
         self::print_errors(&errs, &src, "compile error");
@@ -71,9 +70,17 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
     (chunk, vm)
 }
 
-fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let (chunk, vm) = self::run(src, expected.clone());
+fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Chunk, Vm) {
+    let src = format!("(proc main () {})", src);
+    self::run(&src, expected)
+}
 
+fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
+    src: &str,
+    expected: T,
+    chunk: Chunk,
+    vm: Vm,
+) {
     let unit = match vm.units().last() {
         Some(x) => x,
         None => panic!(
@@ -98,6 +105,16 @@ fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, ex
         "{}",
         log_chunk(&src, &chunk).unwrap()
     );
+}
+
+fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
+    let (chunk, vm) = self::run_expr(src, expected.clone());
+    self::test_impl(src, expected, chunk, vm)
+}
+
+fn test_file<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
+    let (chunk, vm) = self::run(src, expected.clone());
+    self::test_impl(src, expected, chunk, vm)
 }
 
 #[test]
