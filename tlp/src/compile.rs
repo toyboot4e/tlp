@@ -4,6 +4,7 @@ pub mod scope;
 
 use rustc_hash::FxHashMap;
 use thiserror::Error;
+use typed_index_collections::TiVec;
 
 use base::jar::InputFile;
 
@@ -14,10 +15,13 @@ use crate::{
             pat::{Pat, PatData},
             Body, BodyData,
         },
-        item,
-        ty::{self, TypeTable},
+        item, ty, InputFileExt,
     },
-    vm::code::{Chunk, JumpAnchor, Op, TypedLiteral},
+    vm::{
+        self,
+        code::{Chunk, JumpAnchor, Op, TypedLiteral},
+        Vm,
+    },
     Db,
 };
 
@@ -31,13 +35,29 @@ pub enum CompileError {
     CantResolvePattern { name: String },
 }
 
-pub fn compile(db: &Db, main_file: InputFile) -> (Chunk, Vec<CompileError>) {
-    let main_proc = self::find_procedure_by_name(db, main_file, "main");
+pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
+    let mut vm_procs = TiVec::new();
+    let mut vm_errs = Vec::new();
 
-    let mut compiler = CompileProc::new(db, main_file, main_proc);
-    compiler.compile_proc();
+    // let main_proc = self::find_procedure_by_name(db, main_file, "main");
 
-    (compiler.chunk, compiler.errs)
+    let items = main_file.items(db);
+    for item in items {
+        let proc = match item {
+            item::Item::Proc(proc) => proc,
+        };
+
+        let mut compiler = CompileProc::new(db, main_file, proc.clone());
+        compiler.compile_proc();
+
+        vm_procs.push(vm::VmProc {
+            chunk: compiler.chunk,
+        });
+        vm_errs.extend(compiler.errs);
+    }
+
+    let vm = Vm::new(vm_procs);
+    (vm, vm_errs)
 }
 
 /// Compile-time call frame information

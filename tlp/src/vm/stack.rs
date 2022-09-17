@@ -55,6 +55,10 @@ impl Stack {
         self.units.pop()
     }
 
+    pub fn peek(&mut self) -> Option<&Unit> {
+        self.units.last()
+    }
+
     pub fn push_call_frame(&mut self, n_units: usize) {
         let offset = self.units.len();
         let n_units = n_units;

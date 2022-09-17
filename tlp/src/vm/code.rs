@@ -387,19 +387,19 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub fn read_literal(&mut self, idx: LiteralIndex) -> Unit {
+    pub fn read_literal(&self, idx: LiteralIndex) -> Unit {
         self.literals.read(idx)
     }
 
     #[inline(always)]
-    pub fn read_literal_u8(&mut self, idx_u8: u8) -> Unit {
+    pub fn read_literal_u8(&self, idx_u8: u8) -> Unit {
         let idx = LiteralIndex { raw: idx_u8.into() };
 
         self.read_literal(idx)
     }
 
     #[inline(always)]
-    pub fn read_literal_u16(&mut self, idx_u16: u16) -> Unit {
+    pub fn read_literal_u16(&self, idx_u16: u16) -> Unit {
         let idx = LiteralIndex {
             raw: idx_u16.into(),
         };
@@ -483,7 +483,7 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vm::{code::Op::*, Result, Vm};
+    use crate::vm::{self, code::Op::*, Result};
 
     /// Tests `-((64.0 - 32.0) / 16.0)` equals to `2.0`
     #[test]
@@ -510,13 +510,9 @@ mod tests {
             chunk
         };
 
-        let mut vm = Vm::new(chunk);
-        vm.run()?;
+        let unit = vm::run_chunk(chunk)?;
 
-        assert_eq!(
-            Some(&TypedLiteral::F32(-2.0).into_unit()),
-            vm.units().last()
-        );
+        assert_eq!(TypedLiteral::F32(-2.0).into_unit(), unit);
 
         Ok(())
     }

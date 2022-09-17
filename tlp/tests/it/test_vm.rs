@@ -5,7 +5,7 @@ use std::fmt::{self, Write};
 use tlp::{
     compile,
     syntax::ast,
-    vm::{code::Chunk, UnitVariant, Vm},
+    vm::{self, code::Chunk, UnitVariant, Vm},
     Db,
 };
 
@@ -29,6 +29,11 @@ fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display, header: impl
 fn log_chunk(src: &str, chunk: &Chunk) -> Result<String, fmt::Error> {
     let mut s = String::new();
 
+    writeln!(
+        s,
+        "--------------------------------------------------------------------------------"
+    )?;
+
     writeln!(s, "Source: {}", src)?;
 
     writeln!(
@@ -46,46 +51,49 @@ fn log_chunk(src: &str, chunk: &Chunk) -> Result<String, fmt::Error> {
     Ok(s)
 }
 
-fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Chunk, Vm) {
-    let (_doc, errs) = ast::parse(src).into_tuple();
-    self::print_errors(&errs, src, "parse error");
+fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> Vm {
+    {
+        let (_doc, errs) = ast::parse(src).into_tuple();
+        self::print_errors(&errs, src, "parse error");
+    }
 
-    let chunk = {
+    let (mut vm, errs) = {
         let mut db = Db::default();
-
         let file = db.new_input_file("main.tlp", src.to_string());
-
-        let (chunk, errs) = compile::compile(&db, file);
-        self::print_errors(&errs, &src, "compile error");
-        chunk
+        compile::compile_file(&db, file)
     };
 
-    println!("{}", log_chunk(&src, &chunk).unwrap());
+    for chunk in vm.proc_chunks() {
+        // TODO: print procedure name
+        println!("{}", log_chunk(&src, &chunk).unwrap());
+    }
 
-    let mut vm = Vm::new(chunk.clone());
-    if let Err(e) = vm.run() {
+    // TODO: search functions
+    let proc = vm::VmProcId(0);
+
+    if let Err(e) = vm.run_proc(proc) {
+        let chunk = &vm.proc(proc).chunk;
         panic!("{}\n{}", e, log_chunk(&src, &chunk).unwrap());
     }
 
-    (chunk, vm)
+    vm
 }
 
-fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Chunk, Vm) {
+fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> Vm {
     let src = format!("(proc main () {})", src);
     self::run(&src, expected)
 }
 
-fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
-    src: &str,
-    expected: T,
-    chunk: Chunk,
-    vm: Vm,
-) {
+fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T, vm: Vm) {
+    // TODO: search functions
+    let proc = vm::VmProcId(0);
+
+    let chunk = &vm.proc(proc).chunk;
     let unit = match vm.units().last() {
         Some(x) => x,
         None => panic!(
             "Nothing on stack after run.\n{}",
-            log_chunk(&src, &chunk).unwrap()
+            log_chunk(&src, chunk).unwrap()
         ),
     };
 
@@ -95,7 +103,7 @@ fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
         vm.stack().tmp_offset() + 1,
         "stack is not balanced: {:?}\n{}",
         vm.units(),
-        log_chunk(&src, &chunk).unwrap()
+        log_chunk(&src, chunk).unwrap()
     );
 
     // check the last and the only value
@@ -103,18 +111,18 @@ fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
         T::from_unit(*unit),
         expected,
         "{}",
-        log_chunk(&src, &chunk).unwrap()
+        log_chunk(&src, chunk).unwrap()
     );
 }
 
 fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let (chunk, vm) = self::run_expr(src, expected.clone());
-    self::test_impl(src, expected, chunk, vm)
+    let vm = self::run_expr(src, expected.clone());
+    self::test_impl(src, expected, vm)
 }
 
 fn test_file<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let (chunk, vm) = self::run(src, expected.clone());
-    self::test_impl(src, expected, chunk, vm)
+    let vm = self::run(src, expected.clone());
+    self::test_impl(src, expected, vm)
 }
 
 #[test]

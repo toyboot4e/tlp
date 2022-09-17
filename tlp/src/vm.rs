@@ -3,9 +3,12 @@
 pub mod code;
 pub mod stack;
 
+mod unit_impls;
+
 use std::ops;
 
 use thiserror::Error;
+use typed_index_collections::{TiSlice, TiVec};
 
 use self::{code::*, stack::Stack};
 
@@ -16,6 +19,12 @@ pub type Unit = [u8; UNIT_SIZE];
 
 /// Stack item size
 pub const UNIT_SIZE: usize = 8;
+
+/// [`Vm`] stack data unit
+pub trait UnitVariant {
+    fn from_unit(unit: Unit) -> Self;
+    fn into_unit(self) -> Unit;
+}
 
 #[derive(Debug, Error)]
 pub enum VmError {
@@ -29,31 +38,128 @@ pub enum VmError {
     EobWhileOp { op: Op },
 }
 
+#[derive(Debug)]
+struct VmCallFrame {
+    ip: usize,
+    proc: VmProcId,
+}
+
+/// ID of [`VmProc`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct VmProcId(pub usize);
+
+impl From<usize> for VmProcId {
+    fn from(x: usize) -> Self {
+        Self(0)
+    }
+}
+
+impl From<VmProcId> for usize {
+    fn from(id: VmProcId) -> usize {
+        id.0
+    }
+}
+
+/// Runtime representation of a procedure
+#[derive(Debug)]
+pub struct VmProc {
+    /// Chunk of bytecode instructions and constants
+    pub chunk: Chunk,
+}
+
 /// Toy Lisp bytecode virtual machine
 #[derive(Debug)]
 pub struct Vm {
-    /// Chunk of bytecode instructions and constants
-    chunk: Chunk,
-    /// Instuction pointer, index to the bytecode chunk
-    ip: usize,
+    procs: TiVec<VmProcId, VmProc>,
+    frames: Vec<VmCallFrame>,
     stack: Stack,
 }
 
+pub fn run_chunk(chunk: Chunk) -> Result<Unit> {
+    let mut procs = TiVec::new();
+    let vm_proc = procs.push_and_get_key(VmProc { chunk });
+    let mut vm = Vm::new(procs);
+    vm.run_proc(vm_proc)
+}
+
 impl Vm {
-    pub fn new(chunk: Chunk) -> Self {
+    pub fn new(procs: TiVec<VmProcId, VmProc>) -> Self {
         Self {
-            chunk,
-            ip: 0,
+            procs,
+            frames: Vec::new(),
             stack: Stack::new(),
         }
     }
 
-    pub fn chunk_mut(&mut self) -> &mut Chunk {
-        &mut self.chunk
+    pub fn run_proc(&mut self, proc: VmProcId) -> Result<Unit> {
+        let mut bind = self.bind(proc);
+        bind.run()
     }
 
+    fn bind(&mut self, proc: VmProcId) -> VmBind<'_> {
+        self.frames.push(VmCallFrame { ip: 0, proc });
+
+        VmBind {
+            procs: &self.procs,
+            proc,
+            frames: &mut self.frames,
+            stack: &mut self.stack,
+        }
+    }
+
+    pub fn proc(&self, proc: VmProcId) -> &VmProc {
+        &self.procs[proc]
+    }
+
+    pub fn proc_chunks(&self) -> Vec<&Chunk> {
+        self.procs.iter().map(|p| &p.chunk).collect::<Vec<_>>()
+    }
+}
+
+/// Stack
+impl Vm {
+    pub fn stack(&self) -> &Stack {
+        &self.stack
+    }
+
+    /// Stack bytes
+    pub fn units(&self) -> &[Unit] {
+        self.stack.units()
+    }
+}
+
+/// [`Vm`] binded to a particular procedure
+struct VmBind<'a> {
+    procs: &'a TiSlice<VmProcId, VmProc>,
+    proc: VmProcId,
+    frames: &'a mut Vec<VmCallFrame>,
+    stack: &'a mut Stack,
+}
+
+/// Operation codes
+// TODO(pref): more efficient access?
+impl<'a> VmBind<'a> {
     pub fn ip(&self) -> usize {
-        self.ip
+        self.frames.last().unwrap().ip
+    }
+
+    fn set_ip(&mut self, ip: usize) {
+        self.frames.last_mut().unwrap().ip = ip;
+    }
+
+    fn inc_ip(&mut self) {
+        self.frames.last_mut().unwrap().ip += 1;
+    }
+
+    fn chunk(&self) -> &Chunk {
+        &self.procs[self.proc].chunk
+    }
+}
+
+/// Stack
+impl<'a> VmBind<'a> {
+    pub fn stack(&self) -> &Stack {
+        &self.stack
     }
 
     /// Stack bytes
@@ -61,40 +167,43 @@ impl Vm {
         self.stack.units()
     }
 
-    pub fn stack(&self) -> &Stack {
-        &self.stack
-    }
-
     fn bump_u8(&mut self) -> u8 {
-        let b = self.chunk.read_u8(self.ip);
-        self.ip += 1;
+        let b = self.chunk().read_u8(self.ip());
+        self.inc_ip();
         b
     }
 
     fn bump_u16(&mut self) -> u16 {
-        let b = self.chunk.read_u16(self.ip);
-        self.ip += 2;
+        let b = self.chunk().read_u16(self.ip());
+        self.inc_ip();
+        self.inc_ip();
         b
     }
 
     fn bump_opcode(&mut self) -> Op {
-        let code: Op = self.chunk.read_opcode(self.ip);
-        self.ip += 1;
+        let code: Op = self.chunk().read_opcode(self.ip());
+        self.inc_ip();
         code
     }
 }
 
 /// Run
-impl Vm {
-    pub fn run(&mut self) -> Result<()> {
-        let chunk_len = self.chunk.bytes().len();
+impl<'a> VmBind<'a> {
+    pub fn run(&mut self) -> Result<Unit> {
+        self.run_impl()?;
+        println!("stack ---- {:?}", self.stack);
+        // NOTE: not popping
+        Ok(self.stack.peek().unwrap().clone())
+    }
 
-        while self.ip < chunk_len {
+    pub fn run_impl(&mut self) -> Result<()> {
+        let chunk_len = self.chunk().bytes().len();
+
+        while self.ip() < chunk_len {
             let code = self.bump_opcode();
 
             match code {
                 Op::Ret => {
-                    // REMARK: the return value has to be poped by the caller (bad design?)
                     return Ok(());
                 }
 
@@ -114,13 +223,13 @@ impl Vm {
                 // constants
                 Op::PushConst8 => {
                     let const_ix = self.bump_u8();
-                    let unit = self.chunk.read_literal_u8(const_ix);
+                    let unit = self.chunk().read_literal_u8(const_ix);
                     self.stack.push(unit);
                 }
 
                 Op::PushConst16 => {
                     let const_ix = self.bump_u16();
-                    let unit = self.chunk.read_literal_u16(const_ix);
+                    let unit = self.chunk().read_literal_u16(const_ix);
                     self.stack.push(unit);
                 }
 
@@ -152,20 +261,20 @@ impl Vm {
                 // jump
                 Op::Jump16 => {
                     let ip = self.bump_u16();
-                    self.ip = ip as usize;
+                    self.set_ip(ip as usize);
                 }
                 Op::JumpIf16 => {
                     let ip = self.bump_u16();
                     let b = bool::from_unit(self.stack.pop().unwrap());
                     if b {
-                        self.ip = ip as usize;
+                        self.set_ip(ip as usize);
                     }
                 }
                 Op::JumpIfNot16 => {
                     let ip = self.bump_u16();
                     let b = bool::from_unit(self.stack.pop().unwrap());
                     if !b {
-                        self.ip = ip as usize;
+                        self.set_ip(ip as usize);
                     }
                 }
 
@@ -256,7 +365,7 @@ impl Vm {
             }
         }
 
-        Ok(())
+        unreachable!("on return code");
     }
 
     /// Pushes binary operator to the stack
@@ -300,71 +409,4 @@ pub fn unit_binary_oper<T: UnitVariant>(x: Unit, y: Unit, f: impl Fn(T, T) -> T)
     let y = T::from_unit(y);
     let out = f(x, y);
     T::into_unit(out)
-}
-
-pub trait UnitVariant {
-    fn from_unit(unit: Unit) -> Self;
-    fn into_unit(self) -> Unit;
-}
-
-fn debug_assert_zeros(unit: Unit, n: usize) {
-    for i in n..::core::mem::size_of::<Unit>() {
-        debug_assert_eq!(unit[i], 0)
-    }
-}
-
-impl UnitVariant for f32 {
-    fn from_unit(unit: Unit) -> Self {
-        debug_assert_zeros(unit, 4);
-        let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
-        f32::from_be_bytes(bytes)
-    }
-
-    fn into_unit(self) -> Unit {
-        let bytes = self.to_be_bytes();
-        [bytes[0], bytes[1], bytes[2], bytes[3], 0, 0, 0, 0]
-    }
-}
-
-impl UnitVariant for u32 {
-    fn from_unit(unit: Unit) -> Self {
-        debug_assert_zeros(unit, 4);
-        let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
-        u32::from_be_bytes(bytes)
-    }
-
-    fn into_unit(self) -> Unit {
-        let bytes = self.to_be_bytes();
-        [bytes[0], bytes[1], bytes[2], bytes[3], 0, 0, 0, 0]
-    }
-}
-
-impl UnitVariant for i32 {
-    fn from_unit(unit: Unit) -> Self {
-        debug_assert_zeros(unit, 4);
-        let bytes: [u8; 4] = unit[0..4].try_into().unwrap();
-        i32::from_be_bytes(bytes)
-    }
-
-    fn into_unit(self) -> Unit {
-        let bytes = self.to_be_bytes();
-        [bytes[0], bytes[1], bytes[2], bytes[3], 0, 0, 0, 0]
-    }
-}
-
-impl UnitVariant for bool {
-    fn from_unit(unit: Unit) -> Self {
-        debug_assert_zeros(unit, 1);
-        let x = u8::from_be(unit[0]);
-        match x {
-            0 => false,
-            1 => true,
-            _ => unreachable!("bool with wrong encoding: {}", x),
-        }
-    }
-
-    fn into_unit(self) -> Unit {
-        let byte = (self as u8).to_be();
-        [byte, 0, 0, 0, 0, 0, 0, 0]
-    }
 }
