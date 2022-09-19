@@ -77,6 +77,10 @@ impl Stack {
         self.frames.push(frame);
     }
 
+    pub fn pop_call_frame(&mut self) {
+        self.frames.pop();
+    }
+
     pub fn set_local_u8(&mut self, index: u8, unit: Unit) {
         let frame = self.frames.last().unwrap();
         let i = frame.offset + index as usize;

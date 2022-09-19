@@ -205,6 +205,8 @@ impl<'a> VmBind<'a> {
 
             match code {
                 Op::Ret => {
+                    self.frames.pop();
+                    self.stack.pop_call_frame();
                     return Ok(());
                 }
 
