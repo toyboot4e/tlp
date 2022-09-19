@@ -92,20 +92,23 @@ impl Vm {
     }
 
     pub fn run_proc(&mut self, proc: VmProcId) -> Result<Unit> {
-        self.bind(proc).run();
+        let res = self.bind(proc).run();
 
-        // NOTE: not popping
-        Ok(self.stack.peek().unwrap().clone())
+        debug_assert!(self.frames.is_empty(), "any call frame after run?");
+        debug_assert!(
+            self.stack.units().is_empty(),
+            "any value on stack after run?:\n{:?}",
+            self.stack.units()
+        );
+
+        res
     }
 
-    fn bind(&mut self, proc: VmProcId) -> VmBind<'_> {
-        self.frames.push(VmCallFrame {
-            ip: 0,
-            proc_id: proc,
-        });
+    fn bind(&mut self, proc_id: VmProcId) -> VmBind<'_> {
+        self.frames.push(VmCallFrame { ip: 0, proc_id });
 
         VmBind {
-            proc_id: proc,
+            proc_id,
             procs: &self.procs,
             frames: &mut self.frames,
             stack: &mut self.stack,
@@ -164,15 +167,6 @@ impl<'a> VmBind<'a> {
 
 /// Stack
 impl<'a> VmBind<'a> {
-    pub fn stack(&self) -> &Stack {
-        &self.stack
-    }
-
-    /// Stack bytes
-    pub fn units(&self) -> &[Unit] {
-        self.stack.units()
-    }
-
     fn bump_u8(&mut self) -> u8 {
         let b = self.chunk().read_u8(self.ip());
         self.inc_ip();
@@ -195,18 +189,20 @@ impl<'a> VmBind<'a> {
 
 /// Run
 impl<'a> VmBind<'a> {
-    /// Push [`CallFrame`] before run. It's popped on `run`.
-    fn run(&mut self) -> Result<()> {
+    /// Push [`CallFrame`] before run. The call frame is automatically popped after run
+    fn run(&mut self) -> Result<Unit> {
         let chunk_len = self.chunk().bytes().len();
 
         while self.ip() < chunk_len {
             let code = self.bump_opcode();
+            println!("code: {:?}, stack: {:?}", code, self.stack.units());
 
             match code {
                 Op::Ret => {
                     self.frames.pop();
+                    let unit = self.stack.pop().unwrap();
                     self.stack.pop_call_frame();
-                    return Ok(());
+                    return Ok(unit);
                 }
 
                 Op::PushTrue => {
@@ -286,13 +282,14 @@ impl<'a> VmBind<'a> {
                     let proc_id = VmProcId(proc_id as usize);
                     self.frames.push(VmCallFrame { ip: 0, proc_id });
 
-                    VmBind {
+                    let unit = VmBind {
                         procs: self.procs,
                         proc_id,
                         frames: self.frames,
                         stack: self.stack,
                     }
                     .run()?;
+                    self.stack.push(unit);
                 }
 
                 // `f32` operators (builtin)
@@ -382,7 +379,7 @@ impl<'a> VmBind<'a> {
             }
         }
 
-        unreachable!("on return code");
+        unreachable!("no return code");
     }
 
     /// Pushes binary operator to the stack

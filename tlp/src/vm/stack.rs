@@ -41,6 +41,7 @@ impl Stack {
     }
 
     pub fn push(&mut self, unit: Unit) {
+        println!("push: {:?}", unit);
         self.units.push(unit);
     }
 
@@ -78,7 +79,20 @@ impl Stack {
     }
 
     pub fn pop_call_frame(&mut self) {
-        self.frames.pop();
+        let frame = self
+            .frames
+            .pop()
+            .unwrap_or_else(|| panic!("bug: tried to pop call frame but none"));
+
+        let new_len = self.units.len() - frame.n_units;
+
+        assert_eq!(
+            new_len, frame.offset,
+            "wrong stack length on pop.\ncall frame: {:?}\nstack: {:?}",
+            frame, self.units,
+        );
+
+        self.units.truncate(new_len);
     }
 
     pub fn set_local_u8(&mut self, index: u8, unit: Unit) {

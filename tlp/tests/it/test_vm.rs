@@ -5,7 +5,7 @@ use std::fmt::{self, Write};
 use tlp::{
     compile,
     syntax::ast,
-    vm::{self, code::Chunk, UnitVariant, Vm},
+    vm::{self, code::Chunk, Unit, UnitVariant, Vm},
     Db,
 };
 
@@ -54,7 +54,7 @@ fn log_vm(src: &str, vm: &Vm) -> Result<String, fmt::Error> {
     Ok(s)
 }
 
-fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> Vm {
+fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Vm, Unit) {
     {
         let (_doc, errs) = ast::parse(src).into_tuple();
         self::print_errors(&errs, src, "parse error");
@@ -74,43 +74,29 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
     // TODO: search functions
     let proc = vm::VmProcId(0);
 
-    if let Err(e) = vm.run_proc(proc) {
-        let chunk = &vm.proc(proc).chunk;
-        panic!("{}\n{}", e, log_vm(&src, &vm).unwrap());
+    match vm.run_proc(proc) {
+        Ok(unit) => (vm, unit),
+        Err(e) => {
+            let chunk = &vm.proc(proc).chunk;
+            panic!("{}\n{}", e, log_vm(&src, &vm).unwrap());
+        }
     }
-
-    vm
 }
 
-fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> Vm {
+fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Vm, Unit) {
     let src = format!("(proc main () {})", src);
     self::run(&src, expected)
 }
 
-fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T, vm: Vm) {
-    // TODO: search functions
-    let proc = vm::VmProcId(0);
-
-    let unit = match vm.units().last() {
-        Some(x) => x,
-        None => panic!(
-            "Nothing on stack after run.\n{}",
-            log_vm(&src, &vm).unwrap()
-        ),
-    };
-
-    // balance test
-    assert_eq!(
-        vm.units().len(),
-        vm.stack().tmp_offset() + 1,
-        "stack is not balanced: {:?}\n{}",
-        vm.units(),
-        log_vm(&src, &vm).unwrap()
-    );
-
+fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
+    src: &str,
+    expected: T,
+    vm: Vm,
+    unit: Unit,
+) {
     // check the last and the only value
     assert_eq!(
-        T::from_unit(*unit),
+        T::from_unit(unit),
         expected,
         "{}",
         log_vm(&src, &vm).unwrap()
@@ -118,13 +104,13 @@ fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, ex
 }
 
 fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let vm = self::run_expr(src, expected.clone());
-    self::test_impl(src, expected, vm)
+    let (vm, unit) = self::run_expr(src, expected.clone());
+    self::test_impl(src, expected, vm, unit)
 }
 
 fn test_file<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let vm = self::run(src, expected.clone());
-    self::test_impl(src, expected, vm)
+    let (vm, unit) = self::run(src, expected.clone());
+    self::test_impl(src, expected, vm, unit)
 }
 
 #[test]
