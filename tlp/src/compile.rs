@@ -206,7 +206,7 @@ impl<'db> CompileProc<'db> {
 
                 for &expr in exprs {
                     // TODO: move validation in `validate` path
-                    assert_ne!(self.types[expr], ty::TypeData::Unknown);
+                    assert_ne!(self.types[expr].data(self.db), &ty::TypeData::Unknown);
 
                     // return values other than the last one are discarded
                     self.compile_expr(expr);
@@ -254,7 +254,7 @@ impl<'db> CompileProc<'db> {
                 let rhs_idx = call_op.args[1];
                 self.compile_expr(rhs_idx);
 
-                let op_ty = match &self.types[call_op.op_expr] {
+                let op_ty = match &self.types[call_op.op_expr].data(self.db) {
                     ty::TypeData::Op(op_ty) => op_ty,
                     x => unreachable!("not operator type: {:?} for operator {:?}", x, call_op),
                 };
@@ -447,8 +447,8 @@ impl<'db> CompileProc<'db> {
             let expr_data = &self.body_data.tables[expr];
 
             assert_eq!(
-                self.types[expr],
-                ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+                self.types[expr].data(self.db),
+                &ty::TypeData::Primitive(ty::PrimitiveType::Bool)
             );
 
             self.compile_expr(expr);
@@ -480,8 +480,8 @@ impl<'db> CompileProc<'db> {
     /// Compiles a branch without discarding the last value
     fn compile_branch(&mut self, pred: Expr, block: Expr, is_when: bool) -> JumpAnchor {
         assert_eq!(
-            self.types[pred],
-            ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+            self.types[pred].data(self.db),
+            &ty::TypeData::Primitive(ty::PrimitiveType::Bool)
         );
 
         self.compile_expr(pred);

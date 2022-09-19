@@ -15,6 +15,7 @@ pub struct IrJar(
     // TODO: Consider ditching? Though it adds lifetimes to `Resolver`
     item_scope::ItemScope,
     body::Body,
+    ty::Ty,
     // TODO: Consider ditching? Thoguh it adds lifetimes to `Resolver`
     body::expr_scope::ExprScopeMap,
     lower::lower_items,

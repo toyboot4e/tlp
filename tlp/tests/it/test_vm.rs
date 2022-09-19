@@ -262,5 +262,16 @@ fn user_function() {
         20,
     );
 
+    // function with arguments
+    //     test_file(
+    //         "
+    // (proc main ()
+    //     (f 10 ))
+    // (proc f (x)
+    //     (+ x 5))
+    // ",
+    //         15,
+    //     );
+
     // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
 }

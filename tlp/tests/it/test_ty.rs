@@ -53,17 +53,17 @@ fn type_of_plus_i32_f32() {
     match &expr_data[0] {
         ExprData::CallOp(call_op) => {
             assert_eq!(
-                &types[call_op.args[0]],
+                types[call_op.args[0]].data(&db),
                 &TypeData::Primitive(PrimitiveType::I32)
             );
 
             assert_eq!(
-                &types[call_op.args[1]],
+                types[call_op.args[1]].data(&db),
                 &TypeData::Primitive(PrimitiveType::F32)
             );
 
             assert_eq!(
-                &types[call_op.op_expr],
+                types[call_op.op_expr].data(&db),
                 &TypeData::Op(ty::OpType {
                     kind: expr::OpKind::Add,
                     operand_ty: ty::OpOperandType::I32,
@@ -86,17 +86,17 @@ fn type_of_mul_f32_i32() {
     match &expr_data[0] {
         ExprData::CallOp(call_op) => {
             assert_eq!(
-                &types[call_op.args[0]],
+                types[call_op.args[0]].data(&db),
                 &TypeData::Primitive(PrimitiveType::F32)
             );
 
             assert_eq!(
-                &types[call_op.args[1]],
+                types[call_op.args[1]].data(&db),
                 &TypeData::Primitive(PrimitiveType::I32)
             );
 
             assert_eq!(
-                &types[call_op.op_expr],
+                types[call_op.op_expr].data(&db),
                 &TypeData::Op(ty::OpType {
                     kind: expr::OpKind::Mul,
                     operand_ty: ty::OpOperandType::F32,
@@ -119,12 +119,12 @@ fn let_type() {
 
     let x_pat = match &root_exprs[0].1 {
         ExprData::Let(let_) => {
-            match &types[let_.rhs] {
+            match types[let_.rhs].data(&db) {
                 TypeData::Primitive(ty::PrimitiveType::F32) => {}
                 x => unreachable!("{x:?}"),
             }
 
-            match &types[let_.pat] {
+            match types[let_.pat].data(&db) {
                 TypeData::Primitive(prim) => {
                     assert_eq!(prim, &ty::PrimitiveType::F32,);
                 }

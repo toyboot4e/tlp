@@ -13,7 +13,7 @@ use crate::ir::{
     },
     item,
     resolve::ValueNs,
-    ty::{self, TyIndex, TypeData, TypeTable, WipTypeData},
+    ty::{self, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
 
@@ -55,9 +55,14 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let types = infer
         .types
         .into_iter()
-        .map(|ty| match ty {
-            WipTypeData::Var => TypeData::Unknown,
-            WipTypeData::Data(data) => data,
+        .map(|ty| {
+            Ty::intern(
+                db,
+                match ty {
+                    WipTypeData::Var => TypeData::Unknown,
+                    WipTypeData::Data(data) => data,
+                },
+            )
         })
         .collect();
 
