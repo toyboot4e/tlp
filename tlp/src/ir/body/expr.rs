@@ -1,6 +1,7 @@
-use std::{cmp, hash};
+use std::{cmp, fmt::Write, hash};
 
 use base::{jar::Word, tbl::id};
+use salsa::DebugWithDb;
 
 use crate::{
     ir::{body::pat::Pat, IrDb},
@@ -222,6 +223,25 @@ impl Literal {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Path {
     pub segments: Box<[Word]>,
+}
+
+impl DebugWithDb<dyn IrDb> for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn IrDb) -> std::fmt::Result {
+        let (first, rest) = match self.segments.split_first() {
+            Some((first, rest)) => (first, rest),
+            _ => return Ok(()),
+        };
+
+        f.write_str(first.as_str(db.base()))?;
+
+        for word in rest.iter() {
+            let s = word.as_str(db.base());
+            f.write_char('.')?;
+            f.write_str(s)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Path {

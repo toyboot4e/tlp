@@ -3,7 +3,9 @@
 pub mod scope;
 
 use rustc_hash::FxHashMap;
+use salsa::DebugWithDb;
 use thiserror::Error;
+use typed_index_collections::TiVec;
 
 use base::jar::InputFile;
 
@@ -15,9 +17,14 @@ use crate::{
             Body, BodyData,
         },
         item,
-        ty::{self, TypeTable},
+        resolve::ValueNs,
+        ty, InputFileExt,
     },
-    vm::code::{Chunk, JumpAnchor, Op, TypedLiteral},
+    vm::{
+        self,
+        code::{Chunk, JumpAnchor, Op, TypedLiteral},
+        Vm,
+    },
     Db,
 };
 
@@ -31,13 +38,41 @@ pub enum CompileError {
     CantResolvePattern { name: String },
 }
 
-pub fn compile(db: &Db, main_file: InputFile) -> (Chunk, Vec<CompileError>) {
-    let main_proc = self::find_procedure_by_name(db, main_file, "main");
+pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
+    let mut vm_procs = TiVec::new();
+    let mut vm_errs = Vec::new();
 
-    let mut compiler = CompileProc::new(db, main_file, main_proc);
-    compiler.compile_proc();
+    // let main_proc = self::find_procedure_by_name(db, main_file, "main");
 
-    (compiler.chunk, compiler.errs)
+    let items = main_file.items(db);
+
+    let proc_ids = items
+        .iter()
+        .enumerate()
+        .filter_map(|(i, item)| match item {
+            item::Item::Proc(ir_proc) => {
+                let vm_proc_id = vm::VmProcId(i);
+                Some((*ir_proc, vm_proc_id))
+            }
+        })
+        .collect::<FxHashMap<_, _>>();
+
+    for item in items {
+        let proc = match item {
+            item::Item::Proc(proc) => proc,
+        };
+
+        let mut compiler = CompileProc::new(&proc_ids, db, main_file, proc.clone());
+        compiler.compile_proc();
+
+        vm_procs.push(vm::VmProc {
+            chunk: compiler.chunk,
+        });
+        vm_errs.extend(compiler.errs);
+    }
+
+    let vm = Vm::new(vm_procs);
+    (vm, vm_errs)
 }
 
 /// Compile-time call frame information
@@ -97,6 +132,8 @@ struct CompileProc<'db> {
     errs: Vec<CompileError>,
     /// Current function's call frame information
     call_frame: Option<CallFrame>,
+    // FIXME: lifetime
+    proc_ids: &'db FxHashMap<item::Proc, vm::VmProcId>,
     // context
     db: &'db Db,
     proc: item::Proc,
@@ -106,12 +143,18 @@ struct CompileProc<'db> {
 }
 
 impl<'db> CompileProc<'db> {
-    fn new(db: &'db Db, file: InputFile, proc: item::Proc) -> Self {
+    fn new(
+        proc_ids: &'db FxHashMap<item::Proc, vm::VmProcId>,
+        db: &'db Db,
+        file: InputFile,
+        proc: item::Proc,
+    ) -> Self {
         let body = proc.body(db);
         let body_data = body.data(db);
         let types = proc.type_table(db);
 
         Self {
+            proc_ids,
             chunk: Default::default(),
             errs: Default::default(),
             call_frame: Default::default(),
@@ -163,7 +206,7 @@ impl<'db> CompileProc<'db> {
 
                 for &expr in exprs {
                     // TODO: move validation in `validate` path
-                    assert_ne!(self.types[expr], ty::TypeData::Unknown);
+                    assert_ne!(self.types[expr].data(self.db), &ty::TypeData::Unknown);
 
                     // return values other than the last one are discarded
                     self.compile_expr(expr);
@@ -182,9 +225,21 @@ impl<'db> CompileProc<'db> {
                     1,
                     "TODO: maybe support dot-separated path"
                 );
-                let name = path.segments[0].clone();
 
-                todo!("non-builtin function call: {:?}", call);
+                // FIXME(pref): use name-resolved IR for compilation
+                let resolver = self.proc.expr_resolver(self.db, call.path);
+
+                let ir_proc = match resolver
+                    .resolve_path_as_value(self.db, path)
+                    .unwrap_or_else(|| panic!("no value for path: `{:?}`", path.debug(self.db)))
+                {
+                    ValueNs::Proc(proc) => proc,
+                    _ => panic!("not a procedure: {:?}", path.debug(self.db)),
+                };
+
+                // TODO: compile arguments
+                let vm_proc = self.proc_ids[&ir_proc];
+                self.chunk.write_call_proc_u16(vm_proc);
             }
             ExprData::CallOp(call_op) => {
                 assert_eq!(
@@ -199,7 +254,7 @@ impl<'db> CompileProc<'db> {
                 let rhs_idx = call_op.args[1];
                 self.compile_expr(rhs_idx);
 
-                let op_ty = match &self.types[call_op.op_expr] {
+                let op_ty = match &self.types[call_op.op_expr].data(self.db) {
                     ty::TypeData::Op(op_ty) => op_ty,
                     x => unreachable!("not operator type: {:?} for operator {:?}", x, call_op),
                 };
@@ -392,8 +447,8 @@ impl<'db> CompileProc<'db> {
             let expr_data = &self.body_data.tables[expr];
 
             assert_eq!(
-                self.types[expr],
-                ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+                self.types[expr].data(self.db),
+                &ty::TypeData::Primitive(ty::PrimitiveType::Bool)
             );
 
             self.compile_expr(expr);
@@ -425,8 +480,8 @@ impl<'db> CompileProc<'db> {
     /// Compiles a branch without discarding the last value
     fn compile_branch(&mut self, pred: Expr, block: Expr, is_when: bool) -> JumpAnchor {
         assert_eq!(
-            self.types[pred],
-            ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+            self.types[pred].data(self.db),
+            &ty::TypeData::Primitive(ty::PrimitiveType::Bool)
         );
 
         self.compile_expr(pred);

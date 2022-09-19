@@ -4,7 +4,7 @@
 
 use std::fmt::{self, Write};
 
-use crate::vm::{Unit, UnitVariant};
+use crate::vm::{Unit, UnitVariant, VmProcId};
 
 /// Operational code, instruction to the stack-based virtual machine
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
@@ -40,6 +40,9 @@ pub enum Op {
     JumpIf16,
     /// Pops a value and jumps if it's false
     JumpIfNot16,
+
+    /// Call user function
+    CallProc16,
 
     // `f32` arithmetic operations
     NegF32,
@@ -81,9 +84,12 @@ impl Op {
             Op::PushConst8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
                 OpCodeOperands::One
             }
-            Op::PushConst16 | Op::AllocFrame16 | Op::Jump16 | Op::JumpIf16 | Op::JumpIfNot16 => {
-                OpCodeOperands::Two
-            }
+            Op::PushConst16
+            | Op::AllocFrame16
+            | Op::Jump16
+            | Op::JumpIf16
+            | Op::JumpIfNot16
+            | Op::CallProc16 => OpCodeOperands::Two,
             _ => OpCodeOperands::Zero,
         }
     }
@@ -106,6 +112,7 @@ impl Op {
             Op::Jump16 => "jump-16",
             Op::JumpIf16 => "jump-if-16",
             Op::JumpIfNot16 => "jump-if-not-16",
+            Op::CallProc16 => "call-proc16",
 
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
@@ -298,6 +305,12 @@ impl Chunk {
         self.write_u16(idx);
     }
 
+    #[inline(always)]
+    pub fn write_call_proc_u16(&mut self, vm_proc: VmProcId) {
+        self.codes.push(Op::CallProc16 as u8);
+        self.write_u16(vm_proc.0 as u16);
+    }
+
     // --------------------------------------------------------------------------------
     // Locals
     // --------------------------------------------------------------------------------
@@ -387,19 +400,19 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub fn read_literal(&mut self, idx: LiteralIndex) -> Unit {
+    pub fn read_literal(&self, idx: LiteralIndex) -> Unit {
         self.literals.read(idx)
     }
 
     #[inline(always)]
-    pub fn read_literal_u8(&mut self, idx_u8: u8) -> Unit {
+    pub fn read_literal_u8(&self, idx_u8: u8) -> Unit {
         let idx = LiteralIndex { raw: idx_u8.into() };
 
         self.read_literal(idx)
     }
 
     #[inline(always)]
-    pub fn read_literal_u16(&mut self, idx_u16: u16) -> Unit {
+    pub fn read_literal_u16(&self, idx_u16: u16) -> Unit {
         let idx = LiteralIndex {
             raw: idx_u16.into(),
         };
@@ -483,7 +496,7 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vm::{code::Op::*, Result, Vm};
+    use crate::vm::{self, code::Op::*, Result};
 
     /// Tests `-((64.0 - 32.0) / 16.0)` equals to `2.0`
     #[test]
@@ -510,13 +523,9 @@ mod tests {
             chunk
         };
 
-        let mut vm = Vm::new(chunk);
-        vm.run()?;
+        let unit = vm::run_chunk(chunk)?;
 
-        assert_eq!(
-            Some(&TypedLiteral::F32(-2.0).into_unit()),
-            vm.units().last()
-        );
+        assert_eq!(TypedLiteral::F32(-2.0).into_unit(), unit);
 
         Ok(())
     }

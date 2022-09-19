@@ -12,7 +12,8 @@ use crate::ir::{
         BodyData,
     },
     item,
-    ty::{self, TyIndex, TypeData, TypeTable, WipTypeData},
+    resolve::ValueNs,
+    ty::{self, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
 
@@ -54,9 +55,14 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let types = infer
         .types
         .into_iter()
-        .map(|ty| match ty {
-            WipTypeData::Var => TypeData::Unknown,
-            WipTypeData::Data(data) => data,
+        .map(|ty| {
+            Ty::intern(
+                db,
+                match ty {
+                    WipTypeData::Var => TypeData::Unknown,
+                    WipTypeData::Data(data) => data,
+                },
+            )
         })
         .collect();
 
@@ -135,6 +141,8 @@ impl<'db> Collect<'db> {
                     self.collect_expr(expr);
                 });
 
+                self.collect_expr(call.path);
+
                 // FIXME: function call return type should be resolved to the annotated type
                 WipTypeData::Var
             }
@@ -168,7 +176,7 @@ impl<'db> Collect<'db> {
             },
             // TODO: use name resolution to know the type
             ExprData::Path(path) => {
-                if self.resolve_path(path, expr) {
+                if self.resolve_path_as_value(path, expr) {
                     // no new type data
                     return;
                 } else {
@@ -243,19 +251,28 @@ impl<'db> Collect<'db> {
         );
     }
 
-    /// Resolves path to a variable and point to the same type
-    fn resolve_path(&mut self, path: &expr::Path, expr: Expr) -> bool {
-        // FIXME(perf)
+    /// Resolves path to a value namespce and point to the same type
+    fn resolve_path_as_value(&mut self, path: &expr::Path, expr: Expr) -> bool {
+        // FIXME(perf):
         let resolver = self.proc.expr_resolver(self.db, expr);
 
-        let pat = match resolver.resolve_path_as_pattern(self.db, path) {
-            Some(x) => x,
-            None => return false,
-        };
-
-        self.share_type_with_pat(expr, pat);
-
-        true
+        match resolver.resolve_path_as_value(self.db, path) {
+            Some(ValueNs::Pat(pat)) => {
+                self.share_type_with_pat(expr, pat);
+                true
+            }
+            Some(ValueNs::Proc(proc)) => {
+                // FIXME: handle procedure type
+                let ty = self
+                    .types
+                    .push_and_get_key(WipTypeData::Data(TypeData::Primitive(
+                        ty::PrimitiveType::I32,
+                    )));
+                self.expr_types.insert(expr, ty);
+                true
+            }
+            None => false,
+        }
     }
 
     fn share_type_with_pat(&mut self, expr: Expr, shared: Pat) {
@@ -313,30 +330,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                 let pat_ty = self.pat_types[&let_.pat];
                 self.types[pat_ty] = self.types[rhs_ty].clone();
             }
-            ExprData::Call(call) => {
-                call.args.iter().for_each(|expr| {
-                    self.infer_expr(*expr);
-                });
-
-                let path_expr = &self.body_data.tables[call.path];
-
-                let ident = {
-                    let path = match path_expr {
-                        ExprData::Path(path) => path,
-                        _ => todo!("call path"),
-                    };
-                    assert_eq!(
-                        path.segments.len(),
-                        1,
-                        "TODO: handle path.. or normalize it"
-                    );
-
-                    &path.segments[0]
-                };
-                let name = ident.as_str(self.db.base());
-
-                // TODO: handle user function call
-            }
+            ExprData::Call(call) => self.infer_call(expr, call),
             ExprData::CallOp(op) => self.infer_builtin_op(expr, op),
             ExprData::Op(_kind) => {
                 // the operator type is unified on visiting `CallOp`
@@ -457,6 +451,17 @@ impl<'db, 'map> Infer<'db, 'map> {
 
         // operator function
         self.types[self.expr_types[&call_op_expr]] = operand_ty.to_wip_type().unwrap();
+    }
+
+    fn infer_call(&mut self, _call_expr: Expr, call: &expr::Call) {
+        call.args.iter().for_each(|expr| {
+            self.infer_expr(*expr);
+        });
+
+        self.infer_expr(call.path);
+
+        // TODO: expect procedure type for the path
+        // TODO: unify procedure type and argument types
     }
 
     fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {

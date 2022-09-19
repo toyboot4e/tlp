@@ -3,6 +3,7 @@
 // TODO: resolve path to a pattern without making duplicates?
 
 pub mod lower_type;
+pub mod ty_item;
 pub mod typed_body;
 
 use std::ops;
@@ -10,9 +11,12 @@ use std::ops;
 use rustc_hash::FxHashMap;
 use typed_index_collections::TiVec;
 
-use crate::ir::body::{
-    expr::{self, Expr},
-    pat::Pat,
+use crate::ir::{
+    body::{
+        expr::{self, Expr},
+        pat::Pat,
+    },
+    IrDb, IrJar,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -22,7 +26,7 @@ pub struct TypeTable {
     /// Indices to `types` vector
     pat_types: FxHashMap<Pat, TyIndex>,
     /// Type storage. Type information can be share among expressions that poion to the same pattern.
-    types: TiVec<TyIndex, TypeData>,
+    types: TiVec<TyIndex, Ty>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +45,7 @@ impl From<TyIndex> for usize {
 }
 
 impl ops::Index<Expr> for TypeTable {
-    type Output = TypeData;
+    type Output = Ty;
     fn index(&self, expr: Expr) -> &Self::Output {
         let index = self.expr_types[&expr];
         &self.types[index]
@@ -49,14 +53,14 @@ impl ops::Index<Expr> for TypeTable {
 }
 
 impl ops::Index<Pat> for TypeTable {
-    type Output = TypeData;
+    type Output = Ty;
     fn index(&self, pat: Pat) -> &Self::Output {
         let index = self.pat_types[&pat];
         &self.types[index]
     }
 }
 
-/// WIP type information
+/// WIP mutable type information
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WipTypeData {
     /// Unresolved type variable
@@ -80,6 +84,19 @@ impl WipTypeData {
     }
 }
 
+/// Interned [`TypeData`]
+#[salsa::interned(jar = IrJar)]
+pub struct Ty {
+    #[return_ref]
+    pub data: TypeData,
+}
+
+impl Ty {
+    pub fn intern(db: &dyn IrDb, data: TypeData) -> Self {
+        Self::new(db, data)
+    }
+}
+
 /// Best-effor type information
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeData {
@@ -91,6 +108,7 @@ pub enum TypeData {
     Primitive(PrimitiveType),
     /// Builtin operator (function) type
     Op(OpType),
+    // Proc(ProcType),
 }
 
 // Builtin operator (function) type
@@ -140,3 +158,7 @@ pub enum PrimitiveType {
     F32,
     Bool,
 }
+
+// pub struct ProcType {
+//     pub tys: Box<[TypeData]>,
+// }

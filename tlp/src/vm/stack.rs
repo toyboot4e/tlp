@@ -41,6 +41,7 @@ impl Stack {
     }
 
     pub fn push(&mut self, unit: Unit) {
+        println!("push: {:?}", unit);
         self.units.push(unit);
     }
 
@@ -48,11 +49,20 @@ impl Stack {
         debug_run(|| {
             let n = self.units.len();
             if n <= self.tmp_offset() {
-                panic!("invalid pop detected\nstack: {:?}", self.units);
+                panic!(
+                    "invalid pop detected\ntmp offset: {}\ncall frames: {:?}\nstack: {:?}",
+                    self.tmp_offset(),
+                    self.frames,
+                    self.units
+                );
             }
         });
 
         self.units.pop()
+    }
+
+    pub fn peek(&mut self) -> Option<&Unit> {
+        self.units.last()
     }
 
     pub fn push_call_frame(&mut self, n_units: usize) {
@@ -66,6 +76,23 @@ impl Stack {
         let frame = CallFrame { offset, n_units };
 
         self.frames.push(frame);
+    }
+
+    pub fn pop_call_frame(&mut self) {
+        let frame = self
+            .frames
+            .pop()
+            .unwrap_or_else(|| panic!("bug: tried to pop call frame but none"));
+
+        let new_len = self.units.len() - frame.n_units;
+
+        assert_eq!(
+            new_len, frame.offset,
+            "wrong stack length on pop.\ncall frame: {:?}\nstack: {:?}",
+            frame, self.units,
+        );
+
+        self.units.truncate(new_len);
     }
 
     pub fn set_local_u8(&mut self, index: u8, unit: Unit) {
