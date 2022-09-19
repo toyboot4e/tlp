@@ -2,6 +2,7 @@
 
 // TODO: resolve path to a pattern without making duplicates?
 
+pub mod ty_item;
 pub mod lower_type;
 pub mod typed_body;
 
@@ -91,6 +92,8 @@ pub enum TypeData {
     Primitive(PrimitiveType),
     /// Builtin operator (function) type
     Op(OpType),
+    // FIXME: add procedure type
+    // Proc(ProcType),
 }
 
 // Builtin operator (function) type

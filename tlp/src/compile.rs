@@ -3,6 +3,7 @@
 pub mod scope;
 
 use rustc_hash::FxHashMap;
+use salsa::DebugWithDb;
 use thiserror::Error;
 use typed_index_collections::TiVec;
 
@@ -15,7 +16,9 @@ use crate::{
             pat::{Pat, PatData},
             Body, BodyData,
         },
-        item, ty, InputFileExt,
+        item,
+        resolve::ValueNs,
+        ty, InputFileExt,
     },
     vm::{
         self,
@@ -42,12 +45,24 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
     // let main_proc = self::find_procedure_by_name(db, main_file, "main");
 
     let items = main_file.items(db);
+
+    let proc_ids = items
+        .iter()
+        .enumerate()
+        .filter_map(|(i, item)| match item {
+            item::Item::Proc(ir_proc) => {
+                let vm_proc_id = vm::VmProcId(i);
+                Some((*ir_proc, vm_proc_id))
+            }
+        })
+        .collect::<FxHashMap<_, _>>();
+
     for item in items {
         let proc = match item {
             item::Item::Proc(proc) => proc,
         };
 
-        let mut compiler = CompileProc::new(db, main_file, proc.clone());
+        let mut compiler = CompileProc::new(&proc_ids, db, main_file, proc.clone());
         compiler.compile_proc();
 
         vm_procs.push(vm::VmProc {
@@ -117,6 +132,8 @@ struct CompileProc<'db> {
     errs: Vec<CompileError>,
     /// Current function's call frame information
     call_frame: Option<CallFrame>,
+    // FIXME: lifetime
+    proc_ids: &'db FxHashMap<item::Proc, vm::VmProcId>,
     // context
     db: &'db Db,
     proc: item::Proc,
@@ -126,12 +143,18 @@ struct CompileProc<'db> {
 }
 
 impl<'db> CompileProc<'db> {
-    fn new(db: &'db Db, file: InputFile, proc: item::Proc) -> Self {
+    fn new(
+        proc_ids: &'db FxHashMap<item::Proc, vm::VmProcId>,
+        db: &'db Db,
+        file: InputFile,
+        proc: item::Proc,
+    ) -> Self {
         let body = proc.body(db);
         let body_data = body.data(db);
         let types = proc.type_table(db);
 
         Self {
+            proc_ids,
             chunk: Default::default(),
             errs: Default::default(),
             call_frame: Default::default(),
@@ -202,9 +225,21 @@ impl<'db> CompileProc<'db> {
                     1,
                     "TODO: maybe support dot-separated path"
                 );
-                let name = path.segments[0].clone();
 
-                todo!("non-builtin function call: {:?}", call);
+                // FIXME(pref): use name-resolved IR for compilation
+                let resolver = self.proc.expr_resolver(self.db, call.path);
+
+                let ir_proc = match resolver
+                    .resolve_path_as_value(self.db, path)
+                    .unwrap_or_else(|| panic!("no value for path: `{:?}`", path.debug(self.db)))
+                {
+                    ValueNs::Proc(proc) => proc,
+                    _ => panic!("not a procedure: {:?}", path.debug(self.db)),
+                };
+
+                // TODO: compile arguments
+                let vm_proc = self.proc_ids[&ir_proc];
+                self.chunk.write_call_proc_u16(vm_proc);
             }
             ExprData::CallOp(call_op) => {
                 assert_eq!(

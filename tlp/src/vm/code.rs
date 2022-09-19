@@ -4,7 +4,7 @@
 
 use std::fmt::{self, Write};
 
-use crate::vm::{Unit, UnitVariant};
+use crate::vm::{Unit, UnitVariant, VmProcId};
 
 /// Operational code, instruction to the stack-based virtual machine
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
@@ -40,6 +40,9 @@ pub enum Op {
     JumpIf16,
     /// Pops a value and jumps if it's false
     JumpIfNot16,
+
+    /// Call user function
+    CallProc16,
 
     // `f32` arithmetic operations
     NegF32,
@@ -81,9 +84,12 @@ impl Op {
             Op::PushConst8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
                 OpCodeOperands::One
             }
-            Op::PushConst16 | Op::AllocFrame16 | Op::Jump16 | Op::JumpIf16 | Op::JumpIfNot16 => {
-                OpCodeOperands::Two
-            }
+            Op::PushConst16
+            | Op::AllocFrame16
+            | Op::Jump16
+            | Op::JumpIf16
+            | Op::JumpIfNot16
+            | Op::CallProc16 => OpCodeOperands::Two,
             _ => OpCodeOperands::Zero,
         }
     }
@@ -106,6 +112,7 @@ impl Op {
             Op::Jump16 => "jump-16",
             Op::JumpIf16 => "jump-if-16",
             Op::JumpIfNot16 => "jump-if-not-16",
+            Op::CallProc16 => "call-proc16",
 
             Op::NegF32 => "neg-f32",
             Op::AddF32 => "add-f32",
@@ -296,6 +303,12 @@ impl Chunk {
     pub fn write_alloc_locals_u16(&mut self, idx: u16) {
         self.codes.push(Op::AllocFrame16 as u8);
         self.write_u16(idx);
+    }
+
+    #[inline(always)]
+    pub fn write_call_proc_u16(&mut self, vm_proc: VmProcId) {
+        self.codes.push(Op::CallProc16 as u8);
+        self.write_u16(vm_proc.0 as u16);
     }
 
     // --------------------------------------------------------------------------------

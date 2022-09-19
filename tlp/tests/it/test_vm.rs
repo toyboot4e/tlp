@@ -262,3 +262,19 @@ a",
 
     // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
 }
+
+#[test]
+fn user_function() {
+    // function with no argument
+    test_file(
+        "
+(proc main ()
+    (+ 5 (f)))
+(proc f ()
+    15)
+",
+        20,
+    );
+
+    // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
+}

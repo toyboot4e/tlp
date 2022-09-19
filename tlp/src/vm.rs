@@ -41,7 +41,7 @@ pub enum VmError {
 #[derive(Debug)]
 struct VmCallFrame {
     ip: usize,
-    proc: VmProcId,
+    proc_id: VmProcId,
 }
 
 /// ID of [`VmProc`]
@@ -92,16 +92,21 @@ impl Vm {
     }
 
     pub fn run_proc(&mut self, proc: VmProcId) -> Result<Unit> {
-        let mut bind = self.bind(proc);
-        bind.run()
+        self.bind(proc).run();
+
+        // NOTE: not popping
+        Ok(self.stack.peek().unwrap().clone())
     }
 
     fn bind(&mut self, proc: VmProcId) -> VmBind<'_> {
-        self.frames.push(VmCallFrame { ip: 0, proc });
+        self.frames.push(VmCallFrame {
+            ip: 0,
+            proc_id: proc,
+        });
 
         VmBind {
+            proc_id: proc,
             procs: &self.procs,
-            proc,
             frames: &mut self.frames,
             stack: &mut self.stack,
         }
@@ -131,8 +136,8 @@ impl Vm {
 /// [`Vm`] binded to a particular procedure
 #[derive(Debug)]
 struct VmBind<'a> {
+    proc_id: VmProcId,
     procs: &'a TiSlice<VmProcId, VmProc>,
-    proc: VmProcId,
     frames: &'a mut Vec<VmCallFrame>,
     stack: &'a mut Stack,
 }
@@ -153,7 +158,7 @@ impl<'a> VmBind<'a> {
     }
 
     fn chunk(&self) -> &Chunk {
-        &self.procs[self.proc].chunk
+        &self.procs[self.proc_id].chunk
     }
 }
 
@@ -190,14 +195,8 @@ impl<'a> VmBind<'a> {
 
 /// Run
 impl<'a> VmBind<'a> {
-    pub fn run(&mut self) -> Result<Unit> {
-        self.run_impl()?;
-        println!("stack ---- {:?}", self.stack);
-        // NOTE: not popping
-        Ok(self.stack.peek().unwrap().clone())
-    }
-
-    pub fn run_impl(&mut self) -> Result<()> {
+    /// Push [`CallFrame`] before run. It's popped on `run`.
+    fn run(&mut self) -> Result<()> {
         let chunk_len = self.chunk().bytes().len();
 
         while self.ip() < chunk_len {
@@ -279,6 +278,21 @@ impl<'a> VmBind<'a> {
                     if !b {
                         self.set_ip(ip as usize);
                     }
+                }
+
+                // call
+                Op::CallProc16 => {
+                    let proc_id = self.bump_u16();
+                    let proc_id = VmProcId(proc_id as usize);
+                    self.frames.push(VmCallFrame { ip: 0, proc_id });
+
+                    VmBind {
+                        procs: self.procs,
+                        proc_id,
+                        frames: self.frames,
+                        stack: self.stack,
+                    }
+                    .run()?;
                 }
 
                 // `f32` operators (builtin)

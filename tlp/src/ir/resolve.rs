@@ -38,12 +38,20 @@ pub struct Resolver {
     scopes: Vec<Scope>,
 }
 
+/// Resolution in value namespace
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ValueNs {
+    /// Local binding pattern
+    Pat(Pat),
+    Proc(item::Proc),
+}
+
 impl Resolver {
     fn scopes(&self) -> impl Iterator<Item = &Scope> {
         self.scopes.iter().rev()
     }
 
-    pub fn resolve_path_as_pattern(&self, db: &dyn IrDb, path: &expr::Path) -> Option<Pat> {
+    pub fn resolve_path_as_value(&self, db: &dyn IrDb, path: &expr::Path) -> Option<ValueNs> {
         assert_eq!(path.segments.len(), 1, "support path");
         let ident = path.segments[0];
 
@@ -57,14 +65,21 @@ impl Resolver {
                         .iter()
                         .find(|entry| entry.name == ident)
                     {
-                        return Some(entry.pat);
+                        return Some(ValueNs::Pat(entry.pat));
                     }
+                }
+                Scope::Item(items) => {
+                    let scope_data = items.data(db);
+
+                    if let Some(proc) = scope_data.lookup_proc(&ident) {
+                        return Some(ValueNs::Proc(proc));
+                    }
+
+                    // TODO: lookup global variables
                 }
                 _ => {}
             }
         }
-
-        // TODO: lookup global variables
 
         None
     }
