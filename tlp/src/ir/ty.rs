@@ -60,26 +60,20 @@ impl ops::Index<Pat> for TypeTable {
     }
 }
 
-/// WIP mutable type information
+/// WIP mutable type information while lowering
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WipTypeData {
     /// Unresolved type variable
     Var,
-    Data(TypeData),
+    /// Resolved type (it can be concluded as `Unknown` though)
+    Ty(Ty),
 }
 
 impl WipTypeData {
-    pub fn cast_as_data(&self) -> &TypeData {
+    pub fn cast_as_data<'a>(&self, db: &'a dyn IrDb) -> &'a TypeData {
         match self {
             Self::Var => unreachable!("failed to cast to `TypeData`"),
-            Self::Data(data) => data,
-        }
-    }
-
-    pub fn cast_as_data_mut(&mut self) -> &mut TypeData {
-        match self {
-            Self::Var => unreachable!("failed to cast to `TypeData`"),
-            Self::Data(data) => data,
+            Self::Ty(ty) => ty.data(db),
         }
     }
 }
@@ -128,9 +122,9 @@ pub enum OpOperandType {
 }
 
 impl OpOperandType {
-    pub fn from_wip_type(ty: &WipTypeData) -> Option<Self> {
-        match ty {
-            WipTypeData::Data(TypeData::Primitive(prim)) => match prim {
+    pub fn from_type_data(ty_data: &TypeData) -> Option<Self> {
+        match ty_data {
+            TypeData::Primitive(prim) => match prim {
                 PrimitiveType::Bool => Some(OpOperandType::Bool),
                 PrimitiveType::I32 => Some(OpOperandType::I32),
                 PrimitiveType::F32 => Some(OpOperandType::F32),
@@ -140,7 +134,7 @@ impl OpOperandType {
         }
     }
 
-    pub fn to_wip_type(self) -> Option<WipTypeData> {
+    pub fn to_type_data(self) -> Option<TypeData> {
         let prim = match self {
             Self::Unknown => return None,
             Self::I32 => PrimitiveType::I32,
@@ -148,7 +142,7 @@ impl OpOperandType {
             Self::Bool => PrimitiveType::Bool,
         };
 
-        Some(WipTypeData::Data(TypeData::Primitive(prim)))
+        Some(TypeData::Primitive(prim))
     }
 }
 

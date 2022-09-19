@@ -19,9 +19,12 @@ use crate::ir::{
 
 #[salsa::tracked(jar = IrJar, return_ref)]
 pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
+    let interned = InternedTypes::new(db);
+
     let Collect {
         db,
         body_data,
+        interned,
         proc,
         expr_types,
         pat_types,
@@ -30,6 +33,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         let mut collect = Collect {
             db,
             body_data: proc.body_data(db),
+            interned,
             proc,
             // resolver: proc.root_resolver(db),
             expr_types: Default::default(),
@@ -44,6 +48,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let mut infer = Infer {
         db,
         body_data,
+        interned,
         proc,
         expr_types: &expr_types,
         pat_types: &pat_types,
@@ -55,14 +60,9 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let types = infer
         .types
         .into_iter()
-        .map(|ty| {
-            Ty::intern(
-                db,
-                match ty {
-                    WipTypeData::Var => TypeData::Unknown,
-                    WipTypeData::Data(data) => data,
-                },
-            )
+        .map(|ty| match ty {
+            WipTypeData::Var => infer.interned.unknwon,
+            WipTypeData::Ty(ty) => ty,
         })
         .collect();
 
@@ -73,10 +73,32 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     }
 }
 
+#[derive(Debug, Clone)]
+struct InternedTypes {
+    bool_: Ty,
+    i32_: Ty,
+    f32_: Ty,
+    stmt: Ty,
+    unknwon: Ty,
+}
+
+impl InternedTypes {
+    pub fn new(db: &dyn IrDb) -> Self {
+        Self {
+            bool_: Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::Bool)),
+            i32_: Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::I32)),
+            f32_: Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::F32)),
+            stmt: Ty::intern(db, TypeData::Stmt),
+            unknwon: Ty::intern(db, TypeData::Unknown),
+        }
+    }
+}
+
 /// Visits all expressions and patterns
 struct Collect<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
+    interned: InternedTypes,
     proc: item::Proc,
     // resolver: Resolver,
     // TODO: refer to external items?
@@ -88,6 +110,7 @@ struct Collect<'db> {
 struct Infer<'db, 'map> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
+    interned: InternedTypes,
     proc: item::Proc,
     // resolver: Resolver,
     // types associated with Expr/Pat are immutable in `Infer` pass
@@ -128,13 +151,15 @@ impl<'db> Collect<'db> {
                     return;
                 } else {
                     // or it returns none
-                    WipTypeData::Data(TypeData::Stmt)
+                    let ty = Ty::intern(self.db, TypeData::Stmt);
+                    WipTypeData::Ty(ty)
                 }
             }
             ExprData::Let(let_) => {
                 self.collect_expr(let_.rhs);
                 self.collect_pat(let_.pat);
-                WipTypeData::Data(TypeData::Stmt)
+                let ty = Ty::intern(self.db, TypeData::Stmt);
+                WipTypeData::Ty(ty)
             }
             ExprData::Call(call) => {
                 call.args.iter().for_each(|&expr| {
@@ -164,15 +189,9 @@ impl<'db> Collect<'db> {
             ExprData::Literal(lit) => match lit {
                 expr::Literal::String(_) => todo!(),
                 expr::Literal::Char(_) => todo!(),
-                expr::Literal::Bool(_) => {
-                    WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
-                }
-                expr::Literal::F32(_) => {
-                    WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::F32))
-                }
-                expr::Literal::I32(_) => {
-                    WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::I32))
-                }
+                expr::Literal::Bool(_) => WipTypeData::Ty(self.interned.bool_),
+                expr::Literal::F32(_) => WipTypeData::Ty(self.interned.f32_),
+                expr::Literal::I32(_) => WipTypeData::Ty(self.interned.i32_),
             },
             // TODO: use name resolution to know the type
             ExprData::Path(path) => {
@@ -181,7 +200,7 @@ impl<'db> Collect<'db> {
                     return;
                 } else {
                     // path to nothing
-                    WipTypeData::Data(TypeData::Unknown)
+                    WipTypeData::Ty(self.interned.unknwon)
                 }
             }
             ExprData::And(and) => {
@@ -189,26 +208,26 @@ impl<'db> Collect<'db> {
                     self.collect_expr(expr);
                 });
 
-                WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
+                WipTypeData::Ty(self.interned.bool_)
             }
             ExprData::Or(or) => {
                 or.exprs.iter().for_each(|&expr| {
                     self.collect_expr(expr);
                 });
 
-                WipTypeData::Data(TypeData::Primitive(ty::PrimitiveType::Bool))
+                WipTypeData::Ty(self.interned.bool_)
             }
             ExprData::When(when) => {
                 self.collect_expr(when.pred);
                 self.collect_expr(when.block);
 
-                WipTypeData::Data(TypeData::Stmt)
+                WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::Unless(unless) => {
                 self.collect_expr(unless.pred);
                 self.collect_expr(unless.block);
 
-                WipTypeData::Data(TypeData::Stmt)
+                WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::Cond(cond) => {
                 for case in &cond.cases {
@@ -219,26 +238,26 @@ impl<'db> Collect<'db> {
                 if cond.can_be_expr {
                     WipTypeData::Var
                 } else {
-                    WipTypeData::Data(TypeData::Stmt)
+                    WipTypeData::Ty(self.interned.stmt)
                 }
             }
             ExprData::Loop(loop_) => {
                 self.collect_expr(loop_.block);
 
                 // TODO: loop can be an expression
-                WipTypeData::Data(TypeData::Stmt)
+                WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::While(while_) => {
                 self.collect_expr(while_.pred);
                 self.collect_expr(while_.block);
 
-                WipTypeData::Data(TypeData::Stmt)
+                WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::Set(set) => {
                 self.collect_expr(set.place);
                 self.collect_expr(set.rhs);
 
-                WipTypeData::Data(TypeData::Stmt)
+                WipTypeData::Ty(self.interned.stmt)
             }
         };
 
@@ -263,12 +282,9 @@ impl<'db> Collect<'db> {
             }
             Some(ValueNs::Proc(proc)) => {
                 // FIXME: handle procedure type
-                let ty = self
-                    .types
-                    .push_and_get_key(WipTypeData::Data(TypeData::Primitive(
-                        ty::PrimitiveType::I32,
-                    )));
-                self.expr_types.insert(expr, ty);
+                let ty = Ty::intern(self.db, TypeData::Primitive(ty::PrimitiveType::I32));
+                let ty_index = self.types.push_and_get_key(WipTypeData::Ty(ty));
+                self.expr_types.insert(expr, ty_index);
                 true
             }
             None => false,
@@ -287,12 +303,15 @@ impl<'db> Collect<'db> {
     fn collect_pat(&mut self, pat: Pat) {
         let pat_data = &self.body_data.tables[pat];
 
-        let ty = match pat_data {
-            PatData::Missing => WipTypeData::Data(TypeData::Unknown),
+        let ty_index = match pat_data {
+            PatData::Missing => {
+                let ty = Ty::intern(self.db, TypeData::Unknown);
+                WipTypeData::Ty(ty)
+            }
             PatData::Bind { .. } => WipTypeData::Var,
         };
 
-        let index = self.types.push_and_get_key(ty);
+        let index = self.types.push_and_get_key(ty_index);
 
         assert!(
             self.pat_types.insert(pat, index).is_none(),
@@ -344,31 +363,31 @@ impl<'db, 'map> Infer<'db, 'map> {
             ExprData::And(and) => {
                 and.exprs.iter().for_each(|&expr| {
                     self.infer_expr(expr);
-                    self.unify_expected(self.expr_types[&expr], &BOOL);
+                    self.unify_expected(self.expr_types[&expr], self.interned.bool_);
                 });
             }
             ExprData::Or(or) => {
                 or.exprs.iter().for_each(|&expr| {
                     self.infer_expr(expr);
-                    self.unify_expected(self.expr_types[&expr], &BOOL);
+                    self.unify_expected(self.expr_types[&expr], self.interned.bool_);
                 });
             }
             ExprData::When(when) => {
                 self.infer_expr(when.pred);
-                self.unify_expected(self.expr_types[&when.pred], &BOOL);
+                self.unify_expected(self.expr_types[&when.pred], self.interned.bool_);
 
                 self.infer_expr(when.block);
             }
             ExprData::Unless(unless) => {
                 self.infer_expr(unless.pred);
-                self.unify_expected(self.expr_types[&unless.pred], &BOOL);
+                self.unify_expected(self.expr_types[&unless.pred], self.interned.bool_);
 
                 self.infer_expr(unless.block);
             }
             ExprData::Cond(cond) => {
                 for case in &cond.cases {
                     self.infer_expr(case.pred);
-                    self.unify_expected(self.expr_types[&case.pred], &BOOL);
+                    self.unify_expected(self.expr_types[&case.pred], self.interned.bool_);
                     self.infer_expr(case.block);
                 }
 
@@ -384,15 +403,15 @@ impl<'db, 'map> Infer<'db, 'map> {
                 self.infer_and_unify_many_vars(tys);
 
                 // FIXME: Get unified type and use it for the cond's type
-                let ty = if let Some(case) = cond.cases.first() {
+                let wip_ty_data = if let Some(case) = cond.cases.first() {
                     let ty_index = self.expr_types[&case.block];
                     self.types[ty_index].clone()
                 } else {
-                    WipTypeData::Data(TypeData::Stmt)
+                    WipTypeData::Ty(self.interned.stmt)
                 };
 
                 let ty_index = self.expr_types[&expr];
-                self.types[ty_index] = ty;
+                self.types[ty_index] = wip_ty_data;
             }
             ExprData::Loop(loop_) => {
                 // TODO: loop expression
@@ -400,7 +419,7 @@ impl<'db, 'map> Infer<'db, 'map> {
             }
             ExprData::While(while_) => {
                 self.infer_expr(while_.pred);
-                self.unify_expected(self.expr_types[&while_.pred], &BOOL);
+                self.unify_expected(self.expr_types[&while_.pred], self.interned.bool_);
                 self.infer_expr(while_.block);
             }
             ExprData::Set(set) => {
@@ -435,7 +454,11 @@ impl<'db, 'map> Infer<'db, 'map> {
             .find_map(|expr| {
                 let index = self.expr_types[expr];
                 let ty = &self.types[index];
-                ty::OpOperandType::from_wip_type(ty)
+                let ty_data = match ty {
+                    WipTypeData::Var => return None,
+                    WipTypeData::Ty(ty) => ty.data(self.db),
+                };
+                ty::OpOperandType::from_type_data(ty_data)
             })
             .unwrap_or(ty::OpOperandType::Unknown);
 
@@ -447,10 +470,18 @@ impl<'db, 'map> Infer<'db, 'map> {
         let op_type = ty::OpType { kind, operand_ty };
 
         // call node
-        self.types[self.expr_types[&call_op.op_expr]] = WipTypeData::Data(TypeData::Op(op_type));
+        self.types[self.expr_types[&call_op.op_expr]] = {
+            let ty = Ty::intern(self.db, TypeData::Op(op_type));
+            WipTypeData::Ty(ty)
+        };
 
         // operator function
-        self.types[self.expr_types[&call_op_expr]] = operand_ty.to_wip_type().unwrap();
+        self.types[self.expr_types[&call_op_expr]] = {
+            let ty_data = operand_ty.to_type_data().unwrap();
+            let ty = Ty::intern(self.db, ty_data);
+            let wip_ty_data = WipTypeData::Ty(ty);
+            wip_ty_data
+        };
     }
 
     fn infer_call(&mut self, _call_expr: Expr, call: &expr::Call) {
@@ -482,14 +513,14 @@ impl<'db, 'map> Infer<'db, 'map> {
     //     todo!()
     // }
 
-    pub fn unify_expected(&mut self, i: TyIndex, expected: &TypeData) -> bool {
+    pub fn unify_expected(&mut self, i: TyIndex, expected: Ty) -> bool {
         let w = &self.types[i];
         match w {
             WipTypeData::Var => {
-                self.types[i] = WipTypeData::Data(expected.clone());
+                self.types[i] = WipTypeData::Ty(expected.clone());
                 true
             }
-            WipTypeData::Data(t) => t == expected,
+            WipTypeData::Ty(ty) => ty.data(self.db) == expected.data(self.db),
         }
     }
 
@@ -505,19 +536,19 @@ impl<'db, 'map> Infer<'db, 'map> {
         // FIXME: do occur check to avoid inifnite loop
         match (w1, w2) {
             (WipTypeData::Var, WipTypeData::Var) => true,
-            (WipTypeData::Data(_), WipTypeData::Var) => {
+            (WipTypeData::Ty(_), WipTypeData::Var) => {
                 // assign to the type type
                 let w1 = w1.clone();
                 self.types[i2] = w1;
                 true
             }
-            (WipTypeData::Var, WipTypeData::Data(_)) => {
+            (WipTypeData::Var, WipTypeData::Ty(_)) => {
                 // assign to the type type
                 let w2 = w2.clone();
                 self.types[i1] = w2;
                 true
             }
-            (WipTypeData::Data(t1), WipTypeData::Data(t2)) => self.cmp_known(i1, i2),
+            (WipTypeData::Ty(t1), WipTypeData::Ty(t2)) => self.cmp_known(i1, i2),
         }
     }
 
@@ -560,8 +591,8 @@ impl<'db, 'map> Infer<'db, 'map> {
 
     /// Compares two known types
     fn cmp_known(&self, i1: TyIndex, i2: TyIndex) -> bool {
-        let t1 = &self.types[i1].cast_as_data();
-        let t2 = &self.types[i2].cast_as_data();
+        let t1 = &self.types[i1].cast_as_data(self.db);
+        let t2 = &self.types[i2].cast_as_data(self.db);
 
         match (t1, t2) {
             (TypeData::Primitive(p1), TypeData::Primitive(p2)) => p1 == p2,
