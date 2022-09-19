@@ -48,7 +48,12 @@ impl Stack {
         debug_run(|| {
             let n = self.units.len();
             if n <= self.tmp_offset() {
-                panic!("invalid pop detected\nstack: {:?}", self.units);
+                panic!(
+                    "invalid pop detected\ntmp offset: {}\ncall frames: {:?}\nstack: {:?}",
+                    self.tmp_offset(),
+                    self.frames,
+                    self.units
+                );
             }
         });
 

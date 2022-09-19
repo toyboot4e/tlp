@@ -26,7 +26,7 @@ fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display, header: impl
     panic!("{}", s);
 }
 
-fn log_chunk(src: &str, chunk: &Chunk) -> Result<String, fmt::Error> {
+fn log_vm(src: &str, vm: &Vm) -> Result<String, fmt::Error> {
     let mut s = String::new();
 
     writeln!(
@@ -41,7 +41,10 @@ fn log_chunk(src: &str, chunk: &Chunk) -> Result<String, fmt::Error> {
         "--------------------------------------------------------------------------------"
     )?;
 
-    writeln!(s, "{}", chunk.disassemble().unwrap())?;
+    for (i, chunk) in vm.proc_chunks().iter().enumerate() {
+        writeln!(s, "proc {}:", i);
+        writeln!(s, "{}", chunk.disassemble().unwrap())?;
+    }
 
     writeln!(
         s,
@@ -65,7 +68,7 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
 
     for chunk in vm.proc_chunks() {
         // TODO: print procedure name
-        println!("{}", log_chunk(&src, &chunk).unwrap());
+        println!("{}", log_vm(&src, &vm).unwrap());
     }
 
     // TODO: search functions
@@ -73,7 +76,7 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
 
     if let Err(e) = vm.run_proc(proc) {
         let chunk = &vm.proc(proc).chunk;
-        panic!("{}\n{}", e, log_chunk(&src, &chunk).unwrap());
+        panic!("{}\n{}", e, log_vm(&src, &vm).unwrap());
     }
 
     vm
@@ -88,12 +91,11 @@ fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, ex
     // TODO: search functions
     let proc = vm::VmProcId(0);
 
-    let chunk = &vm.proc(proc).chunk;
     let unit = match vm.units().last() {
         Some(x) => x,
         None => panic!(
             "Nothing on stack after run.\n{}",
-            log_chunk(&src, chunk).unwrap()
+            log_vm(&src, &vm).unwrap()
         ),
     };
 
@@ -103,7 +105,7 @@ fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, ex
         vm.stack().tmp_offset() + 1,
         "stack is not balanced: {:?}\n{}",
         vm.units(),
-        log_chunk(&src, chunk).unwrap()
+        log_vm(&src, &vm).unwrap()
     );
 
     // check the last and the only value
@@ -111,7 +113,7 @@ fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, ex
         T::from_unit(*unit),
         expected,
         "{}",
-        log_chunk(&src, chunk).unwrap()
+        log_vm(&src, &vm).unwrap()
     );
 }
 

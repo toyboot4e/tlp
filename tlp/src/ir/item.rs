@@ -1,5 +1,7 @@
 //! Item
 
+use salsa::DebugWithDb;
+
 use base::{
     jar::{SpannedWord, Word},
     span::*,
@@ -10,6 +12,14 @@ use crate::{ir, syntax::ast};
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Item {
     Proc(Proc),
+}
+
+impl Item {
+    pub fn debug<'a>(&'a self, db: &'a dyn ir::IrDb) -> Box<dyn std::fmt::Debug + 'a> {
+        match self {
+            Item::Proc(p) => Box::new(p.debug(db)),
+        }
+    }
 }
 
 impl Item {

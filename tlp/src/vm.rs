@@ -129,6 +129,7 @@ impl Vm {
 }
 
 /// [`Vm`] binded to a particular procedure
+#[derive(Debug)]
 struct VmBind<'a> {
     procs: &'a TiSlice<VmProcId, VmProc>,
     proc: VmProcId,
