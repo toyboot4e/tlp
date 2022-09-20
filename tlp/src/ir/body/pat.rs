@@ -1,5 +1,7 @@
 use base::{jar::Word, tbl::id};
 
+use crate::{ir::IrDb, syntax::ast};
+
 id! {
     /// ID of [`PatData`] that implements [`InternAllocKey`] and [`InternKey`]
     ///
@@ -27,4 +29,16 @@ pub enum PatData {
     Missing,
     /// Introduces a new identifier
     Bind { name: Word },
+}
+
+impl PatData {
+    pub fn from_ast(db: &dyn IrDb, ast_pat: ast::Pat) -> Option<Self> {
+        match ast_pat {
+            ast::Pat::PatPath(_) => todo!(),
+            ast::Pat::PatIdent(ident) => {
+                let name = Word::intern(db.base(), ident.ident_token().text());
+                Some(PatData::Bind { name })
+            }
+        }
+    }
 }
