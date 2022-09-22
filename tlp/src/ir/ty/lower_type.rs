@@ -5,11 +5,13 @@
 use std::cmp;
 
 use rustc_hash::FxHashMap;
+use salsa::DebugWithDb;
 use typed_index_collections::TiVec;
 
 use crate::ir::{
     body::{
         expr::{self, Expr, ExprData},
+        expr_debug::DebugContext,
         pat::{Pat, PatData},
         BodyData,
     },
@@ -47,9 +49,12 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         collect
     };
 
+    let debug = proc.with_db(db);
+
     let mut infer = Infer {
         db,
         body_data,
+        debug,
         interned,
         proc,
         expr_types: &expr_types,
@@ -112,6 +117,7 @@ struct Collect<'db> {
 struct Infer<'db, 'map> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
+    debug: DebugContext<'db>,
     interned: InternedTypes,
     proc: item::Proc,
     // resolver: Resolver,
@@ -394,8 +400,6 @@ impl<'db> Collect<'db> {
     }
 }
 
-const BOOL: TypeData = TypeData::Primitive(ty::PrimitiveType::Bool);
-
 impl<'db, 'map> Infer<'db, 'map> {
     pub fn infer_all(&mut self) {
         self.infer_expr(self.body_data.root_block)
@@ -534,6 +538,13 @@ impl<'db, 'map> Infer<'db, 'map> {
             })
             .unwrap_or(ty::OpOperandType::Unknown);
 
+        println!(
+            "{:?} {:?}: {:?}",
+            call_op_expr.debug(&self.debug),
+            operand_ty,
+            call_op.debug(&self.debug)
+        );
+
         let kind = match &self.body_data.tables[call_op.op_expr] {
             ExprData::Op(op) => *op,
             _ => unreachable!(),
@@ -549,10 +560,22 @@ impl<'db, 'map> Infer<'db, 'map> {
 
         // operator function
         self.types[self.expr_types[&call_op_expr]] = {
-            let ty_data = operand_ty.to_type_data().unwrap();
-            let ty = Ty::intern(self.db, ty_data);
-            let wip_ty_data = WipTypeData::Ty(ty);
-            wip_ty_data
+            if kind.is_bool() {
+                // boolean opeartors have boolean types
+                WipTypeData::Ty(self.interned.bool_)
+            } else {
+                // arithmetic operator is of the type of the operand
+                match operand_ty.to_type_data() {
+                    Some(ty_data) => {
+                        let ty = Ty::intern(self.db, ty_data);
+                        WipTypeData::Ty(ty)
+                    }
+                    None => {
+                        // TODO: add a diagnostic
+                        WipTypeData::Ty(self.interned.unknown)
+                    }
+                }
+            }
         };
     }
 

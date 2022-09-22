@@ -1,6 +1,7 @@
 //! Body
 
 pub mod expr;
+pub mod expr_debug;
 pub mod expr_scope;
 pub mod pat;
 

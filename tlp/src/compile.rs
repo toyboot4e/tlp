@@ -481,7 +481,9 @@ impl<'db> CompileProc<'db> {
     fn compile_branch(&mut self, pred: Expr, block: Expr, is_when: bool) -> JumpAnchor {
         assert_eq!(
             self.types[pred].data(self.db),
-            &ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+            &ty::TypeData::Primitive(ty::PrimitiveType::Bool),
+            "not a boolean value: predicate `{:?}`",
+            pred,
         );
 
         self.compile_expr(pred);

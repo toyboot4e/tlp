@@ -3,6 +3,7 @@
 // TODO: resolve path to a pattern without making duplicates?
 
 pub mod lower_type;
+pub mod ty_debug;
 
 use std::ops;
 
