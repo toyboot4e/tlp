@@ -1,4 +1,5 @@
 use base::{jar::Word, tbl::id};
+use salsa::DebugWithDb;
 
 use crate::{ir::IrDb, syntax::ast};
 
@@ -39,6 +40,15 @@ impl PatData {
                 let name = Word::intern(db.base(), ident.ident_token().text());
                 Some(PatData::Bind { name })
             }
+        }
+    }
+}
+
+impl DebugWithDb<dyn IrDb> for PatData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn IrDb) -> std::fmt::Result {
+        match self {
+            PatData::Missing => write!(f, "<missing>"),
+            PatData::Bind { name } => write!(f, "{:?}", name.as_str(db.base())),
         }
     }
 }

@@ -8,6 +8,8 @@ pub mod lower;
 pub mod resolve;
 pub mod ty;
 
+use salsa::DebugWithDb;
+
 #[salsa::jar(db = IrDb)]
 pub struct IrJar(
     jar::ParsedFile,
@@ -23,6 +25,7 @@ pub struct IrJar(
     lower::lower_body,
     lower::lower_proc_expr_scope,
     ty::lower_type::lower_body_types,
+    ty::lower_type::lower_proc_type,
 );
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
@@ -40,6 +43,7 @@ pub trait InputFileExt {
     fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile;
     fn items(self, db: &dyn IrDb) -> &[item::Item];
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope;
+    fn resolver(self, db: &dyn IrDb) -> resolve::Resolver;
 }
 
 /// Extensions
@@ -54,6 +58,10 @@ impl InputFileExt for base::jar::InputFile {
 
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope {
         lower::lower_item_scope(db, self)
+    }
+
+    fn resolver(self, db: &dyn IrDb) -> resolve::Resolver {
+        resolve::resolver_for_file(db, self)
     }
 }
 

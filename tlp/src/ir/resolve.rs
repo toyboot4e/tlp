@@ -4,6 +4,8 @@
 
 use la_arena::Idx;
 
+use base::jar::InputFile;
+
 use crate::ir::{
     body::{
         expr::{self, Expr},
@@ -85,6 +87,48 @@ impl Resolver {
     }
 }
 
+/// Builder
+impl Resolver {
+    fn new() -> Self {
+        Self {
+            scopes: Vec::with_capacity(0),
+        }
+    }
+
+    fn push_scope(mut self, scope: Scope) -> Self {
+        self.scopes.push(scope);
+        self
+    }
+
+    fn push_file_item_scope(self, item_scope: ItemScope) -> Self {
+        self.push_scope(Scope::Item(item_scope))
+    }
+
+    // fn push_params
+
+    // fn push_block_item_scope(self, _) -> Resolver { }
+
+    fn push_proc_expr_scope(
+        self,
+        proc: item::Proc,
+        map: ExprScopeMap,
+        idx: Idx<ScopeData>,
+    ) -> Self {
+        self.push_scope(Scope::Expr(ExprScope { proc, map, idx }))
+    }
+}
+
+pub(crate) fn resolver_for_file(db: &dyn IrDb, input_file: InputFile) -> Resolver {
+    let mut r = Resolver::new();
+
+    let item_scope = input_file.item_scope(db);
+    r = r.push_file_item_scope(item_scope);
+    // TODO: walk through parents
+
+    r
+}
+
+// TODO: consider local variables and rename it for bodies
 pub(crate) fn resolver_for_proc_expr(db: &dyn IrDb, proc: item::Proc, expr: Expr) -> Resolver {
     let scopes = proc.expr_scopes(db).data(db);
     let scope = scopes.scope_for_expr(expr);
@@ -129,33 +173,4 @@ pub(crate) fn resolver_for_proc_scope(
     }
 
     r
-}
-
-/// Builder
-impl Resolver {
-    fn new() -> Self {
-        Self {
-            scopes: Vec::with_capacity(0),
-        }
-    }
-
-    fn push_scope(mut self, scope: Scope) -> Self {
-        self.scopes.push(scope);
-        self
-    }
-
-    fn push_file_item_scope(self, item_scope: ItemScope) -> Self {
-        self.push_scope(Scope::Item(item_scope))
-    }
-
-    // fn push_block_item_scope(self, _) -> Resolver { }
-
-    fn push_proc_expr_scope(
-        self,
-        proc: item::Proc,
-        map: ExprScopeMap,
-        idx: Idx<ScopeData>,
-    ) -> Self {
-        self.push_scope(Scope::Expr(ExprScope { proc, map, idx }))
-    }
 }

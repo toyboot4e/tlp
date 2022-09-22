@@ -1,7 +1,5 @@
 //! Compiler (HIR → bytecode)
 
-pub mod scope;
-
 use rustc_hash::FxHashMap;
 use salsa::DebugWithDb;
 use thiserror::Error;
