@@ -65,6 +65,7 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
 
         vm_procs.push(vm::VmProc {
             chunk: compiler.chunk,
+            n_args: proc.body_data(db).param_pats.len(),
         });
         vm_errs.extend(compiler.errs);
     }
@@ -77,9 +78,13 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
 #[derive(Debug)]
 struct CallFrame {
     proc: item::Proc,
+    /// Maps [`Pat`] to local index in the call frame
     // TODO: consider using Vec-based map
     locals: FxHashMap<Pat, usize>,
-    locals_capacity: usize,
+    /// Number of arguments
+    n_args: usize,
+    /// Number of local variables without arguments
+    n_locals: usize,
 }
 
 impl CallFrame {
@@ -94,31 +99,45 @@ impl CallFrame {
             .map(|(pat, _)| pat);
 
         let mut locals = FxHashMap::default();
-        let mut locals_capacity = 0;
+        let mut n_vars = 0;
 
-        for (pat, data) in bind_pats.enumerate() {
-            locals.insert(data, pat);
-            locals_capacity += 1;
+        // REMARK: Arguments must first apear in the binding patterns
+        for pat in bind_pats {
+            locals.insert(pat, n_vars);
+            n_vars += 1;
         }
+
+        let n_args = body_data.param_pats.len();
+        let n_locals = n_vars - n_args;
 
         Self {
             proc,
             locals,
-            locals_capacity,
+            n_args,
+            n_locals,
         }
     }
 
-    /// Resolves pattern to local variable offset
-    pub fn resolve_path(&self, db: &Db, path_expr: Expr, path: &expr::Path) -> Option<usize> {
-        // FIXME: solve path
-        let name = &path.segments[0];
+    pub fn n_vars(&self) -> usize {
+        self.n_args + self.n_locals
+    }
 
-        let binding_pat = {
-            let expr_scopes = self.proc.expr_scopes(db).data(db);
-            let scope_id = expr_scopes.scope_for_expr(path_expr)?;
-            let entry = expr_scopes.resolve_name_in_scope_chain(scope_id, *name)?;
+    /// Resolves pattern to a local variable offset
+    pub fn resolve_path_as_local(
+        &self,
+        db: &Db,
+        path_expr: Expr,
+        path: &expr::Path,
+    ) -> Option<usize> {
+        let resolver = self.proc.expr_resolver(db, path_expr);
 
-            entry.pat
+        let binding_pat = match resolver.resolve_path_as_value(db, path)? {
+            ValueNs::Pat(p) => p,
+            x => todo!(
+                "path was resolved to a non-pattern: path `{:?}`, resolution: `{:?}`",
+                path.debug(db),
+                x
+            ),
         };
 
         self.locals.get(&binding_pat).map(|x| *x)
@@ -166,14 +185,14 @@ impl<'db> CompileProc<'db> {
 
     #[allow(unused)]
     pub fn compile_proc(&mut self) {
-        // calle frame
+        // push the initial call frame frame
         {
             let call_frame = CallFrame::new(self.db, self.proc);
-
-            // FIXME:
-            self.chunk
-                .write_alloc_locals_u8(call_frame.locals_capacity as u8);
+            self.chunk.write_alloc_locals_u8(call_frame.n_locals as u8);
             self.call_frame = Some(call_frame);
+
+            let shift = self.body_data.param_pats.len();
+            self.chunk.write_shift_back_u8(shift as u8);
         }
 
         // body
@@ -216,28 +235,11 @@ impl<'db> CompileProc<'db> {
                 // TODO: handle tail expression's return value: return or discard
             }
             ExprData::Call(call) => {
-                let path = self.body_data.tables[call.path].cast_as_path();
+                for arg in call.args.iter() {
+                    self.compile_expr(*arg);
+                }
 
-                assert_eq!(
-                    path.segments.len(),
-                    1,
-                    "TODO: maybe support dot-separated path"
-                );
-
-                // FIXME(pref): use name-resolved IR for compilation
-                let resolver = self.proc.expr_resolver(self.db, call.path);
-
-                let ir_proc = match resolver
-                    .resolve_path_as_value(self.db, path)
-                    .unwrap_or_else(|| panic!("no value for path: `{:?}`", path.debug(self.db)))
-                {
-                    ValueNs::Proc(proc) => proc,
-                    _ => panic!("not a procedure: {:?}", path.debug(self.db)),
-                };
-
-                // TODO: compile arguments
-                let vm_proc = self.proc_ids[&ir_proc];
-                self.chunk.write_call_proc_u16(vm_proc);
+                self.compile_proc_call_code(call);
             }
             ExprData::CallOp(call_op) => {
                 assert_eq!(
@@ -504,28 +506,45 @@ impl<'db> CompileProc<'db> {
         self.resolve_path_as_local_index(expr, path)
     }
 
+    // When creating a call frame, each pattern is already resolved the their originating binding
+    // pattern
     fn resolve_path_as_local_index(&mut self, expr: Expr, path: &expr::Path) -> usize {
-        let local_idx = self
-            .call_frame
-            .as_ref()
-            .unwrap()
-            .resolve_path(self.db, expr, path)
-            .unwrap_or_else(|| panic!("can't resolve as place: {:?}", path));
+        let call_frame = self.call_frame.as_ref().unwrap();
+        let local_idx = call_frame
+            .resolve_path_as_local(self.db, expr, path)
+            .unwrap_or_else(|| {
+                panic!(
+                    "can't resolve path as a place: expr: {:?}, path: `{:?}`, CallFrame {:?}",
+                    expr,
+                    path.debug(self.db),
+                    call_frame
+                )
+            });
 
         local_idx
     }
-}
 
-fn find_procedure_by_name(db: &Db, file: InputFile, name: &str) -> item::Proc {
-    let item = db
-        .items(file)
-        .iter()
-        .find(|f| f.name(db).as_str(db) == name)
-        .unwrap()
-        .clone();
+    fn compile_proc_call_code(&mut self, call: &expr::Call) {
+        let path = self.body_data.tables[call.path].cast_as_path();
 
-    match item {
-        item::Item::Proc(x) => x,
-        _ => panic!(),
+        assert_eq!(
+            path.segments.len(),
+            1,
+            "TODO: maybe support dot-separated path"
+        );
+
+        // FIXME(pref): use name-resolved IR for compilation
+        let resolver = self.proc.expr_resolver(self.db, call.path);
+
+        let ir_proc = match resolver
+            .resolve_path_as_value(self.db, path)
+            .unwrap_or_else(|| panic!("no value for path: `{:?}`", path.debug(self.db)))
+        {
+            ValueNs::Proc(proc) => proc,
+            _ => panic!("not a procedure: {:?}", path.debug(self.db)),
+        };
+
+        let vm_proc = self.proc_ids[&ir_proc];
+        self.chunk.write_call_proc_u16(vm_proc);
     }
 }

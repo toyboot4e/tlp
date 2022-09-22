@@ -30,6 +30,8 @@ pub struct BodyData {
     /// Interning tables for expressions and the like.
     pub tables: BodyTables,
 
+    pub param_pats: Vec<Pat>,
+
     // /// Parameter declarations
     // pub parameter_decls: Vec<LocalVariableDecl>,
     /// The root block expression

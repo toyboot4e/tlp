@@ -3,8 +3,6 @@
 // TODO: resolve path to a pattern without making duplicates?
 
 pub mod lower_type;
-pub mod ty_item;
-pub mod typed_body;
 
 use std::ops;
 
@@ -102,7 +100,8 @@ pub enum TypeData {
     Primitive(PrimitiveType),
     /// Builtin operator (function) type
     Op(OpType),
-    // Proc(ProcType),
+    /// Procedure type
+    Proc(ProcType),
 }
 
 // Builtin operator (function) type
@@ -153,6 +152,21 @@ pub enum PrimitiveType {
     Bool,
 }
 
-// pub struct ProcType {
-//     pub tys: Box<[TypeData]>,
-// }
+impl PrimitiveType {
+    pub fn parse(s: &str) -> Option<Self> {
+        let ty = match s {
+            "i32" => Self::I32,
+            "f32" => Self::F32,
+            "bool" => Self::Bool,
+            _ => return None,
+        };
+
+        Some(ty)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProcType {
+    pub param_tys: Box<[Ty]>,
+    pub ret_ty: Ty,
+}

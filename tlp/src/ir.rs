@@ -102,4 +102,27 @@ impl item::Proc {
     pub fn type_table<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeTable {
         ty::lower_type::lower_body_types(db, *self)
     }
+
+    /// Resolver for the procedure type (parameters and return type)
+    pub fn proc_ty_resolver(&self, db: &dyn IrDb) -> resolve::Resolver {
+        self.input_file(db).resolver(db)
+    }
+
+    pub fn ty(&self, db: &dyn IrDb) -> ty::Ty {
+        ty::lower_type::lower_proc_type(db, *self)
+    }
+
+    pub fn ty_data<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeData {
+        self.ty(db).data(db)
+    }
+
+    pub fn ty_data_as_proc<'db>(&self, db: &'db dyn IrDb) -> &'db ty::ProcType {
+        match self.ty_data(db) {
+            ty::TypeData::Proc(proc) => proc,
+            _ => unreachable!(
+                "bug: procedure lowered into non-procudure type: {:?}",
+                self.debug(db)
+            ),
+        }
+    }
 }

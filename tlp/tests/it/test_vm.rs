@@ -42,7 +42,7 @@ fn log_vm(src: &str, vm: &Vm) -> Result<String, fmt::Error> {
     )?;
 
     for (i, chunk) in vm.proc_chunks().iter().enumerate() {
-        writeln!(s, "proc {}:", i);
+        writeln!(s, "proc {}:", i)?;
         writeln!(s, "{}", chunk.disassemble().unwrap())?;
     }
 
@@ -250,7 +250,7 @@ a",
 }
 
 #[test]
-fn user_function() {
+fn user_function_call() {
     // function with no argument
     test_file(
         "
@@ -263,15 +263,15 @@ fn user_function() {
     );
 
     // function with arguments
-    //     test_file(
-    //         "
-    // (proc main ()
-    //     (f 10 ))
-    // (proc f (x)
-    //     (+ x 5))
-    // ",
-    //         15,
-    //     );
+        test_file(
+            "
+    (proc main ()
+        (f 10))
+    (proc f (x)
+        (+ x 5))
+    ",
+            15,
+        );
 
     // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
 }

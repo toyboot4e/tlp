@@ -2,6 +2,8 @@
 
 // TODO: Accumulate diagnostics
 
+use std::cmp;
+
 use rustc_hash::FxHashMap;
 use typed_index_collections::TiVec;
 
@@ -12,7 +14,7 @@ use crate::ir::{
         BodyData,
     },
     item,
-    resolve::ValueNs,
+    resolve::{Resolver, ValueNs},
     ty::{self, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
@@ -61,7 +63,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         .types
         .into_iter()
         .map(|ty| match ty {
-            WipTypeData::Var => infer.interned.unknwon,
+            WipTypeData::Var => infer.interned.unknown,
             WipTypeData::Ty(ty) => ty,
         })
         .collect();
@@ -79,7 +81,7 @@ struct InternedTypes {
     i32_: Ty,
     f32_: Ty,
     stmt: Ty,
-    unknwon: Ty,
+    unknown: Ty,
 }
 
 impl InternedTypes {
@@ -89,7 +91,7 @@ impl InternedTypes {
             i32_: Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::I32)),
             f32_: Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::F32)),
             stmt: Ty::intern(db, TypeData::Stmt),
-            unknwon: Ty::intern(db, TypeData::Unknown),
+            unknown: Ty::intern(db, TypeData::Unknown),
         }
     }
 }
@@ -120,14 +122,82 @@ struct Infer<'db, 'map> {
 }
 
 impl<'db> Collect<'db> {
+    fn collect_pat_as_var(&mut self, pat: Pat) {
+        let pat_data = &self.body_data.tables[pat];
+
+        let wip_ty = match pat_data {
+            PatData::Missing => {
+                let ty = Ty::intern(self.db, TypeData::Unknown);
+                WipTypeData::Ty(ty)
+            }
+            PatData::Bind { .. } => WipTypeData::Var,
+        };
+
+        self.insert_pat_wip_ty(pat, wip_ty);
+    }
+
+    fn insert_pat_wip_ty(&mut self, pat: Pat, wip_ty: WipTypeData) {
+        let ty_index = self.types.push_and_get_key(wip_ty);
+
+        assert!(
+            self.pat_types.insert(pat, ty_index).is_none(),
+            "bug: duplicate visit to pat: {:?} {:?}",
+            pat,
+            self.body_data.tables[pat]
+        );
+    }
+
+    fn share_type_with_pat(&mut self, expr: Expr, shared: Pat) {
+        let index = self.pat_types[&shared];
+
+        assert!(
+            self.expr_types.insert(expr, index).is_none(),
+            "bug: duplicate visit (pat)",
+        );
+    }
+
+    fn share_type_with_expr(&mut self, expr: Expr, shared: Expr) {
+        let index = self.expr_types[&shared];
+
+        assert!(
+            self.expr_types.insert(expr, index).is_none(),
+            "bug: duplicate visit (expr)",
+        );
+    }
+
+    fn insert_expr_ty(&mut self, expr: Expr, ty: Ty) {
+        self.insert_expr_wip_ty(expr, WipTypeData::Ty(ty));
+    }
+
+    fn insert_expr_wip_ty(&mut self, expr: Expr, ty: WipTypeData) {
+        let index = self.types.push_and_get_key(ty);
+
+        assert!(
+            self.expr_types.insert(expr, index).is_none(),
+            "bug: duplicate visit of expr: {:?} {:?}",
+            expr,
+            self.body_data.tables[expr]
+        );
+    }
+}
+
+impl<'db> Collect<'db> {
     pub fn collect(&mut self) {
+        self.collect_params();
         self.collect_expr(self.body_data.root_block);
+    }
+
+    fn collect_params(&mut self) {
+        for &param_pat in &self.body_data.param_pats {
+            // FIXME: parse type annotation
+            self.insert_pat_wip_ty(param_pat, WipTypeData::Ty(self.interned.i32_));
+        }
     }
 
     fn collect_expr(&mut self, expr: Expr) {
         let expr_data = &self.body_data.tables[expr];
 
-        let ty = match expr_data {
+        let wip_ty = match expr_data {
             ExprData::Missing => {
                 // TODO: reconsider
                 // missing expression can have any type
@@ -141,13 +211,7 @@ impl<'db> Collect<'db> {
 
                 if let Some(last_expr) = block.exprs.last() {
                     // block has the same type as the last expression
-                    let index = self.expr_types[last_expr];
-
-                    assert!(
-                        self.expr_types.insert(expr, index).is_none(),
-                        "bug: duplicate visit to block"
-                    );
-
+                    self.share_type_with_expr(expr, *last_expr);
                     return;
                 } else {
                     // or it returns none
@@ -157,11 +221,13 @@ impl<'db> Collect<'db> {
             }
             ExprData::Let(let_) => {
                 self.collect_expr(let_.rhs);
-                self.collect_pat(let_.pat);
+                self.collect_pat_as_var(let_.pat);
                 let ty = Ty::intern(self.db, TypeData::Stmt);
                 WipTypeData::Ty(ty)
             }
             ExprData::Call(call) => {
+                self.collect_callee(call.path);
+
                 call.args.iter().for_each(|&expr| {
                     self.collect_expr(expr);
                 });
@@ -200,7 +266,7 @@ impl<'db> Collect<'db> {
                     return;
                 } else {
                     // path to nothing
-                    WipTypeData::Ty(self.interned.unknwon)
+                    WipTypeData::Ty(self.interned.unknown)
                 }
             }
             ExprData::And(and) => {
@@ -261,13 +327,7 @@ impl<'db> Collect<'db> {
             }
         };
 
-        let index = self.types.push_and_get_key(ty);
-        assert!(
-            self.expr_types.insert(expr, index).is_none(),
-            "bug: duplicate visit of expr: {:?} {:?}",
-            expr,
-            self.body_data.tables[expr]
-        );
+        self.insert_expr_wip_ty(expr, wip_ty);
     }
 
     /// Resolves path to a value namespce and point to the same type
@@ -291,34 +351,46 @@ impl<'db> Collect<'db> {
         }
     }
 
-    fn share_type_with_pat(&mut self, expr: Expr, shared: Pat) {
-        let index = self.pat_types[&shared];
+    fn collect_callee(&mut self, path_expr: Expr) -> Option<Ty> {
+        // FIXME(perf):
+        let resolver = self.proc.expr_resolver(self.db, path_expr);
 
-        assert!(
-            self.expr_types.insert(expr, index).is_none(),
-            "bug: duplicate visit (pat)",
-        );
+        // TODO: resolve procudure and run check
+        if let ExprData::Path(path) = &self.body_data.tables[path_expr] {
+            if let Some(v) = resolver.resolve_path_as_value(self.db, path) {
+                match v {
+                    ValueNs::Proc(proc) => {
+                        let ty = proc.ty(self.db);
+                        self.insert_expr_ty(path_expr, ty);
+                        return Some(ty);
+                    }
+                    ValueNs::Pat(pat) => {
+                        // TODO: call variable as a procedure
+                    }
+                }
+            }
+        }
+
+        // can't resolve path; conclude as unknown type
+        let ty_index = self
+            .types
+            .push_and_get_key(WipTypeData::Ty(self.interned.unknown));
+        self.expr_types.insert(path_expr, ty_index);
+
+        None
     }
 
-    fn collect_pat(&mut self, pat: Pat) {
-        let pat_data = &self.body_data.tables[pat];
+    fn collect_proc_ty(&mut self, path_expr: Expr, call: &expr::Call, proc: item::Proc) {
+        // store the procedure type
+        let ty = proc.ty(self.db);
+        let ty_index = self.types.push_and_get_key(WipTypeData::Ty(ty));
+        self.expr_types.insert(call.path, ty_index);
 
-        let ty_index = match pat_data {
-            PatData::Missing => {
-                let ty = Ty::intern(self.db, TypeData::Unknown);
-                WipTypeData::Ty(ty)
-            }
-            PatData::Bind { .. } => WipTypeData::Var,
-        };
-
-        let index = self.types.push_and_get_key(ty_index);
-
-        assert!(
-            self.pat_types.insert(pat, index).is_none(),
-            "bug: duplicate visit to pat: {:?} {:?}",
-            pat,
-            self.body_data.tables[pat]
-        );
+        // unify argument types
+        let proc_ty = proc.ty_data_as_proc(self.db);
+        for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
+            //
+        }
     }
 }
 
@@ -484,15 +556,43 @@ impl<'db, 'map> Infer<'db, 'map> {
         };
     }
 
-    fn infer_call(&mut self, _call_expr: Expr, call: &expr::Call) {
+    fn infer_call(&mut self, call_expr: Expr, call: &expr::Call) {
+        // FIXME(perf):
+        let resolver = self.proc.expr_resolver(self.db, call_expr);
+
+        // TODO: resolve procudure and run check
+        if let ExprData::Path(path) = &self.body_data.tables[call.path] {
+            if let Some(v) = resolver.resolve_path_as_value(self.db, path) {
+                match v {
+                    ValueNs::Proc(proc) => {
+                        self.infer_proc_call(call_expr, call, proc);
+                        return;
+                    }
+                    ValueNs::Pat(pat) => {
+                        todo!("call variable as a procedure")
+                    }
+                }
+            }
+        }
+
+        // call type is unknown
+        self.infer_expr(call.path);
+
         call.args.iter().for_each(|expr| {
             self.infer_expr(*expr);
         });
 
-        self.infer_expr(call.path);
-
         // TODO: expect procedure type for the path
         // TODO: unify procedure type and argument types
+    }
+
+    fn infer_proc_call(&mut self, call_expr: Expr, call: &expr::Call, proc: item::Proc) {
+        // the procedure type is already resolved.
+        // unify the argument types
+        let proc_ty = proc.ty_data_as_proc(self.db);
+        for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
+            //
+        }
     }
 
     fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {
@@ -599,5 +699,56 @@ impl<'db, 'map> Infer<'db, 'map> {
             (TypeData::Op(o1), TypeData::Op(o2)) => o1 == o2,
             _ => false,
         }
+    }
+}
+
+#[salsa::tracked(jar = IrJar)]
+pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
+    let unknown = Ty::intern(db, TypeData::Unknown);
+
+    let param_tys = {
+        let mut param_tys = Vec::new();
+
+        let resolver = proc.proc_ty_resolver(db);
+        for param in proc.params(db).iter() {
+            // FIXME: parse type annotation
+            // let ty = param
+            //     .ty
+            //     .as_ref()
+            //     .and_then(|ty_path| self::lower_type_path(db, &resolver, ty_path))
+            //     .unwrap_or(unknown);
+
+            let ty = Ty::intern(db, ty::TypeData::Primitive(ty::PrimitiveType::I32));
+            param_tys.push(ty);
+        }
+
+        param_tys.into_boxed_slice()
+    };
+
+    // FIXME: parse type annotation and use it
+    let ret_ty = Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::I32));
+
+    let proc_ty = ty::ProcType { param_tys, ret_ty };
+
+    Ty::intern(db, TypeData::Proc(proc_ty))
+}
+
+fn lower_type_path(db: &dyn IrDb, resolver: &Resolver, path: &expr::Path) -> Option<Ty> {
+    assert_eq!(path.segments.len(), 1, "TODO: support path");
+
+    let name = path.segments[0].as_str(db.base());
+    if let Some(kind) = expr::OpKind::parse(name) {
+        todo!("builtin operator type in lower_type_path?");
+    }
+
+    if let Some(ty) = ty::PrimitiveType::parse(name) {
+        return Some(Ty::intern(db, ty::TypeData::Primitive(ty)));
+    }
+
+    match resolver.resolve_path_as_value(db, path)? {
+        ValueNs::Pat(pat) => {
+            todo!("value as procedure?")
+        }
+        ValueNs::Proc(proc) => Some(proc.ty(db)),
     }
 }
