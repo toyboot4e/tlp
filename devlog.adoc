@@ -266,5 +266,36 @@ fn items() {
 }
 ----
 +
-It's ridiculously easy! I'm not sure about the details, but it looks like promising. I'm liking `salsa-2022`.
+Wow it's too easy! I'm liking `salsa-2022`.
+
+* Sep 23, 2022
++
+I implemented a bunch of basic language constructs, along with a simple type inference system. For example, the following codes work today:
++
+[source,rust]
+----
+;; We have `let`, `while`, comparison operators and `set`:
+(let a 0)
+(while (< a 3)
+    (set a (+ a 1)))
+;; => 3
+----
++
+[source,rust]
+----
+;; Function call works:
+(proc fib (x)
+    (cond ((= x 0) 0)
+          ((= x 1) 1)
+          (true (+ (fib (- x 1)) (fib (- x 2))))))
+
+(proc main ()
+    (fib 10))
+----
++
+The type inference system is roguhly based on the https://esumii.github.io/min-caml/index-e.html[MinCaml crash course]. It often works as type validation system without much inferencing.
++
+The idea to to compare expression types with expected types. For example, the predicate of `while` expression must have `bool` type. If not, we emit an error and continue the analysis. More interesting case would be `cond`. If `cond` is an expression, each `cond` case must return the same type. And because `cond` cases must be comprehensive, we require `true` case.
++
+Function parameter types are restricted to `i32` for now. I will add syntax for annotating parameter types.
 
