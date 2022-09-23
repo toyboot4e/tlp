@@ -1,4 +1,4 @@
-use std::{cmp, fmt::Write, hash};
+use std::{cmp, hash};
 
 use base::{jar::Word, tbl::id};
 
@@ -156,7 +156,6 @@ impl OpKind {
             "-" => Self::Sub,
             "*" => Self::Mul,
             "/" => Self::Div,
-            "=" => Self::Eq,
             "=" => Self::Eq,
             "!=" => Self::NotEq,
             "<" => Self::Lt,

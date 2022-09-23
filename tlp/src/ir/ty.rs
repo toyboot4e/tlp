@@ -128,7 +128,6 @@ impl OpOperandType {
                 PrimitiveType::Bool => Some(OpOperandType::Bool),
                 PrimitiveType::I32 => Some(OpOperandType::I32),
                 PrimitiveType::F32 => Some(OpOperandType::F32),
-                _ => None,
             },
             _ => None,
         }

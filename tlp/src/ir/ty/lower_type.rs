@@ -273,7 +273,7 @@ impl<'db> Collect<'db> {
                 // TODO: set type for logical operators here
                 WipTypeData::Var
             }
-            ExprData::Op(kind) => {
+            ExprData::Op(_) => {
                 // builtin operator type needs to be inferred
                 WipTypeData::Var
             }
@@ -390,7 +390,7 @@ impl<'db> Collect<'db> {
                         self.insert_expr_ty(path_expr, ty);
                         return Some(ty);
                     }
-                    ValueNs::Pat(pat) => {
+                    ValueNs::Pat(_pat) => {
                         // TODO: call variable as a procedure
                     }
                 }
@@ -404,19 +404,6 @@ impl<'db> Collect<'db> {
         self.expr_types.insert(path_expr, ty_index);
 
         None
-    }
-
-    fn collect_proc_ty(&mut self, path_expr: Expr, call: &expr::Call, proc: item::Proc) {
-        // store the procedure type
-        let ty = proc.ty(self.db);
-        let ty_index = self.types.push_and_get_key(WipTypeData::Ty(ty));
-        self.expr_types.insert(call.path, ty_index);
-
-        // unify argument types
-        let proc_ty = proc.ty_data_as_proc(self.db);
-        for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
-            //
-        }
     }
 }
 
@@ -622,7 +609,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                         self.infer_resolved_proc_call(call_expr, call, proc);
                         return;
                     }
-                    ValueNs::Pat(pat) => {
+                    ValueNs::Pat(_pat) => {
                         todo!("call variable as a procedure")
                     }
                 }
@@ -736,7 +723,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                 self.types[i1] = w2;
                 true
             }
-            (WipTypeData::Ty(t1), WipTypeData::Ty(t2)) => self.cmp_known(i1, i2),
+            (WipTypeData::Ty(_t1), WipTypeData::Ty(_t2)) => self.cmp_known(i1, i2),
         }
     }
 
@@ -791,13 +778,11 @@ impl<'db, 'map> Infer<'db, 'map> {
 
 #[salsa::tracked(jar = IrJar)]
 pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
-    let unknown = Ty::intern(db, TypeData::Unknown);
-
     let param_tys = {
         let mut param_tys = Vec::new();
 
-        let resolver = proc.proc_ty_resolver(db);
-        for param in proc.params(db).iter() {
+        // let resolver = proc.proc_ty_resolver(db);
+        for _param in proc.params(db).iter() {
             // FIXME: parse type annotation
             // let ty = param
             //     .ty
@@ -824,7 +809,7 @@ fn lower_type_path(db: &dyn IrDb, resolver: &Resolver, path: &expr::Path) -> Opt
     assert_eq!(path.segments.len(), 1, "TODO: support path");
 
     let name = path.segments[0].as_str(db.base());
-    if let Some(kind) = expr::OpKind::parse(name) {
+    if let Some(_) = expr::OpKind::parse(name) {
         todo!("builtin operator type in lower_type_path?");
     }
 
@@ -833,7 +818,7 @@ fn lower_type_path(db: &dyn IrDb, resolver: &Resolver, path: &expr::Path) -> Opt
     }
 
     match resolver.resolve_path_as_value(db, path)? {
-        ValueNs::Pat(pat) => {
+        ValueNs::Pat(_) => {
             todo!("value as procedure?")
         }
         ValueNs::Proc(proc) => Some(proc.ty(db)),

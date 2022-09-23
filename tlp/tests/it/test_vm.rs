@@ -5,7 +5,7 @@ use std::fmt::{self, Write};
 use tlp::{
     compile,
     syntax::ast,
-    vm::{self, code::Chunk, Unit, UnitVariant, Vm},
+    vm::{self, Unit, UnitVariant, Vm},
     Db,
 };
 
@@ -54,7 +54,7 @@ fn log_vm(src: &str, vm: &Vm) -> Result<String, fmt::Error> {
     Ok(s)
 }
 
-fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Vm, Unit) {
+fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     {
         let (_doc, errs) = ast::parse(src).into_tuple();
         self::print_errors(&errs, src, "parse error");
@@ -66,10 +66,10 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
         compile::compile_file(&db, file)
     };
 
-    for chunk in vm.proc_chunks() {
-        // TODO: print procedure name
-        println!("{}", log_vm(&src, &vm).unwrap());
-    }
+    self::print_errors(&errs, src, "compile error");
+
+    // TODO: print procedure name
+    println!("{}", log_vm(&src, &vm).unwrap());
 
     // TODO: search functions
     let proc = vm::VmProcId(0);
@@ -77,15 +77,14 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> 
     match vm.run_proc(proc) {
         Ok(unit) => (vm, unit),
         Err(e) => {
-            let chunk = &vm.proc(proc).chunk;
             panic!("{}\n{}", e, log_vm(&src, &vm).unwrap());
         }
     }
 }
 
-fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str, expected: T) -> (Vm, Unit) {
+fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     let src = format!("(proc main () {})", src);
-    self::run(&src, expected)
+    self::run::<T>(&src)
 }
 
 fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
@@ -104,12 +103,12 @@ fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
 }
 
 fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let (vm, unit) = self::run_expr(src, expected.clone());
+    let (vm, unit) = self::run_expr::<T>(src);
     self::test_impl(src, expected, vm, unit)
 }
 
 fn test_file<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let (vm, unit) = self::run(src, expected.clone());
+    let (vm, unit) = self::run::<T>(src);
     self::test_impl(src, expected, vm, unit)
 }
 
@@ -297,4 +296,3 @@ fn user_function_call() {
 }
 
 // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
-

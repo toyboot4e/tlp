@@ -12,7 +12,7 @@ use crate::{
         body::{
             expr::{self, Expr, ExprData},
             pat::{Pat, PatData},
-            Body, BodyData,
+            BodyData,
         },
         item,
         resolve::ValueNs,
@@ -60,7 +60,7 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
             item::Item::Proc(proc) => proc,
         };
 
-        let mut compiler = CompileProc::new(&proc_ids, db, main_file, proc.clone());
+        let mut compiler = CompileProc::new(&proc_ids, db, proc.clone());
         compiler.compile_proc();
 
         vm_procs.push(vm::VmProc {
@@ -82,6 +82,7 @@ struct CallFrame {
     // TODO: consider using Vec-based map
     locals: FxHashMap<Pat, usize>,
     /// Number of arguments
+    #[allow(unused)]
     n_args: usize,
     /// Number of local variables without arguments
     n_locals: usize,
@@ -154,7 +155,6 @@ struct CompileProc<'db> {
     // context
     db: &'db Db,
     proc: item::Proc,
-    body: Body,
     body_data: &'db BodyData,
     types: &'db ty::TypeTable,
 }
@@ -163,7 +163,6 @@ impl<'db> CompileProc<'db> {
     fn new(
         proc_ids: &'db FxHashMap<item::Proc, vm::VmProcId>,
         db: &'db Db,
-        file: InputFile,
         proc: item::Proc,
     ) -> Self {
         let body = proc.body(db);
@@ -177,7 +176,6 @@ impl<'db> CompileProc<'db> {
             call_frame: Default::default(),
             db,
             proc,
-            body,
             body_data,
             types,
         }
@@ -266,13 +264,12 @@ impl<'db> CompileProc<'db> {
                 let op = self::to_vm_op(op_ty.clone());
                 self.chunk.write_code(op);
             }
-            ExprData::Op(op) => {
+            ExprData::Op(_op) => {
                 todo!()
             }
 
             ExprData::Let(let_) => {
-                let rhs_idx = let_.rhs;
-                let rhs = self.compile_expr(rhs_idx);
+                self.compile_expr(let_.rhs);
 
                 let local_idx = self.call_frame.as_ref().unwrap().locals[&let_.pat];
                 assert!(local_idx <= u8::MAX as usize);
@@ -363,7 +360,7 @@ impl<'db> CompileProc<'db> {
                     self.chunk.write_code(Op::PushNone);
                 }
             }
-            ExprData::Loop(loop_) => {
+            ExprData::Loop(_loop) => {
                 // TODO: handle break
                 todo!()
             }
@@ -407,8 +404,6 @@ impl<'db> CompileProc<'db> {
         }
 
         for &expr in exprs {
-            let expr_data = &self.body_data.tables[expr];
-
             assert_eq!(
                 self.types[expr].data(self.db),
                 &ty::TypeData::Primitive(ty::PrimitiveType::Bool)

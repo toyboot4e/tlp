@@ -83,7 +83,6 @@ fn fmt_exprs(exprs: &[Expr], f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>)
 
 fn with_square_brackets(
     f: &mut fmt::Formatter<'_>,
-    dcx: &DebugContext,
     run: impl FnOnce(&mut fmt::Formatter<'_>) -> fmt::Result,
 ) -> fmt::Result {
     write!(f, "[")?;
@@ -170,14 +169,14 @@ impl DebugWithDb<DebugContext<'_>> for CallOp {
     }
 }
 
-impl DebugWithDb<DebugContext<'_>> for OpKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
+impl<T> DebugWithDb<T> for OpKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>, _: &T) -> fmt::Result {
         write!(f, "{:?}", self.to_str())
     }
 }
 
-impl DebugWithDb<DebugContext<'_>> for Literal {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
+impl<T> DebugWithDb<T> for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>, _: &T) -> fmt::Result {
         match self {
             Self::String(x) => write!(f, "{:?}", x),
             Self::Char(x) => write!(f, "{:?}", x),
@@ -197,7 +196,7 @@ impl DebugWithDb<DebugContext<'_>> for Path {
 impl DebugWithDb<DebugContext<'_>> for And {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
         write!(f, "And(")?;
-        self::with_square_brackets(f, dcx, |f| self::fmt_exprs(&self.exprs, f, dcx))?;
+        self::with_square_brackets(f, |f| self::fmt_exprs(&self.exprs, f, dcx))?;
         write!(f, ")")?;
         Ok(())
     }
@@ -206,7 +205,7 @@ impl DebugWithDb<DebugContext<'_>> for And {
 impl DebugWithDb<DebugContext<'_>> for Or {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
         write!(f, "Or(")?;
-        self::with_square_brackets(f, dcx, |f| self::fmt_exprs(&self.exprs, f, dcx))?;
+        self::with_square_brackets(f, |f| self::fmt_exprs(&self.exprs, f, dcx))?;
         write!(f, ")")?;
         Ok(())
     }

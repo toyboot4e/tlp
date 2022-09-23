@@ -14,15 +14,9 @@ fn new_main(src: &str) -> (Db, item::Proc) {
 
     let proc = match file.items(&mut db)[0] {
         Item::Proc(proc) => proc,
-        _ => unreachable!(),
     };
 
     (db, proc)
-}
-
-fn exprs(db: &dyn IrDb, proc: item::Proc) -> Vec<Expr> {
-    let body = proc.body_data(db);
-    body.root_block().iter().map(|e| *e).collect::<Vec<_>>()
 }
 
 fn expr_data(db: &dyn IrDb, proc: item::Proc) -> Vec<ExprData> {

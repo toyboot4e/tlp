@@ -158,12 +158,6 @@ impl ParseState {
         tk
     }
 
-    fn bump_as_node<'pcx>(&mut self, pcx: &'pcx ParseContext, node_kind: SyntaxKind) {
-        self.builder.start_node(node_kind.into());
-        self.bump(pcx);
-        self.builder.finish_node();
-    }
-
     fn bump_kind<'pcx>(&mut self, pcx: &'pcx ParseContext, kind: SyntaxKind) -> &'pcx Token {
         assert_eq!(self.peek(pcx).map(|t| t.kind), Some(kind));
         self.bump(pcx)
@@ -334,7 +328,7 @@ impl ParseState {
             }
 
             let checkpoint = self.builder.checkpoint();
-            if let Some(pat) = self.maybe_bump_pat(pcx) {
+            if self.maybe_bump_pat(pcx).is_some() {
                 // TODO: parse parameter types
                 self.builder
                     .start_node_at(checkpoint, SyntaxKind::Param.into());

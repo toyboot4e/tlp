@@ -44,7 +44,6 @@ fn body() {
 
     let proc = match items[0] {
         Item::Proc(proc) => proc,
-        _ => unreachable!(),
     };
 
     assert_eq!(proc.name(db).as_str(db.base()), "main");

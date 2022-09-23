@@ -421,7 +421,7 @@ fn compute_expr_scopes(
         }
 
         // builtin functions
-        ExprData::Op(op) => {
+        ExprData::Op(_) => {
             // no children
         }
         ExprData::And(and) => {

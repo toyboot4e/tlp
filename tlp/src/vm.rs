@@ -42,8 +42,6 @@ pub enum VmError {
 #[derive(Debug)]
 struct VmCallFrame {
     ip: usize,
-    proc_id: VmProcId,
-    n_args: usize,
 }
 
 /// ID of [`VmProc`]
@@ -52,7 +50,7 @@ pub struct VmProcId(pub usize);
 
 impl From<usize> for VmProcId {
     fn from(x: usize) -> Self {
-        Self(0)
+        Self(x)
     }
 }
 
@@ -108,8 +106,6 @@ impl Vm {
     }
 
     fn bind(&mut self, proc_id: VmProcId) -> VmBind<'_> {
-        let proc = &self.procs[proc_id];
-
         VmBind {
             proc_id,
             procs: &self.procs,
@@ -194,16 +190,7 @@ impl<'a> VmBind<'a> {
 impl<'a> VmBind<'a> {
     fn run(&mut self) -> Result<Unit> {
         // use the binded procedure's call frame
-        {
-            let n_args = self.procs[self.proc_id].n_args;
-            self.frames.push(VmCallFrame {
-                ip: 0,
-                proc_id: self.proc_id,
-                n_args,
-            });
-
-            // shift
-        }
+        self.frames.push(VmCallFrame { ip: 0 });
 
         let chunk_len = self.chunk().bytes().len();
 

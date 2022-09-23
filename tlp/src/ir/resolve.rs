@@ -79,7 +79,6 @@ impl Resolver {
 
                     // TODO: lookup global variables
                 }
-                _ => {}
             }
         }
 

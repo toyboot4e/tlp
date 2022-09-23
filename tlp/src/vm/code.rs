@@ -140,9 +140,6 @@ impl Op {
             Op::NotEqI32 => "not-eq-i32",
             Op::NotEqF32 => "not-eq-f32",
 
-            Op::NotEqI32 => "not-eq-i32",
-            Op::NotEqF32 => "not-eq-f32",
-
             Op::LtI32 => "lt-i32",
             Op::LtF32 => "lt-f32",
 

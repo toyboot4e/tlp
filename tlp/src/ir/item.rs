@@ -121,7 +121,10 @@ impl Proc {
 
         if let Some(params_node) = ast.params() {
             for param_node in params_node.nodes() {
-                if let Some(pat) = param_node.pat().and_then(|pat| pat::PatData::from_ast(db, pat)) {
+                if let Some(pat) = param_node
+                    .pat()
+                    .and_then(|pat| pat::PatData::from_ast(db, pat))
+                {
                     // TODO: type parameters
                     params.push(Param { pat, ty: None });
                 } else {
