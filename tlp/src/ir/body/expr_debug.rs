@@ -34,38 +34,26 @@ impl<T: ?Sized + IrDb> DebugWithDb<T> for Path {
     }
 }
 
-pub struct WithIrDb<'me, T: ?Sized> {
-    this: &'me T,
-    db: &'me dyn IrDb,
-}
-
-impl<'me, T> WithIrDb<'me, T> {
-    pub fn db(&self) -> &'me dyn IrDb {
-        self.db
-    }
-}
-
-impl<'me, T: ?Sized> std::ops::Deref for WithIrDb<'me, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.this
-    }
+/// Debug context for procedures
+pub struct DebugContext<'db> {
+    proc: item::Proc,
+    db: &'db dyn IrDb,
 }
 
 impl item::Proc {
     /// Creates [`DebugContext`]
-    pub fn with_db<'me>(&'me self, db: &'me dyn IrDb) -> WithIrDb<'me, Self> {
-        WithIrDb { this: self, db }
+    pub fn with_db<'db>(&self, db: &'db dyn IrDb) -> DebugContext<'db> {
+        DebugContext { proc: *self, db }
     }
 }
 
-/// Debug context for patterns and expressions used with [`salsa::DebugWithDb`]
-pub type DebugContext<'body> = WithIrDb<'body, item::Proc>;
+impl<'db> DebugContext<'db> {
+    pub fn db(&self) -> &'db dyn IrDb {
+        self.db
+    }
 
-impl DebugContext<'_> {
-    pub fn proc(&self) -> &item::Proc {
-        &self.this
+    pub fn proc(&self) -> item::Proc {
+        self.proc
     }
 
     pub fn body_data(&self) -> &BodyData {
