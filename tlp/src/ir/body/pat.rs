@@ -45,7 +45,12 @@ impl PatData {
 }
 
 impl DebugWithDb<dyn IrDb> for PatData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn IrDb) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        db: &dyn IrDb,
+        _all_fields: bool,
+    ) -> std::fmt::Result {
         match self {
             PatData::Missing => write!(f, "<missing>"),
             PatData::Bind { name } => write!(f, "{:?}", name.as_str(db.base())),
