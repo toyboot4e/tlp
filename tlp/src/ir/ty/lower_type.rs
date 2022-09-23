@@ -25,9 +25,12 @@ use crate::ir::{
 pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let interned = InternedTypes::new(db);
 
+    let debug = proc.with_db(db);
+
     let Collect {
         db,
         body_data,
+        debug,
         interned,
         proc,
         expr_types,
@@ -37,6 +40,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         let mut collect = Collect {
             db,
             body_data: proc.body_data(db),
+            debug,
             interned,
             proc,
             // resolver: proc.root_resolver(db),
@@ -48,8 +52,6 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         collect.collect();
         collect
     };
-
-    let debug = proc.with_db(db);
 
     let mut infer = Infer {
         db,
@@ -105,6 +107,7 @@ impl InternedTypes {
 struct Collect<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
+    debug: DebugContext<'db>,
     interned: InternedTypes,
     proc: item::Proc,
     // resolver: Resolver,
@@ -153,21 +156,33 @@ impl<'db> Collect<'db> {
         );
     }
 
-    fn share_type_with_pat(&mut self, expr: Expr, shared: Pat) {
-        let index = self.pat_types[&shared];
+    fn share_expr_type_with_pat(&mut self, expr: Expr, shared: Pat) {
+        let ty_index = self.pat_types[&shared];
 
         assert!(
-            self.expr_types.insert(expr, index).is_none(),
-            "bug: duplicate visit (pat)",
+            self.expr_types.insert(expr, ty_index).is_none(),
+            "bug: duplicate visit: {:?}",
+            expr.debug(&self.debug),
         );
     }
 
-    fn share_type_with_expr(&mut self, expr: Expr, shared: Expr) {
-        let index = self.expr_types[&shared];
+    fn share_expr_type_with_expr(&mut self, expr: Expr, shared: Expr) {
+        let ty_index = self.expr_types[&shared];
 
         assert!(
-            self.expr_types.insert(expr, index).is_none(),
-            "bug: duplicate visit (expr)",
+            self.expr_types.insert(expr, ty_index).is_none(),
+            "bug: duplicate visit: {:?}",
+            expr.debug(&self.debug),
+        );
+    }
+
+    fn share_pat_type_with_expr(&mut self, pat: Pat, shared: Expr) {
+        let ty_index = self.expr_types[&shared];
+
+        assert!(
+            self.pat_types.insert(pat, ty_index).is_none(),
+            "bug: duplicate visit: {:?}",
+            pat.debug(&self.debug),
         );
     }
 
@@ -217,7 +232,7 @@ impl<'db> Collect<'db> {
 
                 if let Some(last_expr) = block.exprs.last() {
                     // block has the same type as the last expression
-                    self.share_type_with_expr(expr, *last_expr);
+                    self.share_expr_type_with_expr(expr, *last_expr);
                     return;
                 } else {
                     // or it returns none
@@ -227,9 +242,11 @@ impl<'db> Collect<'db> {
             }
             ExprData::Let(let_) => {
                 self.collect_expr(let_.rhs);
-                self.collect_pat_as_var(let_.pat);
-                let ty = Ty::intern(self.db, TypeData::Stmt);
-                WipTypeData::Ty(ty)
+
+                // the binding pattern has the same type as the RHS experssion
+                self.share_pat_type_with_expr(let_.pat, let_.rhs);
+
+                WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::Call(call) => {
                 self.collect_callee(call.path);
@@ -343,7 +360,7 @@ impl<'db> Collect<'db> {
 
         match resolver.resolve_path_as_value(self.db, path) {
             Some(ValueNs::Pat(pat)) => {
-                self.share_type_with_pat(expr, pat);
+                self.share_expr_type_with_pat(expr, pat);
                 true
             }
             Some(ValueNs::Proc(proc)) => {
@@ -416,14 +433,20 @@ impl<'db, 'map> Infer<'db, 'map> {
                     self.infer_expr(expr);
                 });
 
-                // block has same type as last expression
+                if let Some(last) = block.exprs.last() {
+                    assert_eq!(
+                        self.expr_types[&expr], self.expr_types[last],
+                        "the block and the last expression must have tthe same type"
+                    );
+                }
             }
             ExprData::Let(let_) => {
                 self.infer_expr(let_.rhs);
 
-                let rhs_ty = self.expr_types[&let_.rhs].clone();
-                let pat_ty = self.pat_types[&let_.pat];
-                self.types[pat_ty] = self.types[rhs_ty].clone();
+                assert_eq!(
+                    self.expr_types[&let_.rhs], self.pat_types[&let_.pat],
+                    "the binding pattern and the RHS must share the same type"
+                );
             }
             ExprData::Call(call) => self.infer_call(expr, call),
             ExprData::CallOp(op) => self.infer_builtin_op(expr, op),

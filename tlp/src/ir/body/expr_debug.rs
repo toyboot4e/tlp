@@ -147,10 +147,11 @@ impl DebugWithDb<DebugContext<'_>> for Call {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
         write!(f, "Call {{ ")?;
 
+        write!(f, "path: ")?;
         self.path.fmt(f, dcx)?;
         write!(f, ", ")?;
 
-        write!(f, "args {{ ")?;
+        write!(f, "args: {{ ")?;
         self::fmt_exprs(&self.args, f, dcx)?;
         write!(f, " }}")?;
 
@@ -163,10 +164,11 @@ impl DebugWithDb<DebugContext<'_>> for CallOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
         write!(f, "CallOp {{ ")?;
 
+        write!(f, "op: ")?;
         self.op_expr.fmt(f, dcx)?;
         write!(f, ", ")?;
 
-        write!(f, "args {{ ")?;
+        write!(f, "args: {{ ")?;
         self::fmt_exprs(&self.args, f, dcx)?;
         write!(f, " }}")?;
 

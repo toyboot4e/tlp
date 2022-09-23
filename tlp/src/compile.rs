@@ -256,7 +256,7 @@ impl<'db> CompileProc<'db> {
 
                 let op_ty = match &self.types[call_op.op_expr].data(self.db) {
                     ty::TypeData::Op(op_ty) => op_ty,
-                    x => unreachable!("not operator type: {:?} for operator {:?}", x, call_op),
+                    x => unreachable!("not operator type: {:?} for {:?}", x, call_op),
                 };
 
                 let op = match (op_ty.kind, op_ty.operand_ty) {
