@@ -7,6 +7,8 @@ use crate::{
     syntax::ast::{self, AstToken},
 };
 
+// TODO: consider using `ExprT<T>`
+
 id! {
     /// ID of [`ExprData`] that implements [`InternAllocKey`] and [`InternKey`]
     ///

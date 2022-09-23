@@ -12,7 +12,7 @@ use crate::ir::{ty::*, IrDb};
 //     }
 // }
 
-impl DebugWithDb<dyn IrDb + '_> for WiptTypeData {
+impl DebugWithDb<dyn IrDb + '_> for WipTypeData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, db: &dyn IrDb) -> fmt::Result {
         match self {
             Self::Var => write!(f, "<ty-var>"),

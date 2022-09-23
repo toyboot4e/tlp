@@ -1,6 +1,8 @@
 //! Type lowering
 
 // TODO: Accumulate diagnostics
+// TODO: Do not infer twice
+// TODO: Never overwrite known types on inference
 
 use std::cmp;
 
@@ -257,8 +259,8 @@ impl<'db> Collect<'db> {
 
                 self.collect_expr(call.path);
 
-                // FIXME: function call return type should be resolved to the annotated type
-                WipTypeData::Var
+                // FIXME: parse return type
+                WipTypeData::Ty(self.interned.i32_)
             }
             ExprData::CallOp(op) => {
                 op.args.iter().for_each(|&expr| {
@@ -267,7 +269,8 @@ impl<'db> Collect<'db> {
 
                 self.collect_expr(op.op_expr);
 
-                // FIXME: return type of the builtin function call needs to be inferred
+                // return type of the builtin function call needs to be inferred
+                // TODO: set type for logical operators here
                 WipTypeData::Var
             }
             ExprData::Op(kind) => {
@@ -363,7 +366,7 @@ impl<'db> Collect<'db> {
                 self.share_expr_type_with_pat(expr, pat);
                 true
             }
-            Some(ValueNs::Proc(proc)) => {
+            Some(ValueNs::Proc(_proc)) => {
                 // FIXME: handle procedure type
                 let ty = Ty::intern(self.db, TypeData::Primitive(ty::PrimitiveType::I32));
                 let ty_index = self.types.push_and_get_key(WipTypeData::Ty(ty));
@@ -562,6 +565,19 @@ impl<'db, 'map> Infer<'db, 'map> {
             })
             .unwrap_or(ty::OpOperandType::Unknown);
 
+        if operand_ty == ty::OpOperandType::Unknown {
+            eprintln!(
+                "unknown operand type on: {:?}",
+                call_op_expr.debug(&self.debug)
+            );
+
+            // call operator type is unknown
+            self.types[self.expr_types[&call_op_expr]] = WipTypeData::Ty(self.interned.unknown);
+            // call node type is unknown
+            self.types[self.expr_types[&call_op.op_expr]] = WipTypeData::Ty(self.interned.unknown);
+            return;
+        }
+
         let kind = match &self.body_data.tables[call_op.op_expr] {
             ExprData::Op(op) => *op,
             _ => unreachable!(),
@@ -581,20 +597,15 @@ impl<'db, 'map> Infer<'db, 'map> {
                 WipTypeData::Ty(self.interned.bool_)
             } else {
                 // arithmetic operator is of the type of the operand
-                match operand_ty.to_type_data() {
-                    Some(ty_data) => {
-                        let ty = Ty::intern(self.db, ty_data);
-                        WipTypeData::Ty(ty)
-                    }
+                let ty_data = match operand_ty.to_type_data() {
+                    Some(x) => x,
                     None => {
-                        // TODO: diagnostics
-                        eprintln!(
-                            "unknown operator type: {:?}",
-                            call_op_expr.debug(&self.debug)
-                        );
-                        WipTypeData::Ty(self.interned.unknown)
+                        unreachable!("bug: operand type should be known here: {:?}", operand_ty);
                     }
-                }
+                };
+
+                let ty = Ty::intern(self.db, ty_data);
+                WipTypeData::Ty(ty)
             }
         };
     }
@@ -632,13 +643,21 @@ impl<'db, 'map> Infer<'db, 'map> {
     /// Unifies the argument types with the parameter types. Returns true on success
     fn infer_resolved_proc_call(
         &mut self,
-        call_expr: Expr,
+        _call_expr: Expr,
         call: &expr::Call,
         proc: item::Proc,
     ) -> bool {
+        // infer
+        for arg in call.args.iter() {
+            self.infer_expr(*arg);
+        }
+
+        // unify
         let mut fail = false;
 
         let proc_ty = proc.ty_data_as_proc(self.db);
+        fail |= proc_ty.param_tys.len() == call.args.len();
+
         for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
             let param_ty = proc_ty.param_tys[i];
             let arg_expr = call.args[i];

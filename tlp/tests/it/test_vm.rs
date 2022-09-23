@@ -263,15 +263,38 @@ fn user_function_call() {
     );
 
     // function with arguments
-        test_file(
-            "
+    test_file(
+        "
     (proc main ()
         (f 10))
     (proc f (x)
         (+ x 5))
     ",
-            15,
-        );
+        15,
+    );
 
-    // TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
+    // recursive function call
+    fn fib(x: usize) -> usize {
+        match x {
+            0 => 1,
+            1 => 1,
+            _ => fib(x - 1) + fib(x - 2),
+        }
+    }
+
+    test_file(
+        "
+(proc main ()
+    (fib 10))
+
+(proc fib (x)
+    (cond ((= x 0) 1)
+          ((= x 1) 1)
+          (true (+ (fib (- x 1)) (fib (- x 2))))))
+",
+        fib(10) as u32,
+    );
 }
+
+// TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
+
