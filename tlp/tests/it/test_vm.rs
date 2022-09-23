@@ -264,10 +264,10 @@ fn user_function_call() {
     // function with arguments
     test_file(
         "
-    (proc main ()
-        (f 10))
-    (proc f (x)
-        (+ x 5))
+(proc main ()
+    (f 10))
+(proc f (x)
+    (+ x 5))
     ",
         15,
     );
