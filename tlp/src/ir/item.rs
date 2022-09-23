@@ -3,11 +3,19 @@
 use salsa::DebugWithDb;
 
 use base::{
-    jar::{SpannedWord, Word},
+    jar::{InputFile, SpannedWord, Word},
     span::*,
 };
 
-use crate::{ir, syntax::ast};
+use crate::ir::IrDb;
+
+use crate::{
+    ir::{
+        self,
+        body::{expr, pat},
+    },
+    syntax::ast,
+};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Item {
@@ -57,14 +65,31 @@ impl From<Proc> for Item {
 #[salsa::tracked(jar = ir::IrJar)]
 pub struct Proc {
     /// Name used as `#[id]`
+    // TODO: measure recomputation and consider separating the span from word
     #[id]
     pub name: SpannedWord,
     pub span: FileSpan,
+    #[return_ref]
+    pub params: Box<[Param]>,
     /// Lazily analyzed body AST
     pub ast: ast::DefProc,
 }
 
+// TODO: Is it good practice to have IR parameters here? (It's duplicate in body)
+// TODO: `Pat` and `Path` are shared with body
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Param {
+    pub pat: pat::PatData,
+    // TODO: Add `TypeRef` type (c.f. `type_ref.rs` in ra)
+    pub ty: Option<expr::Path>,
+    // pub span: FileSpan,
+}
+
 impl Proc {
+    pub fn input_file(&self, db: &dyn IrDb) -> InputFile {
+        self.span(db).input_file
+    }
+
     pub fn from_ast(
         db: &dyn ir::IrDb,
         file: base::jar::InputFile,
@@ -92,6 +117,25 @@ impl Proc {
             end: file_span.end,
         };
 
-        Some(Proc::new(db, name, file_span, ast))
+        let mut params = Vec::new();
+
+        if let Some(params_node) = ast.params() {
+            for param_node in params_node.nodes() {
+                if let Some(pat) = param_node.pat().and_then(|pat| pat::PatData::from_ast(db, pat)) {
+                    // TODO: type parameters
+                    params.push(Param { pat, ty: None });
+                } else {
+                    // TODO: consider adding node
+                }
+            }
+        }
+
+        Some(Proc::new(
+            db,
+            name,
+            file_span,
+            params.into_boxed_slice(),
+            ast,
+        ))
     }
 }

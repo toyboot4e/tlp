@@ -1,7 +1,5 @@
 //! Compiler (HIR → bytecode)
 
-pub mod scope;
-
 use rustc_hash::FxHashMap;
 use salsa::DebugWithDb;
 use thiserror::Error;
@@ -67,6 +65,7 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
 
         vm_procs.push(vm::VmProc {
             chunk: compiler.chunk,
+            n_args: proc.body_data(db).param_pats.len(),
         });
         vm_errs.extend(compiler.errs);
     }
@@ -79,9 +78,13 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
 #[derive(Debug)]
 struct CallFrame {
     proc: item::Proc,
+    /// Maps [`Pat`] to local index in the call frame
     // TODO: consider using Vec-based map
     locals: FxHashMap<Pat, usize>,
-    locals_capacity: usize,
+    /// Number of arguments
+    n_args: usize,
+    /// Number of local variables without arguments
+    n_locals: usize,
 }
 
 impl CallFrame {
@@ -96,31 +99,45 @@ impl CallFrame {
             .map(|(pat, _)| pat);
 
         let mut locals = FxHashMap::default();
-        let mut locals_capacity = 0;
+        let mut n_vars = 0;
 
-        for (pat, data) in bind_pats.enumerate() {
-            locals.insert(data, pat);
-            locals_capacity += 1;
+        // REMARK: Arguments must first apear in the binding patterns
+        for pat in bind_pats {
+            locals.insert(pat, n_vars);
+            n_vars += 1;
         }
+
+        let n_args = body_data.param_pats.len();
+        let n_locals = n_vars - n_args;
 
         Self {
             proc,
             locals,
-            locals_capacity,
+            n_args,
+            n_locals,
         }
     }
 
-    /// Resolves pattern to local variable offset
-    pub fn resolve_path(&self, db: &Db, path_expr: Expr, path: &expr::Path) -> Option<usize> {
-        // FIXME: solve path
-        let name = &path.segments[0];
+    pub fn n_vars(&self) -> usize {
+        self.n_args + self.n_locals
+    }
 
-        let binding_pat = {
-            let expr_scopes = self.proc.expr_scopes(db).data(db);
-            let scope_id = expr_scopes.scope_for_expr(path_expr)?;
-            let entry = expr_scopes.resolve_name_in_scope_chain(scope_id, *name)?;
+    /// Resolves pattern to a local variable offset
+    pub fn resolve_path_as_local(
+        &self,
+        db: &Db,
+        path_expr: Expr,
+        path: &expr::Path,
+    ) -> Option<usize> {
+        let resolver = self.proc.expr_resolver(db, path_expr);
 
-            entry.pat
+        let binding_pat = match resolver.resolve_path_as_value(db, path)? {
+            ValueNs::Pat(p) => p,
+            x => todo!(
+                "path was resolved to a non-pattern: path `{:?}`, resolution: `{:?}`",
+                path.debug(db),
+                x
+            ),
         };
 
         self.locals.get(&binding_pat).map(|x| *x)
@@ -168,14 +185,14 @@ impl<'db> CompileProc<'db> {
 
     #[allow(unused)]
     pub fn compile_proc(&mut self) {
-        // calle frame
+        // push the initial call frame frame
         {
             let call_frame = CallFrame::new(self.db, self.proc);
-
-            // FIXME:
-            self.chunk
-                .write_alloc_locals_u8(call_frame.locals_capacity as u8);
+            self.chunk.write_alloc_locals_u8(call_frame.n_locals as u8);
             self.call_frame = Some(call_frame);
+
+            let shift = self.body_data.param_pats.len();
+            self.chunk.write_shift_back_u8(shift as u8);
         }
 
         // body
@@ -218,28 +235,11 @@ impl<'db> CompileProc<'db> {
                 // TODO: handle tail expression's return value: return or discard
             }
             ExprData::Call(call) => {
-                let path = self.body_data.tables[call.path].cast_as_path();
+                for arg in call.args.iter() {
+                    self.compile_expr(*arg);
+                }
 
-                assert_eq!(
-                    path.segments.len(),
-                    1,
-                    "TODO: maybe support dot-separated path"
-                );
-
-                // FIXME(pref): use name-resolved IR for compilation
-                let resolver = self.proc.expr_resolver(self.db, call.path);
-
-                let ir_proc = match resolver
-                    .resolve_path_as_value(self.db, path)
-                    .unwrap_or_else(|| panic!("no value for path: `{:?}`", path.debug(self.db)))
-                {
-                    ValueNs::Proc(proc) => proc,
-                    _ => panic!("not a procedure: {:?}", path.debug(self.db)),
-                };
-
-                // TODO: compile arguments
-                let vm_proc = self.proc_ids[&ir_proc];
-                self.chunk.write_call_proc_u16(vm_proc);
+                self.compile_proc_call_code(call);
             }
             ExprData::CallOp(call_op) => {
                 assert_eq!(
@@ -256,51 +256,14 @@ impl<'db> CompileProc<'db> {
 
                 let op_ty = match &self.types[call_op.op_expr].data(self.db) {
                     ty::TypeData::Op(op_ty) => op_ty,
-                    x => unreachable!("not operator type: {:?} for operator {:?}", x, call_op),
+                    x => unreachable!(
+                        "not operator type: {:?} for operator {:?}",
+                        x,
+                        call_op.op_expr.debug(&self.proc.with_db(self.db))
+                    ),
                 };
 
-                let op = match (op_ty.kind, op_ty.operand_ty) {
-                    (expr::OpKind::Add, ty::OpOperandType::I32) => Op::AddI32,
-                    (expr::OpKind::Add, ty::OpOperandType::F32) => Op::AddF32,
-
-                    (expr::OpKind::Sub, ty::OpOperandType::I32) => Op::SubI32,
-                    (expr::OpKind::Sub, ty::OpOperandType::F32) => Op::SubF32,
-
-                    (expr::OpKind::Mul, ty::OpOperandType::I32) => Op::MulI32,
-                    (expr::OpKind::Mul, ty::OpOperandType::F32) => Op::MulF32,
-
-                    (expr::OpKind::Div, ty::OpOperandType::I32) => Op::DivI32,
-                    (expr::OpKind::Div, ty::OpOperandType::F32) => Op::DivF32,
-
-                    // =
-                    (expr::OpKind::Eq, ty::OpOperandType::Bool) => Op::EqBool,
-                    (expr::OpKind::Eq, ty::OpOperandType::I32) => Op::EqI32,
-                    (expr::OpKind::Eq, ty::OpOperandType::F32) => Op::EqF32,
-
-                    // !=
-                    (expr::OpKind::NotEq, ty::OpOperandType::Bool) => Op::NotEqBool,
-                    (expr::OpKind::NotEq, ty::OpOperandType::I32) => Op::NotEqI32,
-                    (expr::OpKind::NotEq, ty::OpOperandType::F32) => Op::NotEqF32,
-
-                    // <
-                    (expr::OpKind::Lt, ty::OpOperandType::I32) => Op::LtI32,
-                    (expr::OpKind::Lt, ty::OpOperandType::F32) => Op::LtF32,
-
-                    // <=
-                    (expr::OpKind::Le, ty::OpOperandType::I32) => Op::LeI32,
-                    (expr::OpKind::Le, ty::OpOperandType::F32) => Op::LeF32,
-
-                    // >
-                    (expr::OpKind::Gt, ty::OpOperandType::I32) => Op::GtI32,
-                    (expr::OpKind::Gt, ty::OpOperandType::F32) => Op::GtF32,
-
-                    // >=
-                    (expr::OpKind::Ge, ty::OpOperandType::I32) => Op::GeI32,
-                    (expr::OpKind::Ge, ty::OpOperandType::F32) => Op::GeF32,
-
-                    _ => todo!("{:?}", call_op),
-                };
-
+                let op = self::to_vm_op(op_ty.clone());
                 self.chunk.write_code(op);
             }
             ExprData::Op(op) => {
@@ -481,7 +444,9 @@ impl<'db> CompileProc<'db> {
     fn compile_branch(&mut self, pred: Expr, block: Expr, is_when: bool) -> JumpAnchor {
         assert_eq!(
             self.types[pred].data(self.db),
-            &ty::TypeData::Primitive(ty::PrimitiveType::Bool)
+            &ty::TypeData::Primitive(ty::PrimitiveType::Bool),
+            "not a boolean value: predicate `{:?}`",
+            pred,
         );
 
         self.compile_expr(pred);
@@ -506,28 +471,89 @@ impl<'db> CompileProc<'db> {
         self.resolve_path_as_local_index(expr, path)
     }
 
+    // When creating a call frame, each pattern is already resolved the their originating binding
+    // pattern
     fn resolve_path_as_local_index(&mut self, expr: Expr, path: &expr::Path) -> usize {
-        let local_idx = self
-            .call_frame
-            .as_ref()
-            .unwrap()
-            .resolve_path(self.db, expr, path)
-            .unwrap_or_else(|| panic!("can't resolve as place: {:?}", path));
+        let call_frame = self.call_frame.as_ref().unwrap();
+        let local_idx = call_frame
+            .resolve_path_as_local(self.db, expr, path)
+            .unwrap_or_else(|| {
+                panic!(
+                    "can't resolve path as a place: expr: {:?}, path: `{:?}`, CallFrame {:?}",
+                    expr,
+                    path.debug(self.db),
+                    call_frame
+                )
+            });
 
         local_idx
     }
+
+    fn compile_proc_call_code(&mut self, call: &expr::Call) {
+        let path = self.body_data.tables[call.path].cast_as_path();
+
+        assert_eq!(
+            path.segments.len(),
+            1,
+            "TODO: maybe support dot-separated path"
+        );
+
+        // FIXME(pref): use name-resolved IR for compilation
+        let resolver = self.proc.expr_resolver(self.db, call.path);
+
+        let ir_proc = match resolver
+            .resolve_path_as_value(self.db, path)
+            .unwrap_or_else(|| panic!("no value for path: `{:?}`", path.debug(self.db)))
+        {
+            ValueNs::Proc(proc) => proc,
+            _ => panic!("not a procedure: {:?}", path.debug(self.db)),
+        };
+
+        let vm_proc = self.proc_ids[&ir_proc];
+        self.chunk.write_call_proc_u16(vm_proc);
+    }
 }
 
-fn find_procedure_by_name(db: &Db, file: InputFile, name: &str) -> item::Proc {
-    let item = db
-        .items(file)
-        .iter()
-        .find(|f| f.name(db).as_str(db) == name)
-        .unwrap()
-        .clone();
+fn to_vm_op(op_ty: ty::OpType) -> Op {
+    match (op_ty.kind, op_ty.operand_ty) {
+        (expr::OpKind::Add, ty::OpOperandType::I32) => Op::AddI32,
+        (expr::OpKind::Add, ty::OpOperandType::F32) => Op::AddF32,
 
-    match item {
-        item::Item::Proc(x) => x,
-        _ => panic!(),
+        (expr::OpKind::Sub, ty::OpOperandType::I32) => Op::SubI32,
+        (expr::OpKind::Sub, ty::OpOperandType::F32) => Op::SubF32,
+
+        (expr::OpKind::Mul, ty::OpOperandType::I32) => Op::MulI32,
+        (expr::OpKind::Mul, ty::OpOperandType::F32) => Op::MulF32,
+
+        (expr::OpKind::Div, ty::OpOperandType::I32) => Op::DivI32,
+        (expr::OpKind::Div, ty::OpOperandType::F32) => Op::DivF32,
+
+        // =
+        (expr::OpKind::Eq, ty::OpOperandType::Bool) => Op::EqBool,
+        (expr::OpKind::Eq, ty::OpOperandType::I32) => Op::EqI32,
+        (expr::OpKind::Eq, ty::OpOperandType::F32) => Op::EqF32,
+
+        // !=
+        (expr::OpKind::NotEq, ty::OpOperandType::Bool) => Op::NotEqBool,
+        (expr::OpKind::NotEq, ty::OpOperandType::I32) => Op::NotEqI32,
+        (expr::OpKind::NotEq, ty::OpOperandType::F32) => Op::NotEqF32,
+
+        // <
+        (expr::OpKind::Lt, ty::OpOperandType::I32) => Op::LtI32,
+        (expr::OpKind::Lt, ty::OpOperandType::F32) => Op::LtF32,
+
+        // <=
+        (expr::OpKind::Le, ty::OpOperandType::I32) => Op::LeI32,
+        (expr::OpKind::Le, ty::OpOperandType::F32) => Op::LeF32,
+
+        // >
+        (expr::OpKind::Gt, ty::OpOperandType::I32) => Op::GtI32,
+        (expr::OpKind::Gt, ty::OpOperandType::F32) => Op::GtF32,
+
+        // >=
+        (expr::OpKind::Ge, ty::OpOperandType::I32) => Op::GeI32,
+        (expr::OpKind::Ge, ty::OpOperandType::F32) => Op::GeF32,
+
+        _ => todo!("{:?}", op_ty),
     }
 }

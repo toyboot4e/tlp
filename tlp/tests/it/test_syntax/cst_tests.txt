@@ -153,7 +153,8 @@ DefProc@0..22
     Params@8..14
         LParen@8..9
         Param@9..13
-            Ident@9..13
+            PatIdent@9..13
+                Ident@9..13
         RParen@13..14
     Ws@14..15
     Block@15..21
@@ -309,5 +310,37 @@ Call@2..9
     Literal@7..8
         Num@7..8
     RParen@8..9
+----------------------------------------
+
+# procedure parameters (TODO: annotate parameter types)
+(proc main (x) (+ x 42))
+----------------------------------------
+DefProc@0..24
+    LParen@0..1
+    Ident@1..5
+    Ws@5..6
+    ProcName@6..10
+        Ident@6..10
+    Ws@10..11
+    Params@11..14
+        LParen@11..12
+        Param@12..13
+            PatIdent@12..13
+                Ident@12..13
+        RParen@13..14
+    Ws@14..15
+    Block@15..23
+        Call@15..23
+            LParen@15..16
+            Path@16..17
+                Ident@16..17
+            Ws@17..18
+            Path@18..19
+                Ident@18..19
+            Ws@19..20
+            Literal@20..22
+                Num@20..22
+            RParen@22..23
+    RParen@23..24
 ----------------------------------------
 

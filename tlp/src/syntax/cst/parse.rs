@@ -278,6 +278,7 @@ impl ParseState {
         let found_rparen = {
             // start `Body` node
             self._bump_to_proc_param(pcx);
+            self.builder.start_node(SyntaxKind::Block.into());
 
             // maybe other list items
             let found_rparen = self._bump_sexps_to_end_paren(pcx).is_some();
@@ -296,7 +297,7 @@ impl ParseState {
         self.builder.finish_node();
     }
 
-    /// Parses params and starts proc body
+    /// Ident Params
     fn _bump_to_proc_param(&mut self, pcx: &ParseContext) {
         // proc name
         if let Some(tk) = self.peek(pcx) {
@@ -306,7 +307,6 @@ impl ParseState {
                 self.builder.finish_node();
             }
         } else {
-            self.builder.start_node(SyntaxKind::Block.into());
             return;
         }
 
@@ -319,10 +319,9 @@ impl ParseState {
                 self.maybe_bump_ws(pcx);
             }
         }
-
-        self.builder.start_node(SyntaxKind::Block.into());
     }
 
+    /// Param* ")"
     fn _proc_params(&mut self, pcx: &ParseContext) {
         self.builder.start_node(SyntaxKind::Params.into());
         self.bump_kind(pcx, SyntaxKind::LParen);
@@ -334,20 +333,21 @@ impl ParseState {
                 break;
             }
 
-            match self.peek(pcx) {
-                Some(tk) if tk.kind == SyntaxKind::Ident => {
-                    self.bump_as_node(pcx, SyntaxKind::Param);
-                    continue;
-                }
-                _ => {}
+            let checkpoint = self.builder.checkpoint();
+            if let Some(pat) = self.maybe_bump_pat(pcx) {
+                // TODO: parse parameter types
+                self.builder
+                    .start_node_at(checkpoint, SyntaxKind::Param.into());
+                self.builder.finish_node();
+                continue;
             }
 
             self.errs.push(ParseError::Unexpected {
-                // todo: figure out why it's at this point
-                // todo: use span for error location
+                // TODO: figure out why it's at this point
+                // TODO: use span for error location
                 at: pcx.src.len().into(),
                 expected: ")".to_string(),
-                found: "eof".to_string(),
+                found: "<non-pattern>".to_string(),
             });
 
             // consume the syntax

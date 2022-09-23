@@ -11,8 +11,17 @@ pub struct Stack {
 
 #[derive(Debug, Clone, Default)]
 struct CallFrame {
+    /// Offset of the first argument
     offset: usize,
-    n_units: usize,
+    n_args: usize,
+    n_locals: usize,
+}
+
+impl CallFrame {
+    /// The number of arguments + the number of local variables
+    pub fn n_vars(&self) -> usize {
+        self.n_args + self.n_locals
+    }
 }
 
 fn debug_run(f: impl FnOnce()) {
@@ -37,11 +46,10 @@ impl Stack {
     /// Returns index to the beginning of temporary variables
     pub fn tmp_offset(&self) -> usize {
         let frame = self.frames.last().unwrap();
-        frame.offset + frame.n_units
+        frame.offset + frame.n_args + frame.n_locals
     }
 
     pub fn push(&mut self, unit: Unit) {
-        println!("push: {:?}", unit);
         self.units.push(unit);
     }
 
@@ -65,17 +73,29 @@ impl Stack {
         self.units.last()
     }
 
-    pub fn push_call_frame(&mut self, n_units: usize) {
+    /// Pushes a runtime call frame, but without including the arguments
+    pub fn push_call_frame(&mut self, n_locals: usize) {
         let offset = self.units.len();
-        let n_units = n_units;
 
-        for _ in 0..n_units {
+        for _ in 0..n_locals {
             self.units.push(Unit::default());
         }
 
-        let frame = CallFrame { offset, n_units };
+        let frame = CallFrame {
+            offset,
+            // REMARK: call `shift_call_frame_offset` just after this function call
+            n_args: 0,
+            n_locals,
+        };
 
         self.frames.push(frame);
+    }
+
+    /// Shift the call frame's offset so that it can include arguments
+    pub fn shift_call_frame_offset(&mut self, n_args: usize) {
+        let frame = self.frames.last_mut().unwrap();
+        frame.offset -= n_args;
+        frame.n_args = n_args;
     }
 
     pub fn pop_call_frame(&mut self) {
@@ -84,7 +104,7 @@ impl Stack {
             .pop()
             .unwrap_or_else(|| panic!("bug: tried to pop call frame but none"));
 
-        let new_len = self.units.len() - frame.n_units;
+        let new_len = self.units.len() - (frame.n_args + frame.n_locals);
 
         assert_eq!(
             new_len, frame.offset,
@@ -97,7 +117,8 @@ impl Stack {
 
     pub fn set_local_u8(&mut self, index: u8, unit: Unit) {
         let frame = self.frames.last().unwrap();
-        let i = frame.offset + index as usize;
+        // REMARK:
+        let i = frame.offset + frame.n_args + index as usize;
         self.units[i] = unit;
     }
 
@@ -106,12 +127,14 @@ impl Stack {
 
         debug_run(|| {
             assert!(
-                (local_index as usize) < frame.n_units,
-                "invalid local index or maybe popped too much"
+                (local_index as usize) < frame.n_vars(),
+                "invalid local index or maybe popped too much: `{}`. {:?}",
+                local_index,
+                frame,
             );
 
             assert!(
-                frame.offset + frame.n_units <= self.units.len(),
+                frame.offset + frame.n_vars() <= self.units.len(),
                 "maybe popped too much"
             );
         });

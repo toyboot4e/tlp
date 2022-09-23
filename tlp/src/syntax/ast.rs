@@ -450,12 +450,11 @@ impl DefProc {
         c.next().and_then(ProcName::cast_node)
     }
 
-    pub fn params(&self) -> Option<Params> {
+    pub fn params(&self) -> Option<ProcParams> {
         self.syn
             .children()
-            .filter(|node| node.kind() == SyntaxKind::Params)
-            .next()
-            .map(|node| Params { syn: node.clone() })
+            .find(|node| node.kind() == SyntaxKind::Params)
+            .map(|node| ProcParams { syn: node.clone() })
     }
 
     pub fn block(&self) -> Block {
@@ -481,31 +480,31 @@ impl ProcName {
 
 define_node! {
     /// Procedure parameters
-    Params: SyntaxKind::Params,
+    ProcParams: SyntaxKind::Params,
 
     /// A single procedure parameter
     Param: SyntaxKind::Param,
 }
 
-impl Params {
-    pub fn param_nodes(&self) -> impl Iterator<Item = Param> {
+impl ProcParams {
+    pub fn nodes(&self) -> impl Iterator<Item = Param> {
         self.syn.children().filter_map(Param::cast_node)
     }
 }
 
 impl Param {
-    pub fn token(&self) -> SyntaxToken {
-        self.syn
-            .children_with_tokens()
-            .filter_map(|elem| elem.into_token())
-            .find(|tk| tk.kind() == SyntaxKind::Ident)
-            .unwrap()
+    pub fn pat(&self) -> Option<Pat> {
+        self.syn.children().find_map(|elem| Pat::cast_node(elem))
     }
+
+    // TODO: parameter type annotation
+    // pub fn ty
 }
 
 define_enum_node! {
     /// Pattern node (transparent)
-    Pat = PatIdent | PatPath, SyntaxKind::PatIdent | SyntaxKind::PatPath
+    Pat = PatIdent | PatPath,
+    SyntaxKind::PatIdent | SyntaxKind::PatPath
 }
 
 define_token_wrapper! {

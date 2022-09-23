@@ -38,10 +38,12 @@ pub enum VmError {
     EobWhileOp { op: Op },
 }
 
+/// Call frame state for the VM (remembers the instruction pointer)
 #[derive(Debug)]
 struct VmCallFrame {
     ip: usize,
     proc_id: VmProcId,
+    n_args: usize,
 }
 
 /// ID of [`VmProc`]
@@ -65,6 +67,7 @@ impl From<VmProcId> for usize {
 pub struct VmProc {
     /// Chunk of bytecode instructions and constants
     pub chunk: Chunk,
+    pub n_args: usize,
 }
 
 /// Toy Lisp bytecode virtual machine
@@ -75,11 +78,11 @@ pub struct Vm {
     stack: Stack,
 }
 
-pub fn run_chunk(chunk: Chunk) -> Result<Unit> {
+pub fn run_proc(vm_proc: VmProc) -> Result<Unit> {
     let mut procs = TiVec::new();
-    let vm_proc = procs.push_and_get_key(VmProc { chunk });
+    let vm_proc_index = procs.push_and_get_key(vm_proc);
     let mut vm = Vm::new(procs);
-    vm.run_proc(vm_proc)
+    vm.run_proc(vm_proc_index)
 }
 
 impl Vm {
@@ -105,7 +108,7 @@ impl Vm {
     }
 
     fn bind(&mut self, proc_id: VmProcId) -> VmBind<'_> {
-        self.frames.push(VmCallFrame { ip: 0, proc_id });
+        let proc = &self.procs[proc_id];
 
         VmBind {
             proc_id,
@@ -189,13 +192,23 @@ impl<'a> VmBind<'a> {
 
 /// Run
 impl<'a> VmBind<'a> {
-    /// Push [`CallFrame`] before run. The call frame is automatically popped after run
     fn run(&mut self) -> Result<Unit> {
+        // use the binded procedure's call frame
+        {
+            let n_args = self.procs[self.proc_id].n_args;
+            self.frames.push(VmCallFrame {
+                ip: 0,
+                proc_id: self.proc_id,
+                n_args,
+            });
+
+            // shift
+        }
+
         let chunk_len = self.chunk().bytes().len();
 
         while self.ip() < chunk_len {
             let code = self.bump_opcode();
-            println!("code: {:?}, stack: {:?}", code, self.stack.units());
 
             match code {
                 Op::Ret => {
@@ -242,6 +255,10 @@ impl<'a> VmBind<'a> {
                     let local_capacity = local_capacity as usize;
                     self.stack.push_call_frame(local_capacity);
                 }
+                Op::ShiftBack8 => {
+                    let shift = self.bump_u8();
+                    self.stack.shift_call_frame_offset(shift as usize);
+                }
 
                 // locals
                 Op::PushLocalUnit8 => {
@@ -280,7 +297,9 @@ impl<'a> VmBind<'a> {
                 Op::CallProc16 => {
                     let proc_id = self.bump_u16();
                     let proc_id = VmProcId(proc_id as usize);
-                    self.frames.push(VmCallFrame { ip: 0, proc_id });
+
+                    // TODO: re-consider if we separate call frame operation here
+                    // self.frames.push(VmCallFrame { ip: 0, proc_id });
 
                     let unit = VmBind {
                         procs: self.procs,

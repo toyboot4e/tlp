@@ -1,12 +1,13 @@
 use std::{cmp, fmt::Write, hash};
 
 use base::{jar::Word, tbl::id};
-use salsa::DebugWithDb;
 
 use crate::{
     ir::{body::pat::Pat, IrDb},
     syntax::ast::{self, AstToken},
 };
+
+// TODO: consider using `ExprT<T>`
 
 id! {
     /// ID of [`ExprData`] that implements [`InternAllocKey`] and [`InternKey`]
@@ -167,6 +168,32 @@ impl OpKind {
 
         Some(op)
     }
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Add => "+",
+            Self::Sub => "-",
+            Self::Mul => "*",
+            Self::Div => "/",
+            Self::Eq => "=",
+            Self::NotEq => "!=",
+            Self::Lt => "<",
+            Self::Le => "<=",
+            Self::Gt => ">",
+            Self::Ge => ">=",
+        }
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(
+            self,
+            OpKind::Eq | OpKind::NotEq | OpKind::Lt | OpKind::Le | OpKind::Gt | OpKind::Ge
+        )
+    }
+
+    pub fn is_arithmetic(&self) -> bool {
+        !self.is_bool()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -223,25 +250,6 @@ impl Literal {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Path {
     pub segments: Box<[Word]>,
-}
-
-impl DebugWithDb<dyn IrDb> for Path {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn IrDb) -> std::fmt::Result {
-        let (first, rest) = match self.segments.split_first() {
-            Some((first, rest)) => (first, rest),
-            _ => return Ok(()),
-        };
-
-        f.write_str(first.as_str(db.base()))?;
-
-        for word in rest.iter() {
-            let s = word.as_str(db.base());
-            f.write_char('.')?;
-            f.write_str(s)?;
-        }
-
-        Ok(())
-    }
 }
 
 impl Path {

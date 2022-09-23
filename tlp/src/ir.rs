@@ -8,6 +8,8 @@ pub mod lower;
 pub mod resolve;
 pub mod ty;
 
+use salsa::DebugWithDb;
+
 #[salsa::jar(db = IrDb)]
 pub struct IrJar(
     jar::ParsedFile,
@@ -23,6 +25,7 @@ pub struct IrJar(
     lower::lower_body,
     lower::lower_proc_expr_scope,
     ty::lower_type::lower_body_types,
+    ty::lower_type::lower_proc_type,
 );
 
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
@@ -40,6 +43,7 @@ pub trait InputFileExt {
     fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile;
     fn items(self, db: &dyn IrDb) -> &[item::Item];
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope;
+    fn resolver(self, db: &dyn IrDb) -> resolve::Resolver;
 }
 
 /// Extensions
@@ -54,6 +58,10 @@ impl InputFileExt for base::jar::InputFile {
 
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope {
         lower::lower_item_scope(db, self)
+    }
+
+    fn resolver(self, db: &dyn IrDb) -> resolve::Resolver {
+        resolve::resolver_for_file(db, self)
     }
 }
 
@@ -93,5 +101,28 @@ impl item::Proc {
 
     pub fn type_table<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeTable {
         ty::lower_type::lower_body_types(db, *self)
+    }
+
+    /// Resolver for the procedure type (parameters and return type)
+    pub fn proc_ty_resolver(&self, db: &dyn IrDb) -> resolve::Resolver {
+        self.input_file(db).resolver(db)
+    }
+
+    pub fn ty(&self, db: &dyn IrDb) -> ty::Ty {
+        ty::lower_type::lower_proc_type(db, *self)
+    }
+
+    pub fn ty_data<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeData {
+        self.ty(db).data(db)
+    }
+
+    pub fn ty_data_as_proc<'db>(&self, db: &'db dyn IrDb) -> &'db ty::ProcType {
+        match self.ty_data(db) {
+            ty::TypeData::Proc(proc) => proc,
+            _ => unreachable!(
+                "bug: procedure lowered into non-procudure type: {:?}",
+                self.debug(db)
+            ),
+        }
     }
 }

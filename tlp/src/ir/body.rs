@@ -1,6 +1,7 @@
 //! Body
 
 pub mod expr;
+pub mod expr_debug;
 pub mod expr_scope;
 pub mod pat;
 
@@ -29,6 +30,8 @@ pub struct Body {
 pub struct BodyData {
     /// Interning tables for expressions and the like.
     pub tables: BodyTables,
+
+    pub param_pats: Vec<Pat>,
 
     // /// Parameter declarations
     // pub parameter_decls: Vec<LocalVariableDecl>,

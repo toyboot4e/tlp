@@ -30,6 +30,9 @@ pub enum Op {
     AllocFrame8,
     AllocFrame16,
 
+    /// Shift back the call back's stack offset so that it can include local variables
+    ShiftBack8,
+
     // locals
     PushLocalUnit8,
     SetLocalUnit8,
@@ -81,9 +84,11 @@ pub enum Op {
 impl Op {
     pub fn operands(&self) -> OpCodeOperands {
         match self {
-            Op::PushConst8 | Op::AllocFrame8 | Op::PushLocalUnit8 | Op::SetLocalUnit8 => {
-                OpCodeOperands::One
-            }
+            Op::PushConst8
+            | Op::AllocFrame8
+            | Op::PushLocalUnit8
+            | Op::SetLocalUnit8
+            | Op::ShiftBack8 => OpCodeOperands::One,
             Op::PushConst16
             | Op::AllocFrame16
             | Op::Jump16
@@ -107,6 +112,7 @@ impl Op {
             Op::PushConst16 => "push-const-16",
             Op::AllocFrame8 => "alloc-frame-8",
             Op::AllocFrame16 => "alloc-frame-16",
+            Op::ShiftBack8 => "shift-back-8",
             Op::PushLocalUnit8 => "push-local-8",
             Op::SetLocalUnit8 => "set-local-8",
             Op::Jump16 => "jump-16",
@@ -243,7 +249,11 @@ impl Chunk {
 
     #[inline(always)]
     pub fn read_u16(&self, ix: usize) -> u16 {
-        ((self.codes[ix] as u16) << 8) | (self.codes[ix + 1] as u16)
+        Self::concat_2_u8(self.codes[ix], self.codes[ix + 1])
+    }
+
+    fn concat_2_u8(a: u8, b: u8) -> u16 {
+        ((a as u16) << 8) | (b as u16)
     }
 
     fn write_u16(&mut self, data: u16) {
@@ -305,6 +315,14 @@ impl Chunk {
         self.write_u16(idx);
     }
 
+    #[inline(always)]
+    pub fn write_shift_back_u8(&mut self, shift: u8) {
+        self.codes.push(Op::ShiftBack8 as u8);
+        self.codes.push(shift);
+    }
+
+    /// Note that stack frame operation is separated from call operation. Allocate call frame first,
+    /// push locals and finally run the call operation.
     #[inline(always)]
     pub fn write_call_proc_u16(&mut self, vm_proc: VmProcId) {
         self.codes.push(Op::CallProc16 as u8);
@@ -481,11 +499,10 @@ impl Chunk {
                 // TODO: unwrap
                 writeln!(
                     s,
-                    "{:3}: {:15} {} {}",
+                    "{:3}: {:15} {} (u16)",
                     ip,
                     op.as_str(),
-                    next(bytes),
-                    next(bytes)
+                    Chunk::concat_2_u8(next(bytes).0.unwrap(), next(bytes).0.unwrap()),
                 )?;
                 Ok(())
             }
@@ -523,7 +540,7 @@ mod tests {
             chunk
         };
 
-        let unit = vm::run_chunk(chunk)?;
+        let unit = vm::run_proc(vm::VmProc { chunk, n_args: 0 })?;
 
         assert_eq!(TypedLiteral::F32(-2.0).into_unit(), unit);
 

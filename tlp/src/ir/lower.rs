@@ -3,7 +3,7 @@
 use la_arena::Idx;
 
 use base::{
-    jar::{InputFile, Word},
+    jar::InputFile,
     span::Span,
     tbl::{origin_table::PushOriginIn, InternValue},
 };
@@ -56,19 +56,21 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
 pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> body::Body {
     let mut lower = LowerBody {
         db,
-        tables: Default::default(),
         spans: Default::default(),
+        tables: Default::default(),
+        param_pats: Vec::new(),
         root_block: Default::default(),
     };
 
-    lower.lower_root_proc(proc);
+    lower.lower_proc(proc);
     lower.into_body()
 }
 
 struct LowerBody<'a> {
     db: &'a dyn IrDb,
-    tables: body::BodyTables,
     spans: body::BodySpans,
+    tables: body::BodyTables,
+    param_pats: Vec<Pat>,
     root_block: Option<Expr>,
 }
 
@@ -77,18 +79,37 @@ impl<'a> LowerBody<'a> {
     pub fn into_body(self) -> body::Body {
         let data = body::BodyData {
             tables: self.tables,
+            param_pats: self.param_pats,
             root_block: self.root_block.unwrap(),
         };
 
         body::Body::new(self.db, data, self.spans)
     }
 
-    pub fn lower_root_proc(&mut self, proc: item::Proc) {
+    pub fn lower_proc(&mut self, proc: item::Proc) {
+        // params
+        self.lower_params(proc);
+
+        // body
         let ast = proc.ast(self.db);
         let ast_block = ast.block();
-
         let block = self.lower_block(ast_block);
         self.root_block = Some(block);
+    }
+
+    fn lower_params(&mut self, proc: item::Proc) {
+        // REMARK: We're not using IR parameter type
+        let ast_proc = proc.ast(self.db);
+
+        let params = match ast_proc.params() {
+            Some(x) => x,
+            _ => return,
+        };
+
+        for param in params.nodes() {
+            let pat = self.lower_opt_ast_pat(param.pat());
+            self.param_pats.push(pat);
+        }
     }
 
     fn lower_block(&mut self, ast_block: ast::Block) -> Expr {
@@ -108,6 +129,58 @@ impl<'a> LowerBody<'a> {
         let block_data = ExprData::Block(block);
         let span = Span::from_rowan_range(ast_block.syn.text_range());
         self.alloc(block_data, Ok(span))
+    }
+}
+
+/// Basic lowering components
+impl<'a> LowerBody<'a> {
+    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Expr>) -> Expr {
+        match expr {
+            Some(expr) => self.lower_ast_expr(expr),
+            None => self.alloc_missing_expr(),
+        }
+    }
+
+    fn lower_opt_ast_pat(&mut self, pat: Option<ast::Pat>) -> Pat {
+        match pat {
+            Some(pat) => self.lower_ast_pat(pat),
+            None => self.alloc_missing_pat(),
+        }
+    }
+
+    fn lower_ast_pat(&mut self, ast_pat: ast::Pat) -> Pat {
+        let span = Span::from_rowan_range(ast_pat.syntax().text_range());
+        if let Some(pat) = PatData::from_ast(self.db, ast_pat) {
+            self.alloc(pat, Ok(span))
+        } else {
+            todo!()
+        }
+    }
+}
+
+/// # Allocators
+impl<'a> LowerBody<'a> {
+    fn alloc<D, K>(&mut self, data: D, span: Result<Span, SyntheticSyntax>) -> K
+    where
+        D: std::hash::Hash + Eq + std::fmt::Debug,
+        D: InternValue<Table = body::BodyTables, Key = K>,
+        K: PushOriginIn<body::BodySpans, Origin = Result<Span, SyntheticSyntax>> + salsa::AsId,
+    {
+        let key = self.tables.add(data);
+        self.spans.push(key, span);
+        key
+    }
+
+    fn alloc_missing_expr(&mut self) -> Expr {
+        let expr = self.tables.add(ExprData::Missing);
+        self.spans.push(expr, Err(SyntheticSyntax));
+        expr
+    }
+
+    fn alloc_missing_pat(&mut self) -> Pat {
+        let pat = self.tables.add(PatData::Missing);
+        self.spans.push(pat, Err(SyntheticSyntax));
+        pat
     }
 }
 
@@ -246,63 +319,6 @@ impl<'a> LowerBody<'a> {
             ast::Expr::Block(block) => self.lower_block(block),
         }
     }
-
-    fn lower_opt_ast_expr(&mut self, expr: Option<ast::Expr>) -> Expr {
-        match expr {
-            Some(expr) => self.lower_ast_expr(expr),
-            None => self.alloc_missing_expr(),
-        }
-    }
-}
-
-/// # [`Pat`]
-impl<'a> LowerBody<'a> {
-    fn lower_ast_pat(&mut self, ast_pat: ast::Pat) -> Pat {
-        let span = Span::from_rowan_range(ast_pat.syntax().text_range());
-
-        match ast_pat {
-            ast::Pat::PatPath(_) => todo!(),
-            ast::Pat::PatIdent(ident) => {
-                let name = Word::intern(self.db.base(), ident.ident_token().text());
-                let pat = PatData::Bind { name };
-                self.alloc(pat, Ok(span))
-            }
-        }
-    }
-
-    fn lower_opt_ast_pat(&mut self, pat: Option<ast::Pat>) -> Pat {
-        match pat {
-            Some(pat) => self.lower_ast_pat(pat),
-            None => self.alloc_missing_pat(),
-        }
-    }
-}
-
-/// # Allocators
-impl<'a> LowerBody<'a> {
-    fn alloc<D, K>(&mut self, data: D, span: Result<Span, SyntheticSyntax>) -> K
-    where
-        D: std::hash::Hash + Eq + std::fmt::Debug,
-        D: InternValue<Table = body::BodyTables, Key = K>,
-        D: InternValue<Table = body::BodyTables, Key = K>,
-        K: PushOriginIn<body::BodySpans, Origin = Result<Span, SyntheticSyntax>> + salsa::AsId,
-    {
-        let key = self.tables.add(data);
-        self.spans.push(key, span);
-        key
-    }
-
-    fn alloc_missing_expr(&mut self) -> Expr {
-        let expr = self.tables.add(ExprData::Missing);
-        self.spans.push(expr, Err(SyntheticSyntax));
-        expr
-    }
-
-    fn alloc_missing_pat(&mut self) -> Pat {
-        let pat = self.tables.add(PatData::Missing);
-        self.spans.push(pat, Err(SyntheticSyntax));
-        pat
-    }
 }
 
 #[salsa::tracked(jar = IrJar)]
@@ -337,6 +353,12 @@ fn body_expr_scope(_db: &dyn IrDb, body_data: &BodyData) -> ExprScopeMapData {
 
     // start with the root block expression
     let root_scope = scopes.alloc_root_scope();
+
+    // with paramter patterns
+    for param_pat in &body_data.param_pats {
+        scopes.add_bindings(body_data, root_scope, *param_pat);
+    }
+
     self::compute_expr_scopes(body_data.root_block, body_data, &mut scopes, root_scope);
 
     scopes
