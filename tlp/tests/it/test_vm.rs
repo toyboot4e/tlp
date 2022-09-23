@@ -249,6 +249,14 @@ a",
 }
 
 #[test]
+fn shadowing() {
+    test_expr(
+        "(let a 5) (let out a) (let a 10) (set out (+ out a)) out",
+        15,
+    )
+}
+
+#[test]
 fn user_function_call() {
     // function with no argument
     test_file(
