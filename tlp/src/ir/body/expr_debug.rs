@@ -92,6 +92,18 @@ fn fmt_exprs(exprs: &[Expr], f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>)
     Ok(())
 }
 
+fn with_square_brackets(
+    f: &mut fmt::Formatter<'_>,
+    dcx: &DebugContext,
+    run: impl FnOnce(&mut fmt::Formatter<'_>) -> fmt::Result,
+) -> fmt::Result {
+    write!(f, "[")?;
+    run(f)?;
+    write!(f, "]")?;
+
+    Ok(())
+}
+
 impl DebugWithDb<DebugContext<'_>> for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
         dcx.body_tables()[*self].fmt(f, dcx)
@@ -123,9 +135,9 @@ impl DebugWithDb<DebugContext<'_>> for ExprData {
 
 impl DebugWithDb<DebugContext<'_>> for Block {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "block {{ ")?;
+        write!(f, "Block [ ")?;
         self::fmt_exprs(&self.exprs, f, dcx)?;
-        write!(f, " }}")?;
+        write!(f, " ]")?;
         Ok(())
     }
 }
@@ -145,34 +157,26 @@ impl DebugWithDb<DebugContext<'_>> for Let {
 
 impl DebugWithDb<DebugContext<'_>> for Call {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "Call {{ ")?;
+        write!(f, "Call(")?;
 
-        write!(f, "path: ")?;
         self.path.fmt(f, dcx)?;
         write!(f, ", ")?;
-
-        write!(f, "args: {{ ")?;
         self::fmt_exprs(&self.args, f, dcx)?;
-        write!(f, " }}")?;
 
-        write!(f, " }}")?;
+        write!(f, ")")?;
         Ok(())
     }
 }
 
 impl DebugWithDb<DebugContext<'_>> for CallOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "CallOp {{ ")?;
+        write!(f, "CallOp(")?;
 
-        write!(f, "op: ")?;
         self.op_expr.fmt(f, dcx)?;
         write!(f, ", ")?;
-
-        write!(f, "args: {{ ")?;
         self::fmt_exprs(&self.args, f, dcx)?;
-        write!(f, " }}")?;
 
-        write!(f, " }}")?;
+        write!(f, ")")?;
         Ok(())
     }
 }
@@ -203,23 +207,29 @@ impl DebugWithDb<DebugContext<'_>> for Path {
 
 impl DebugWithDb<DebugContext<'_>> for And {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        self::fmt_exprs(&self.exprs, f, dcx)
+        write!(f, "And(")?;
+        self::with_square_brackets(f, dcx, |f| self::fmt_exprs(&self.exprs, f, dcx))?;
+        write!(f, ")")?;
+        Ok(())
     }
 }
 
 impl DebugWithDb<DebugContext<'_>> for Or {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        self::fmt_exprs(&self.exprs, f, dcx)
+        write!(f, "Or(")?;
+        self::with_square_brackets(f, dcx, |f| self::fmt_exprs(&self.exprs, f, dcx))?;
+        write!(f, ")")?;
+        Ok(())
     }
 }
 
 impl DebugWithDb<DebugContext<'_>> for Set {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "Set {{ ")?;
+        write!(f, "Set(")?;
         self.place.fmt(f, dcx)?;
         write!(f, ", ")?;
         self.rhs.fmt(f, dcx)?;
-        write!(f, " }}")?;
+        write!(f, ")")?;
 
         Ok(())
     }
@@ -227,11 +237,11 @@ impl DebugWithDb<DebugContext<'_>> for Set {
 
 impl DebugWithDb<DebugContext<'_>> for When {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "When {{ ")?;
+        write!(f, "When(")?;
         self.pred.fmt(f, dcx)?;
         write!(f, ", ")?;
         self.block.fmt(f, dcx)?;
-        write!(f, " }}")?;
+        write!(f, ")")?;
 
         Ok(())
     }
@@ -239,13 +249,11 @@ impl DebugWithDb<DebugContext<'_>> for When {
 
 impl DebugWithDb<DebugContext<'_>> for Unless {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "Unless {{ ")?;
-
+        write!(f, "Unless(")?;
         self.pred.fmt(f, dcx)?;
         write!(f, ", ")?;
         self.block.fmt(f, dcx)?;
-
-        write!(f, " }}")?;
+        write!(f, ")")?;
 
         Ok(())
     }
@@ -253,18 +261,15 @@ impl DebugWithDb<DebugContext<'_>> for Unless {
 
 impl DebugWithDb<DebugContext<'_>> for Cond {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "Unless {{ ")?;
+        write!(f, "Cond(")?;
 
-        write!(f, "{:?}", self.can_be_expr)?;
-        write!(f, ", ")?;
-
-        write!(f, "cases: {{ ")?;
+        write!(f, "[")?;
         for case in &self.cases {
             case.fmt(f, dcx)?;
         }
-        write!(f, " }} ")?;
+        write!(f, "]")?;
 
-        write!(f, " }}")?;
+        write!(f, ")")?;
 
         Ok(())
     }
@@ -272,11 +277,11 @@ impl DebugWithDb<DebugContext<'_>> for Cond {
 
 impl DebugWithDb<DebugContext<'_>> for CondCase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "CondCase {{ ")?;
+        write!(f, "CondCase(")?;
         self.pred.fmt(f, dcx)?;
         write!(f, ", ")?;
         self.block.fmt(f, dcx)?;
-        write!(f, " }}")?;
+        write!(f, ")")?;
 
         Ok(())
     }
@@ -284,9 +289,9 @@ impl DebugWithDb<DebugContext<'_>> for CondCase {
 
 impl DebugWithDb<DebugContext<'_>> for Loop {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "Loop {{ ")?;
+        write!(f, "Loop(")?;
         self.block.fmt(f, dcx)?;
-        write!(f, " }}")?;
+        write!(f, ")")?;
 
         Ok(())
     }
@@ -294,13 +299,13 @@ impl DebugWithDb<DebugContext<'_>> for Loop {
 
 impl DebugWithDb<DebugContext<'_>> for While {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, dcx: &DebugContext<'_>) -> fmt::Result {
-        write!(f, "While {{ ")?;
+        write!(f, "While(")?;
 
         self.pred.fmt(f, dcx)?;
         write!(f, ", ")?;
         self.block.fmt(f, dcx)?;
 
-        write!(f, " }}")?;
+        write!(f, ")")?;
 
         Ok(())
     }

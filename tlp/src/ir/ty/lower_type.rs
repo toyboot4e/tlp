@@ -561,27 +561,19 @@ impl<'db, 'map> Infer<'db, 'map> {
             })
             .unwrap_or(ty::OpOperandType::Unknown);
 
-        println!(
-            "{:?} {:?}: {:?}",
-            call_op_expr.debug(&self.debug),
-            operand_ty,
-            call_op.debug(&self.debug)
-        );
-
         let kind = match &self.body_data.tables[call_op.op_expr] {
             ExprData::Op(op) => *op,
             _ => unreachable!(),
         };
 
-        let op_type = ty::OpType { kind, operand_ty };
-
-        // call node
+        // operator type
         self.types[self.expr_types[&call_op.op_expr]] = {
+            let op_type = ty::OpType { kind, operand_ty };
             let ty = Ty::intern(self.db, TypeData::Op(op_type));
             WipTypeData::Ty(ty)
         };
 
-        // operator function
+        // call type
         self.types[self.expr_types[&call_op_expr]] = {
             if kind.is_bool() {
                 // boolean opeartors have boolean types
@@ -594,7 +586,11 @@ impl<'db, 'map> Infer<'db, 'map> {
                         WipTypeData::Ty(ty)
                     }
                     None => {
-                        // TODO: add a diagnostic
+                        // TODO: diagnostics
+                        eprintln!(
+                            "unknown operator type: {:?}",
+                            call_op_expr.debug(&self.debug)
+                        );
                         WipTypeData::Ty(self.interned.unknown)
                     }
                 }

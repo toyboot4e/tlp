@@ -256,51 +256,14 @@ impl<'db> CompileProc<'db> {
 
                 let op_ty = match &self.types[call_op.op_expr].data(self.db) {
                     ty::TypeData::Op(op_ty) => op_ty,
-                    x => unreachable!("not operator type: {:?} for {:?}", x, call_op),
+                    x => unreachable!(
+                        "not operator type: {:?} for operator {:?}",
+                        x,
+                        call_op.op_expr.debug(&self.proc.with_db(self.db))
+                    ),
                 };
 
-                let op = match (op_ty.kind, op_ty.operand_ty) {
-                    (expr::OpKind::Add, ty::OpOperandType::I32) => Op::AddI32,
-                    (expr::OpKind::Add, ty::OpOperandType::F32) => Op::AddF32,
-
-                    (expr::OpKind::Sub, ty::OpOperandType::I32) => Op::SubI32,
-                    (expr::OpKind::Sub, ty::OpOperandType::F32) => Op::SubF32,
-
-                    (expr::OpKind::Mul, ty::OpOperandType::I32) => Op::MulI32,
-                    (expr::OpKind::Mul, ty::OpOperandType::F32) => Op::MulF32,
-
-                    (expr::OpKind::Div, ty::OpOperandType::I32) => Op::DivI32,
-                    (expr::OpKind::Div, ty::OpOperandType::F32) => Op::DivF32,
-
-                    // =
-                    (expr::OpKind::Eq, ty::OpOperandType::Bool) => Op::EqBool,
-                    (expr::OpKind::Eq, ty::OpOperandType::I32) => Op::EqI32,
-                    (expr::OpKind::Eq, ty::OpOperandType::F32) => Op::EqF32,
-
-                    // !=
-                    (expr::OpKind::NotEq, ty::OpOperandType::Bool) => Op::NotEqBool,
-                    (expr::OpKind::NotEq, ty::OpOperandType::I32) => Op::NotEqI32,
-                    (expr::OpKind::NotEq, ty::OpOperandType::F32) => Op::NotEqF32,
-
-                    // <
-                    (expr::OpKind::Lt, ty::OpOperandType::I32) => Op::LtI32,
-                    (expr::OpKind::Lt, ty::OpOperandType::F32) => Op::LtF32,
-
-                    // <=
-                    (expr::OpKind::Le, ty::OpOperandType::I32) => Op::LeI32,
-                    (expr::OpKind::Le, ty::OpOperandType::F32) => Op::LeF32,
-
-                    // >
-                    (expr::OpKind::Gt, ty::OpOperandType::I32) => Op::GtI32,
-                    (expr::OpKind::Gt, ty::OpOperandType::F32) => Op::GtF32,
-
-                    // >=
-                    (expr::OpKind::Ge, ty::OpOperandType::I32) => Op::GeI32,
-                    (expr::OpKind::Ge, ty::OpOperandType::F32) => Op::GeF32,
-
-                    _ => todo!("{:?}", call_op),
-                };
-
+                let op = self::to_vm_op(op_ty.clone());
                 self.chunk.write_code(op);
             }
             ExprData::Op(op) => {
@@ -548,5 +511,49 @@ impl<'db> CompileProc<'db> {
 
         let vm_proc = self.proc_ids[&ir_proc];
         self.chunk.write_call_proc_u16(vm_proc);
+    }
+}
+
+fn to_vm_op(op_ty: ty::OpType) -> Op {
+    match (op_ty.kind, op_ty.operand_ty) {
+        (expr::OpKind::Add, ty::OpOperandType::I32) => Op::AddI32,
+        (expr::OpKind::Add, ty::OpOperandType::F32) => Op::AddF32,
+
+        (expr::OpKind::Sub, ty::OpOperandType::I32) => Op::SubI32,
+        (expr::OpKind::Sub, ty::OpOperandType::F32) => Op::SubF32,
+
+        (expr::OpKind::Mul, ty::OpOperandType::I32) => Op::MulI32,
+        (expr::OpKind::Mul, ty::OpOperandType::F32) => Op::MulF32,
+
+        (expr::OpKind::Div, ty::OpOperandType::I32) => Op::DivI32,
+        (expr::OpKind::Div, ty::OpOperandType::F32) => Op::DivF32,
+
+        // =
+        (expr::OpKind::Eq, ty::OpOperandType::Bool) => Op::EqBool,
+        (expr::OpKind::Eq, ty::OpOperandType::I32) => Op::EqI32,
+        (expr::OpKind::Eq, ty::OpOperandType::F32) => Op::EqF32,
+
+        // !=
+        (expr::OpKind::NotEq, ty::OpOperandType::Bool) => Op::NotEqBool,
+        (expr::OpKind::NotEq, ty::OpOperandType::I32) => Op::NotEqI32,
+        (expr::OpKind::NotEq, ty::OpOperandType::F32) => Op::NotEqF32,
+
+        // <
+        (expr::OpKind::Lt, ty::OpOperandType::I32) => Op::LtI32,
+        (expr::OpKind::Lt, ty::OpOperandType::F32) => Op::LtF32,
+
+        // <=
+        (expr::OpKind::Le, ty::OpOperandType::I32) => Op::LeI32,
+        (expr::OpKind::Le, ty::OpOperandType::F32) => Op::LeF32,
+
+        // >
+        (expr::OpKind::Gt, ty::OpOperandType::I32) => Op::GtI32,
+        (expr::OpKind::Gt, ty::OpOperandType::F32) => Op::GtF32,
+
+        // >=
+        (expr::OpKind::Ge, ty::OpOperandType::I32) => Op::GeI32,
+        (expr::OpKind::Ge, ty::OpOperandType::F32) => Op::GeF32,
+
+        _ => todo!("{:?}", op_ty),
     }
 }
