@@ -275,7 +275,7 @@ fn user_function_call() {
     // recursive function call
     fn fib(x: usize) -> usize {
         match x {
-            0 => 1,
+            0 => 0,
             1 => 1,
             _ => fib(x - 1) + fib(x - 2),
         }
@@ -287,7 +287,7 @@ fn user_function_call() {
     (fib 10))
 
 (proc fib (x)
-    (cond ((= x 0) 1)
+    (cond ((= x 0) 0)
           ((= x 1) 1)
           (true (+ (fib (- x 1)) (fib (- x 2))))))
 ",
