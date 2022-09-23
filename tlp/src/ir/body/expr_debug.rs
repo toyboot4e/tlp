@@ -14,6 +14,7 @@ use crate::ir::{
     item, IrDb,
 };
 
+// TODO: proper implementation format?
 impl<T: ?Sized + IrDb> DebugWithDb<T> for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, db: &T) -> fmt::Result {
         let (first, rest) = match self.segments.split_first() {

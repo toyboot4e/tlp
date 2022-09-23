@@ -417,6 +417,7 @@ impl<'db> Collect<'db> {
     }
 }
 
+/// TODO: forbid duplciate inference
 impl<'db, 'map> Infer<'db, 'map> {
     pub fn infer_all(&mut self) {
         self.infer_expr(self.body_data.root_block)
@@ -484,17 +485,21 @@ impl<'db, 'map> Infer<'db, 'map> {
                 self.infer_expr(unless.block);
             }
             ExprData::Cond(cond) => {
+                // infer predicates
                 for case in &cond.cases {
                     self.infer_expr(case.pred);
                     self.unify_expected(self.expr_types[&case.pred], self.interned.bool_);
-                    self.infer_expr(case.block);
                 }
 
                 if !cond.can_be_expr {
+                    // infer blocks types, but without unifying them
+                    for case in &cond.cases {
+                        self.infer_expr(case.block);
+                    }
                     return;
                 }
 
-                // unify blocks
+                // infer and unify block types
                 let tys = cond
                     .cases
                     .iter()
@@ -536,10 +541,6 @@ impl<'db, 'map> Infer<'db, 'map> {
     fn infer_builtin_op(&mut self, call_op_expr: Expr, call_op: &expr::CallOp) {
         // infer and unify the argument types
         {
-            call_op.args.iter().for_each(|expr| {
-                self.infer_expr(*expr);
-            });
-
             let tys = call_op
                 .args
                 .iter()
@@ -607,7 +608,7 @@ impl<'db, 'map> Infer<'db, 'map> {
             if let Some(v) = resolver.resolve_path_as_value(self.db, path) {
                 match v {
                     ValueNs::Proc(proc) => {
-                        self.infer_proc_call(call_expr, call, proc);
+                        self.infer_resolved_proc_call(call_expr, call, proc);
                         return;
                     }
                     ValueNs::Pat(pat) => {
@@ -617,24 +618,36 @@ impl<'db, 'map> Infer<'db, 'map> {
             }
         }
 
-        // call type is unknown
+        // TODO: diagnostics
+        eprintln!("unknown procedure call {:?}", call_expr.debug(&self.debug));
+
+        // infer the unresolved procedure call with best effor
         self.infer_expr(call.path);
 
         call.args.iter().for_each(|expr| {
             self.infer_expr(*expr);
         });
-
-        // TODO: expect procedure type for the path
-        // TODO: unify procedure type and argument types
     }
 
-    fn infer_proc_call(&mut self, call_expr: Expr, call: &expr::Call, proc: item::Proc) {
-        // the procedure type is already resolved.
-        // unify the argument types
+    /// Unifies the argument types with the parameter types. Returns true on success
+    fn infer_resolved_proc_call(
+        &mut self,
+        call_expr: Expr,
+        call: &expr::Call,
+        proc: item::Proc,
+    ) -> bool {
+        let mut fail = false;
+
         let proc_ty = proc.ty_data_as_proc(self.db);
         for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
-            //
+            let param_ty = proc_ty.param_tys[i];
+            let arg_expr = call.args[i];
+            let arg_ty_index = self.expr_types[&arg_expr];
+
+            fail |= self.unify_expected(arg_ty_index, param_ty);
         }
+
+        !fail
     }
 
     fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {
@@ -662,7 +675,21 @@ impl<'db, 'map> Infer<'db, 'map> {
                 self.types[i] = WipTypeData::Ty(expected.clone());
                 true
             }
-            WipTypeData::Ty(ty) => ty.data(self.db) == expected.data(self.db),
+            WipTypeData::Ty(ty) => {
+                let ty_data = ty.data(self.db);
+                let expected_data = expected.data(self.db);
+
+                if ty_data == expected_data {
+                    return true;
+                }
+
+                eprintln!(
+                    "type mismatch: {:?} and {:?}",
+                    ty_data.debug(self.db),
+                    expected_data.debug(self.db)
+                );
+                false
+            }
         }
     }
 
@@ -694,7 +721,6 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
     }
 
-    // pub fn unify_many_vars(&mut self, tys: &[TyIndex]) -> bool {
     pub fn infer_and_unify_many_vars(
         &mut self,
         mut tys: impl Iterator<Item = (Expr, TyIndex)>,
@@ -702,7 +728,7 @@ impl<'db, 'map> Infer<'db, 'map> {
         let mut res = true;
 
         // window(2)
-        let (mut e1, mut t1) = match tys.next() {
+        let (e1, mut t1) = match tys.next() {
             Some(x) => x,
             None => return false,
         };
@@ -720,7 +746,7 @@ impl<'db, 'map> Infer<'db, 'map> {
 
             if let Some((e, t)) = tys.next() {
                 t1 = t2;
-                e1 = e2;
+                // e1 = e2;
                 t2 = t;
                 e2 = e;
             } else {
