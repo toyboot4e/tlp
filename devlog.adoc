@@ -28,7 +28,7 @@ I did {cr} (part II: tree-walk interpreter) in years ago. I made an Emacs packag
 
 == Initial, abandoned approach
 
-Compilation passes: source string → AST → bytecode. This approach was abandoned in favor of following `rust-analyzer`.
+Compilation passes: source string → AST → bytecode. This approach was abandoned in favor of following `rust-analyzer` source code.
 
 [%collapsible]
 ========
@@ -67,7 +67,7 @@ I started to learn from {ra}.
 
 === CST
 
-I want my ideal lang to be statically typed, and the parser should be IDE-oriented. toylisp is not that language, still it would be great if I can learn from {ra}.
+I want my ideal lang to be statically typed, and the parser should be IDE-oriented. toylisp is [.line-through]#not that language#, still it would be great if I can learn from {ra}. EDIT: ToyLisp has static typing today.
 
 * Jun 21, 2021
 +
@@ -79,9 +79,7 @@ Today I parsed simple arithmetics into CST with {rowan}. I can't run the code ye
 
 * Jun 25, 2021
 +
-In context of {rowan}, an AST node is just a wrapper around a CST node with accessor methods; AST node is always backed by a CST node!
-+
-Today I added a basic AST.
+Today I added a basic AST. In the context of {rowan}, an AST node is just a wrapper around a CST node with accessor methods; AST node is always backed by a CST node! For example, a `Literal` CST node may be wrapped as an `Expr` AST node.
 
 === Language server and syntax highlighting (tree-sitter)
 
@@ -95,11 +93,11 @@ image::devlog/ls-connected.png[]
 +
 Awesome!
 +
-Next thing to do was syntax highlighting. But as of today, LS can't provide syntax highlighting footnote:[It was wrong; see Jul 11, 2021].
+Next thing to do was syntax highlighting. But as of today, LS can't provide with syntax highlighting footnote:[It was wrong; see Jul 11, 2021].
 +
 OMG!
 +
-And every text editor uses different regular expression for highlights. But don't too worry, {tree-sitter} would be the write-once-run-everywhere syntax highlighter. I made a simple `tree-sitter` project and it runs on Emacs:
+And every text editor uses different regular expression for highlights. But don't too worry, {tree-sitter} would be the write-once-run-everywhere syntax highlighter! I made a simple `tree-sitter` project and it runs on Emacs:
 +
 image::devlog/emacs-tree-sitter-hl.png[]
 +
@@ -107,7 +105,7 @@ E p i c o !
 
 * Jul 4, 2021
 +
-Summon EoF error!
+The language server is working. Summon EoF error!
 +
 image::devlog/ls-eof.png[]
 +
@@ -123,7 +121,7 @@ I hear _semantic tokens_ of language server can provide syntax highlighting _wit
 
 * Jul 17, 2021
 +
-{ra} is built around {salsa}. {salsa} is an incremental computation framework. I expect it be a wizard's magic, like {rowan} is!
+{ra} is built around {salsa}. {salsa} is an incremental computation framework. I expect it's a wizard's magic, just like {rowan} is!
 +
 By the way, {rowan} and {salsa} are written in 4,000 lines of Rust. I also counted `rust-analyzer` source lines:
 +
@@ -163,6 +161,9 @@ toolchain        60
 tt               497
 vfs              881
 vfs-notify       219
+----------------------
+sum              202393
+
 ----
 ====
 
@@ -178,7 +179,7 @@ https://mun-lang.org/[Mun Programming Language] has https://docs.mun-lang.org/[d
 
 === `hir_def` implemented
 
-* Aug 21, 2022
+* Aug 21, *2022*
 +
 Hey it took me a year to come back to toylisp. I learned incremental development from the {compilerbook} and I made up `tlp::hir_def`. Now I can run a simple toylisp program:
 +
@@ -190,7 +191,7 @@ Hey it took me a year to come back to toylisp. I learned incremental development
 ;; => 2
 ----
 +
-The module hierarchy shows how I understand `hir_def` today. It's basically abount items and bodies:
+The module hierarchy shows how I understand `hir_def` today. It's basically about items and bodies:
 +
 ----
 [source]
@@ -209,11 +210,13 @@ hir_def
     └── lower_item.rs
 ----
 +
-Hey it looks very simple.
+Hey it looks rather simpler than ra `hir_def`.
+
+> EDIT: The body / item separation was not accurate; they share some common language constrcuts. For example, procedures use patterns for parameters.
 
 === (Not) Looking into `hir_ty`
 
-I want to add support for basic primitive types: `i32`, `f32` and `bool`. I need to know the type of variable to apply suitable arithmetic operators, so I'll tuckple into ra `hir-ty`.
+I want to add support for basic primitive types: `i32`, `f32` and `bool`. I need to know the type of variable to apply suitable arithmetic operators. So I'm tucking into the`hir-ty` module.
 
 * Aug 21, 2022
 +
@@ -228,8 +231,6 @@ pub struct InferenceResult {
     pub type_of_pat: ArenaMap<Idx<Pat>, Ty>,
 }
 ----
-+
-First I'll try to make it. Not scared, I'm in incremental development mode.
 
 === `salsa-2022`
 
@@ -237,7 +238,7 @@ First I'll try to make it. Not scared, I'm in incremental development mode.
 +
 `salsa-2022` is coming! https://github.com/salsa-rs/salsa/issues/305[Tracking issue]. The only advanced code base based on it out there is {dada}. I looked into {dada} and got the basic idea of `salsa-2022`.
 +
-In the context of `rust-analyzer`, `salsa-2022` *much* simplifies the `hir_def` crate. *We don't have to keep holding `ItemTree`*. Each `Item` is indexed by their `name` as `#[id]`. And that's it. The item IDs keep pointing to the same item. It's even stable when items are reordered.
+In the context of `rust-analyzer`, `salsa-2022` *much* simplifies the `hir_def` crate. *We don't have to keep holding `ItemTree`*. Each `Item` is indexed by their `name` as `#[id]`. We don't have to mess around with data location representations.
 +
 Accessing ID-relevant data is trivial. I'm re-implementing `hir_def` alternative (just called `ir`), and here's a simple test case:
 +
@@ -283,7 +284,7 @@ I implemented a bunch of basic language constructs, along with a simple type inf
 +
 [source,rust]
 ----
-;; Function call works:
+;; Procedure call works:
 (proc fib (x)
     (cond ((= x 0) 0)
           ((= x 1) 1)
