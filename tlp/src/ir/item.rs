@@ -86,13 +86,8 @@ pub struct Param {
 }
 
 impl Param {
-    pub fn from_ast(
-        db: &dyn ir::IrDb,
-        ast: ast::Param,
-    ) -> Option<Self> {
-        let pat = ast
-            .pat()
-            .and_then(|pat| pat::PatData::from_ast(db, pat))?;
+    pub fn from_ast(db: &dyn ir::IrDb, ast: ast::Param) -> Option<Self> {
+        let pat = ast.pat().and_then(|pat| pat::PatData::from_ast(db, pat))?;
 
         let ty = expr::TypeSyntax::from_opt_ast(db, ast.ty());
         Some(Param { pat, ty })
@@ -135,7 +130,7 @@ impl Proc {
 
         if let Some(params_node) = ast.params() {
             for param_node in params_node.nodes() {
-                if let Some(param) = Param::from_ast(db, param_node){
+                if let Some(param) = Param::from_ast(db, param_node) {
                     params.push(param);
                 } else {
                     // TODO: consider still adding parameter?

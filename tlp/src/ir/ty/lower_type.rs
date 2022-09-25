@@ -408,7 +408,8 @@ impl<'db> Collect<'db> {
 }
 
 /// # Type inference
-/// Invariant: The type inference only assigns types to type variables. Known pattern / expression types are never overwritten.
+/// Invariant: The type inference only assigns types to type variables. Known pattern / expression
+/// types are never overwritten.
 impl<'db, 'map> Infer<'db, 'map> {
     pub fn infer_all(&mut self) {
         self.infer_expr(self.body_data.root_block)

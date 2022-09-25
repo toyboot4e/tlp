@@ -279,7 +279,7 @@ impl TypeSyntax {
                 let path = Path::from_ast(db, type_path.into_path());
                 assert_eq!(path.segments.len(), 1, "TODO: path {:?}", path);
 
-                let ident =path.segments[0].as_str(db.base());
+                let ident = path.segments[0].as_str(db.base());
                 if let Some(prim) = ty::PrimitiveType::parse(ident) {
                     Self::Primitive(prim)
                 } else {
