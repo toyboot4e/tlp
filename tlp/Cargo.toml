@@ -15,7 +15,7 @@ base = { path = "crates/base" }
 # std++
 env_logger = "0.9.1"
 log = "0.4.17"
-thiserror = "1.0.35"
+thiserror = "1.0.36"
 camino = "1.1.1"
 
 # framework
