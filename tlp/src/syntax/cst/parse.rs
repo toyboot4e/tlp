@@ -13,7 +13,7 @@ use crate::syntax::cst::{
     SyntaxKind, SyntaxNode,
 };
 
-use rowan::{GreenNode, GreenNodeBuilder};
+use rowan::{GreenNode, GreenNodeBuilder, Checkpoint};
 
 // FIXME: make self-contained error type
 
@@ -398,7 +398,11 @@ impl ParseState {
     }
 
     fn maybe_bump_type(&mut self, pcx: &ParseContext) {
+        let checkpoint = self.builder.checkpoint();
+
         if self.maybe_bump_path(pcx).is_some() {
+            self.builder.start_node_at(checkpoint, SyntaxKind::TypePath.into());
+            self.builder.finish_node();
             return;
         }
 

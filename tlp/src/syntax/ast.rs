@@ -280,6 +280,18 @@ impl PatPath {
     }
 }
 
+impl TypePath {
+    /// Unwraps the underlying `Path` node
+    pub fn into_path(&self) -> Path {
+        self.syn.children().find_map(Path::cast_node).unwrap()
+    }
+
+    /// Wraps the self type with the [`Type`] enum
+    pub fn into_type(self) -> Type {
+        Type::cast_node(self.syn).unwrap()
+    }
+}
+
 define_node! {
     /// "(" "let" pat expr ")"
     Let: SyntaxKind::Let,

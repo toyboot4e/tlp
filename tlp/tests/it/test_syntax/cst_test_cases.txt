@@ -156,8 +156,9 @@ DefProc@0..26
             PatIdent@9..13
                 Ident@9..13
             Colon@13..14
-            Path@14..17
-                Ident@14..17
+            TypePath@14..17
+                Path@14..17
+                    Ident@14..17
         RParen@17..18
     Ws@18..19
     Block@19..25
@@ -331,8 +332,9 @@ DefProc@0..28
             PatIdent@12..13
                 Ident@12..13
             Colon@13..14
-            Path@14..17
-                Ident@14..17
+            TypePath@14..17
+                Path@14..17
+                    Ident@14..17
         RParen@17..18
     Ws@18..19
     Block@19..27
