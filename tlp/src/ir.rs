@@ -4,7 +4,7 @@ pub mod body;
 pub mod item;
 pub mod item_scope;
 pub mod jar;
-pub mod lower;
+pub mod lower_ir;
 pub mod resolve;
 pub mod ty;
 
@@ -20,10 +20,10 @@ pub struct IrJar(
     ty::Ty,
     // TODO: Consider ditching? Thoguh it adds lifetimes to `Resolver`
     body::expr_scope::ExprScopeMap,
-    lower::lower_items,
-    lower::lower_item_scope,
-    lower::lower_body,
-    lower::lower_proc_expr_scope,
+    lower_ir::lower_items,
+    lower_ir::lower_item_scope,
+    lower_ir::lower_body,
+    lower_ir::lower_proc_expr_scope,
     ty::lower_type::lower_body_types,
     ty::lower_type::lower_proc_type,
 );
@@ -49,15 +49,15 @@ pub trait InputFileExt {
 /// Extensions
 impl InputFileExt for base::jar::InputFile {
     fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile {
-        lower::lower_items(db, self)
+        lower_ir::lower_items(db, self)
     }
 
     fn items(self, db: &dyn IrDb) -> &[item::Item] {
-        lower::lower_items(db, self).items(db)
+        lower_ir::lower_items(db, self).items(db)
     }
 
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope {
-        lower::lower_item_scope(db, self)
+        lower_ir::lower_item_scope(db, self)
     }
 
     fn resolver(self, db: &dyn IrDb) -> resolve::Resolver {
@@ -67,21 +67,21 @@ impl InputFileExt for base::jar::InputFile {
 
 impl item::Proc {
     pub fn body(&self, db: &dyn IrDb) -> body::Body {
-        lower::lower_body(db, *self)
+        lower_ir::lower_body(db, *self)
     }
 
     pub fn body_data<'db>(&self, db: &'db dyn IrDb) -> &'db body::BodyData {
-        let body = lower::lower_body(db, *self);
+        let body = lower_ir::lower_body(db, *self);
         body.data(db)
     }
 
     pub fn body_spans<'db>(&self, db: &'db dyn IrDb) -> &'db body::BodySpans {
-        let body = lower::lower_body(db, *self);
+        let body = lower_ir::lower_body(db, *self);
         body.spans(db)
     }
 
     pub fn expr_scopes<'db>(&self, db: &'db dyn IrDb) -> body::expr_scope::ExprScopeMap {
-        lower::lower_proc_expr_scope(db, *self)
+        lower_ir::lower_proc_expr_scope(db, *self)
     }
 
     /// Resolver for the root block expression
