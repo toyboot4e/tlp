@@ -116,6 +116,8 @@ pub enum SyntaxKind {
     Params,
     /// A single procedure parameter
     Param,
+    /// Type node
+    TypePath,
     /// Expressions marked as inline code block
     Block,
     /// Let

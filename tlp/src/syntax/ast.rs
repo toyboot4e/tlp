@@ -219,28 +219,82 @@ define_enum_node! {
 // FIXME: make sure if `Block` is `ast::Expr` or not
 define_enum_node! {
     /// AST expression node (transparent node wrapper)
-    Expr = Let | Call | Set | And | Or | When | Unless | Cond | Loop | While | Literal | Path | Block,
+    Expr = Let
+        | Call | Set | And | Or | When | Unless | Cond
+        | Loop | While
+        | Literal | Path | Block,
     SyntaxKind::Let | SyntaxKind::Call | SyntaxKind::Literal | SyntaxKind::Path | SyntaxKind::Block
 }
 
 define_node! {
-    /// "(" "proc" name "(" params? ")" block ")"
-    DefProc: SyntaxKind::DefProc,
+    /// Expressions marked as inline code block
+    Block: SyntaxKind::Block,
 
+    /// ident ("." ident)*
+    Path: SyntaxKind::Path,
+
+    /// Pattern node variant
+    PatIdent: SyntaxKind::PatIdent,
+
+    /// Pattern node variant
+    PatPath: SyntaxKind::PatPath,
+
+    /// Type node variant
+    TypePath: SyntaxKind::TypePath,
+}
+
+impl Block {
+    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
+        self.syn.children().filter_map(Expr::cast_node)
+    }
+}
+
+impl Path {
+    pub fn segments(&self) -> impl Iterator<Item = PathSegment> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .filter_map(PathSegment::cast_token)
+    }
+}
+
+impl PatIdent {
+    pub fn ident_token(self) -> SyntaxToken {
+        self.syn
+            .children_with_tokens()
+            .find_map(|e| e.into_token())
+            .unwrap()
+    }
+}
+
+impl PatPath {
+    pub fn segments(&self) -> impl Iterator<Item = PathSegment> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .filter_map(PathSegment::cast_token)
+    }
+
+    pub fn into_item(self) -> Item {
+        Item::cast_node(self.syn).unwrap()
+    }
+}
+
+impl TypePath {
+    /// Unwraps the underlying `Path` node
+    pub fn into_path(&self) -> Path {
+        self.syn.children().find_map(Path::cast_node).unwrap()
+    }
+
+    /// Wraps the self type with the [`Type`] enum
+    pub fn into_type(self) -> Type {
+        Type::cast_node(self.syn).unwrap()
+    }
+}
+
+define_node! {
     /// "(" "let" pat expr ")"
     Let: SyntaxKind::Let,
-
-    /// "(" ident sexp* ")"
-    Call: SyntaxKind::Call,
-
-    /// "(" "set" sexp ")"
-    Set: SyntaxKind::Set,
-
-    /// "(" "and" sexp* ")"
-    And: SyntaxKind::And,
-
-    /// "(" "or" sexp* ")"
-    Or: SyntaxKind::Or,
 
     /// "(" "when" sexp* ")"
     When: SyntaxKind::When,
@@ -261,54 +315,37 @@ define_node! {
 
     /// "(" "unless" sexp* ")"
     Unless: SyntaxKind::Unless,
-
-    /// Expressions marked as inline code block
-    Block: SyntaxKind::Block,
-
-    /// ident ("." ident)*
-    Path: SyntaxKind::Path,
-
-    /// Pattern variant
-    PatIdent: SyntaxKind::PatIdent,
-
-    /// Pattern variant
-    PatPath: SyntaxKind::PatPath,
 }
 
-impl Block {
-    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
-        self.syn.children().filter_map(Expr::cast_node)
-    }
-}
-
-impl Path {
-    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
+impl DefProc {
+    // TODO: add defproc token
+    /// `DefProc` token
+    pub fn proc_tk(&self) -> SyntaxToken {
         self.syn
             .children_with_tokens()
             .filter_map(|e| e.into_token())
-            .filter_map(PathComponent::cast_token)
+            .find(|t| t.kind() == SyntaxKind::Ident && t.text() == STR_PROC)
+            .unwrap_or_else(|| unreachable!())
     }
-}
 
-impl PatIdent {
-    pub fn ident_token(self) -> SyntaxToken {
+    pub fn name(&self) -> Option<ProcName> {
+        let mut c = self
+            .syn
+            .children()
+            .filter(|node| node.kind() != SyntaxKind::Ws);
+
+        c.next().and_then(ProcName::cast_node)
+    }
+
+    pub fn params(&self) -> Option<ProcParams> {
         self.syn
-            .children_with_tokens()
-            .find_map(|e| e.into_token())
-            .unwrap()
-    }
-}
-
-impl PatPath {
-    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
-        self.syn
-            .children_with_tokens()
-            .filter_map(|e| e.into_token())
-            .filter_map(PathComponent::cast_token)
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Params)
+            .map(|node| ProcParams { syn: node.clone() })
     }
 
-    pub fn into_form(self) -> Item {
-        Item::cast_node(self.syn).unwrap()
+    pub fn block(&self) -> Block {
+        self.syn.children().find_map(Block::cast_node).unwrap()
     }
 }
 
@@ -328,50 +365,6 @@ impl Let {
 
     pub fn rhs(&self) -> Option<Expr> {
         self.syn.children().find_map(Expr::cast_node)
-    }
-}
-
-impl Call {
-    /// Function path
-    pub fn path(&self) -> Path {
-        self.syn.children().find_map(Path::cast_node).unwrap()
-    }
-
-    /// Function arguments
-    pub fn args(&self) -> impl Iterator<Item = Expr> {
-        // NOTE: skip function path
-        self.syn.children().filter_map(Expr::cast_node).skip(1)
-    }
-}
-
-impl Set {
-    /// Place
-    pub fn place(&self) -> Option<Path> {
-        self.syn.children().find_map(Path::cast_node)
-    }
-
-    /// Function arguments
-    pub fn rhs(&self) -> Option<Expr> {
-        let mut iter = self.syn.children().filter_map(Expr::cast_node);
-
-        let i0 = iter.next()?;
-        if i0.syntax().kind() != SyntaxKind::Path {
-            return None;
-        }
-
-        iter.next()
-    }
-}
-
-impl And {
-    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
-        self.syn.children().filter_map(Expr::cast_node)
-    }
-}
-
-impl Or {
-    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
-        self.syn.children().filter_map(Expr::cast_node)
     }
 }
 
@@ -430,35 +423,61 @@ impl While {
     }
 }
 
-impl DefProc {
-    // TODO: add defproc token
-    /// `DefProc` token
-    pub fn proc_tk(&self) -> SyntaxToken {
-        self.syn
-            .children_with_tokens()
-            .filter_map(|e| e.into_token())
-            .find(|t| t.kind() == SyntaxKind::Ident && t.text() == STR_PROC)
-            .unwrap_or_else(|| unreachable!())
+define_node! {
+    /// "(" ident sexp* ")"
+    Call: SyntaxKind::Call,
+
+    /// "(" "set" sexp ")"
+    Set: SyntaxKind::Set,
+
+    /// "(" "and" sexp* ")"
+    And: SyntaxKind::And,
+
+    /// "(" "or" sexp* ")"
+    Or: SyntaxKind::Or,
+}
+
+impl Call {
+    /// Function path
+    pub fn path(&self) -> Path {
+        self.syn.children().find_map(Path::cast_node).unwrap()
     }
 
-    pub fn name(&self) -> Option<ProcName> {
-        let mut c = self
-            .syn
-            .children()
-            .filter(|node| node.kind() != SyntaxKind::Ws);
+    /// Function arguments
+    pub fn args(&self) -> impl Iterator<Item = Expr> {
+        // NOTE: skip function path
+        self.syn.children().filter_map(Expr::cast_node).skip(1)
+    }
+}
 
-        c.next().and_then(ProcName::cast_node)
+impl Set {
+    /// Place
+    pub fn place(&self) -> Option<Path> {
+        self.syn.children().find_map(Path::cast_node)
     }
 
-    pub fn params(&self) -> Option<ProcParams> {
-        self.syn
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Params)
-            .map(|node| ProcParams { syn: node.clone() })
-    }
+    /// Function arguments
+    pub fn rhs(&self) -> Option<Expr> {
+        let mut iter = self.syn.children().filter_map(Expr::cast_node);
 
-    pub fn block(&self) -> Block {
-        self.syn.children().find_map(Block::cast_node).unwrap()
+        let i0 = iter.next()?;
+        if i0.syntax().kind() != SyntaxKind::Path {
+            return None;
+        }
+
+        iter.next()
+    }
+}
+
+impl And {
+    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
+        self.syn.children().filter_map(Expr::cast_node)
+    }
+}
+
+impl Or {
+    pub fn exprs(&self) -> impl Iterator<Item = Expr> {
+        self.syn.children().filter_map(Expr::cast_node)
     }
 }
 
@@ -479,6 +498,9 @@ impl ProcName {
 }
 
 define_node! {
+    /// "(" "proc" name "(" params? ")" block ")"
+    DefProc: SyntaxKind::DefProc,
+
     /// Procedure parameters
     ProcParams: SyntaxKind::Params,
 
@@ -497,14 +519,28 @@ impl Param {
         self.syn.children().find_map(|elem| Pat::cast_node(elem))
     }
 
-    // TODO: parameter type annotation
-    // pub fn ty
+    pub fn colon(&self) -> Option<SyntaxToken> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .find(|tk| tk.kind() == SyntaxKind::Colon)
+    }
+
+    pub fn ty(&self) -> Option<Type> {
+        self.syn.children().find_map(|elem| Type::cast_node(elem))
+    }
 }
 
 define_enum_node! {
     /// Pattern node (transparent)
     Pat = PatIdent | PatPath,
     SyntaxKind::PatIdent | SyntaxKind::PatPath
+}
+
+define_enum_node! {
+    /// Type node (transparent)
+    Type = TypePath,
+    SyntaxKind::TypePath
 }
 
 define_token_wrapper! {
@@ -572,6 +608,6 @@ define_token! {
     /// Identifier
     Ident: SyntaxKind::Ident;
 
-    /// PathComponent
-    PathComponent: SyntaxKind::Ident;
+    /// Path segment
+    PathSegment: SyntaxKind::Ident;
 }

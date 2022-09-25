@@ -1,10 +1,10 @@
-//! Run all test cases in `cst_tests.txt` (on `cargo test`)
+//! Run all test cases in `cst_test_cases.txt` (on `cargo test`)
 
 use std::fmt::Write;
 
 use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
-use crate::test_syntax::utils::{self, Test, TestError};
+use crate::test_syntax::{self, Test, TestError};
 
 fn cst_display(cst: &SyntaxNode) -> String {
     let mut nest = 0;
@@ -72,8 +72,8 @@ fn run_test(test: Test) -> Result<(), TestError> {
 
 #[test]
 fn cst() {
-    let src = include_str!("cst_tests.txt");
-    let tests = utils::collect_tests(src);
+    let src = include_str!("cst_test_cases.txt");
+    let tests = test_syntax::collect_tests(src);
 
     let errs = tests
         .into_iter()

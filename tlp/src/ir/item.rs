@@ -20,6 +20,7 @@ use crate::{
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Item {
     Proc(Proc),
+    // TODO: Import(Import),
 }
 
 impl Item {
@@ -71,18 +72,31 @@ pub struct Proc {
     pub span: FileSpan,
     #[return_ref]
     pub params: Box<[Param]>,
+    // #[return_ref]
+    // pub return_ty: expr::Type,
     /// Lazily analyzed body AST
     pub ast: ast::DefProc,
 }
 
-// TODO: Is it good practice to have IR parameters here? (It's duplicate in body)
-// TODO: `Pat` and `Path` are shared with body
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Param {
     pub pat: pat::PatData,
-    // TODO: Add `TypeRef` type (c.f. `type_ref.rs` in ra)
-    pub ty: Option<expr::Path>,
+    pub ty: expr::TypeSyntax,
     // pub span: FileSpan,
+}
+
+impl Param {
+    pub fn from_ast(
+        db: &dyn ir::IrDb,
+        ast: ast::Param,
+    ) -> Option<Self> {
+        let pat = ast
+            .pat()
+            .and_then(|pat| pat::PatData::from_ast(db, pat))?;
+
+        let ty = expr::TypeSyntax::from_opt_ast(db, ast.ty());
+        Some(Param { pat, ty })
+    }
 }
 
 impl Proc {
@@ -121,14 +135,10 @@ impl Proc {
 
         if let Some(params_node) = ast.params() {
             for param_node in params_node.nodes() {
-                if let Some(pat) = param_node
-                    .pat()
-                    .and_then(|pat| pat::PatData::from_ast(db, pat))
-                {
-                    // TODO: type parameters
-                    params.push(Param { pat, ty: None });
+                if let Some(param) = Param::from_ast(db, param_node){
+                    params.push(param);
                 } else {
-                    // TODO: consider adding node
+                    // TODO: consider still adding parameter?
                 }
             }
         }

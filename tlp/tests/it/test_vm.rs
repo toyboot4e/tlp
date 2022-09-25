@@ -69,7 +69,7 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     self::print_errors(&errs, src, "compile error");
 
     // TODO: print procedure name
-    println!("{}", log_vm(&src, &vm).unwrap());
+    // println!("{}", log_vm(&src, &vm).unwrap());
 
     // TODO: search functions
     let proc = vm::VmProcId(0);
@@ -274,7 +274,7 @@ fn user_function_call() {
         "
 (proc main ()
     (f 10))
-(proc f (x)
+(proc f (x:i32)
     (+ x 5))
     ",
         15,
@@ -294,7 +294,7 @@ fn user_function_call() {
 (proc main ()
     (fib 10))
 
-(proc fib (x)
+(proc fib (x:i32)
     (cond ((= x 0) 0)
           ((= x 1) 1)
           (true (+ (fib (- x 1)) (fib (- x 2))))))
