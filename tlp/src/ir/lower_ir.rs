@@ -51,7 +51,6 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
     ParsedFile::new(db, file, items)
 }
 
-// TODO: why not `return_ref`?
 #[salsa::tracked(jar = IrJar)]
 pub(crate) fn lower_body(db: &dyn IrDb, proc: item::Proc) -> body::Body {
     let mut lower = LowerBody {
@@ -300,7 +299,7 @@ impl<'a> LowerBody<'a> {
                 self.alloc(ExprData::Let(let_), span)
             }
             ast::Expr::Path(ast_path) => {
-                let path = expr::Path::parse(self.db, ast_path);
+                let path = expr::Path::from_ast(self.db, ast_path);
                 self.alloc(ExprData::Path(path), span)
             }
             ast::Expr::Literal(lit) => match lit.kind() {
@@ -329,8 +328,6 @@ pub(crate) fn lower_item_scope(db: &dyn IrDb, file: InputFile) -> ItemScope {
     for item in items {
         let proc = match item {
             Item::Proc(x) => x,
-            // TODO: imports
-            // TODO: imports
         };
 
         let name = proc.name(db);

@@ -690,11 +690,13 @@ impl<'db, 'map> Infer<'db, 'map> {
                     return true;
                 }
 
+                // TODO: diagnostics
                 eprintln!(
-                    "type mismatch: {:?} and {:?}",
+                    "expected type mismatch: {:?} and {:?}",
                     ty_data.debug(self.db),
                     expected_data.debug(self.db)
                 );
+
                 false
             }
         }
@@ -769,11 +771,21 @@ impl<'db, 'map> Infer<'db, 'map> {
         let t1 = &self.types[i1].cast_as_data(self.db);
         let t2 = &self.types[i2].cast_as_data(self.db);
 
-        match (t1, t2) {
+        let matches = match (t1, t2) {
             (TypeData::Primitive(p1), TypeData::Primitive(p2)) => p1 == p2,
             (TypeData::Op(o1), TypeData::Op(o2)) => o1 == o2,
             _ => false,
+        };
+
+        if !matches {
+            eprintln!(
+                "type mismatch: {:?} and {:?}",
+                t1.debug(self.db),
+                t2.debug(self.db)
+            );
         }
+
+        matches
     }
 }
 
@@ -782,23 +794,16 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
     let param_tys = {
         let mut param_tys = Vec::new();
 
-        // let resolver = proc.proc_ty_resolver(db);
-        for _param in proc.params(db).iter() {
-            // FIXME: parse type annotation
-            // let ty = param
-            //     .ty
-            //     .as_ref()
-            //     .and_then(|ty_path| self::lower_type_path(db, &resolver, ty_path))
-            //     .unwrap_or(unknown);
-
-            let ty = Ty::intern(db, ty::TypeData::Primitive(ty::PrimitiveType::I32));
+        let resolver = proc.proc_ty_resolver(db);
+        for param in proc.params(db).iter() {
+            let ty = self::lower_type_syntax(db, &resolver, &param.ty);
             param_tys.push(ty);
         }
 
         param_tys.into_boxed_slice()
     };
 
-    // FIXME: parse type annotation and use it
+    // TODO: parse return type annotation and use it
     let ret_ty = Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::I32));
 
     let proc_ty = ty::ProcType { param_tys, ret_ty };
@@ -806,22 +811,29 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
     Ty::intern(db, TypeData::Proc(proc_ty))
 }
 
-fn lower_type_path(db: &dyn IrDb, resolver: &Resolver, path: &expr::Path) -> Option<Ty> {
+fn lower_type_syntax(db: &dyn IrDb, resolver: &Resolver, ty_syntax: &expr::TypeSyntax) -> Ty {
+    use expr::TypeSyntax;
+
+    match ty_syntax {
+        TypeSyntax::Missing => {
+            // TODO: diagnostics
+            eprintln!("missing TypeSyntax");
+            Ty::intern(db, ty::TypeData::Unknown)
+        }
+        TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),
+        TypeSyntax::Primitive(prim) => Ty::intern(db, ty::TypeData::Primitive(*prim)),
+    }
+}
+
+fn lower_type_path(db: &dyn IrDb, _resolver: &Resolver, path: &expr::Path) -> Ty {
     assert_eq!(path.segments.len(), 1, "TODO: support path");
 
     let name = path.segments[0].as_str(db.base());
-    if let Some(_) = expr::OpKind::parse(name) {
-        todo!("builtin operator type in lower_type_path?");
+    if let Some(_) = ty::PrimitiveType::parse(name) {
+        unreachable!("primitive types are never parsed as `TypeSyntax::Primitive`");
     }
 
-    if let Some(ty) = ty::PrimitiveType::parse(name) {
-        return Some(Ty::intern(db, ty::TypeData::Primitive(ty)));
-    }
+    // TODO: resolve user-defined types
 
-    match resolver.resolve_path_as_value(db, path)? {
-        ValueNs::Pat(_) => {
-            todo!("value as procedure?")
-        }
-        ValueNs::Proc(proc) => Some(proc.ty(db)),
-    }
+    Ty::intern(db, ty::TypeData::Unknown)
 }

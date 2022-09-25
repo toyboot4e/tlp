@@ -250,11 +250,11 @@ impl Block {
 }
 
 impl Path {
-    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
+    pub fn segments(&self) -> impl Iterator<Item = PathSegment> {
         self.syn
             .children_with_tokens()
             .filter_map(|e| e.into_token())
-            .filter_map(PathComponent::cast_token)
+            .filter_map(PathSegment::cast_token)
     }
 }
 
@@ -268,11 +268,11 @@ impl PatIdent {
 }
 
 impl PatPath {
-    pub fn components(&self) -> impl Iterator<Item = PathComponent> {
+    pub fn segments(&self) -> impl Iterator<Item = PathSegment> {
         self.syn
             .children_with_tokens()
             .filter_map(|e| e.into_token())
-            .filter_map(PathComponent::cast_token)
+            .filter_map(PathSegment::cast_token)
     }
 
     pub fn into_item(self) -> Item {
@@ -608,6 +608,6 @@ define_token! {
     /// Identifier
     Ident: SyntaxKind::Ident;
 
-    /// PathComponent
-    PathComponent: SyntaxKind::Ident;
+    /// Path segment
+    PathSegment: SyntaxKind::Ident;
 }

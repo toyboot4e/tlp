@@ -69,7 +69,7 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     self::print_errors(&errs, src, "compile error");
 
     // TODO: print procedure name
-    println!("{}", log_vm(&src, &vm).unwrap());
+    // println!("{}", log_vm(&src, &vm).unwrap());
 
     // TODO: search functions
     let proc = vm::VmProcId(0);

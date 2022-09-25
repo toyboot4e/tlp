@@ -3,7 +3,7 @@ use std::{cmp, hash};
 use base::{jar::Word, tbl::id};
 
 use crate::{
-    ir::{body::pat::Pat, IrDb},
+    ir::{body::pat::Pat, ty, IrDb},
     syntax::ast::{self, AstToken},
 };
 
@@ -107,6 +107,7 @@ impl<'a> IntoIterator for &'a Block {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Let {
     pub pat: Pat,
+    // TODO: add type annotation
     pub rhs: Expr,
 }
 
@@ -195,7 +196,7 @@ impl OpKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Literal {
     String(String),
     Char(char),
@@ -204,17 +205,10 @@ pub enum Literal {
     I32(i32),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TotalF32(pub f32);
 
 impl cmp::Eq for TotalF32 {}
-
-// FIXME: what?
-impl cmp::Ord for TotalF32 {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        <f32 as cmp::PartialOrd>::partial_cmp(&self.0, &other.0).unwrap_or(cmp::Ordering::Equal)
-    }
-}
 
 // FIXME: what?
 impl hash::Hash for TotalF32 {
@@ -246,15 +240,22 @@ impl Literal {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// TODO: consider interning
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Path {
     pub segments: Box<[Word]>,
 }
 
 impl Path {
-    pub fn parse(db: &dyn IrDb, ast: ast::Path) -> Self {
-        let segments = ast
-            .components()
+    pub fn from_ast(db: &dyn IrDb, ast: ast::Path) -> Self {
+        Self::from_ast_segments(db, ast.segments())
+    }
+
+    pub fn from_ast_segments(
+        db: &dyn IrDb,
+        segments: impl Iterator<Item = ast::PathSegment>,
+    ) -> Self {
+        let segments = segments
             .map(|c| Word::new(db.base(), c.text().to_string()))
             .collect();
 
@@ -262,54 +263,88 @@ impl Path {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Unresolved, syntax-level type
+// TODO: consider interning
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TypeSyntax {
+    Missing,
+    Primitive(ty::PrimitiveType),
+    Path(Path),
+}
+
+impl TypeSyntax {
+    pub fn from_ast(db: &dyn IrDb, ast: ast::Type) -> Self {
+        match ast {
+            ast::Type::TypePath(type_path) => {
+                let path = Path::from_ast(db, type_path.into_path());
+                assert_eq!(path.segments.len(), 1, "TODO: path {:?}", path);
+
+                let ident =path.segments[0].as_str(db.base());
+                if let Some(prim) = ty::PrimitiveType::parse(ident) {
+                    Self::Primitive(prim)
+                } else {
+                    Self::Path(path)
+                }
+            }
+        }
+    }
+
+    pub fn from_opt_ast(db: &dyn IrDb, ast: Option<ast::Type>) -> Self {
+        match ast {
+            Some(ast) => Self::from_ast(db, ast),
+            None => Self::Missing,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct And {
     pub exprs: Vec<Expr>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Or {
     pub exprs: Vec<Expr>,
 }
 
 /// Set value
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Set {
     pub place: Expr,
     pub rhs: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct When {
     pub pred: Expr,
     pub block: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Unless {
     pub pred: Expr,
     pub block: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Cond {
     /// If any of the cond cases has `true` test, it can be an expression
     pub can_be_expr: bool,
     pub cases: Vec<CondCase>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CondCase {
     pub pred: Expr,
     pub block: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Loop {
     pub block: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct While {
     pub pred: Expr,
     pub block: Expr,

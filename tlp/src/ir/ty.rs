@@ -10,12 +10,15 @@ use std::ops;
 use rustc_hash::FxHashMap;
 use typed_index_collections::TiVec;
 
-use crate::ir::{
-    body::{
-        expr::{self, Expr},
-        pat::Pat,
+use crate::{
+    ir::{
+        body::{
+            expr::{self, Expr},
+            pat::Pat,
+        },
+        IrDb, IrJar,
     },
-    IrDb, IrJar,
+    syntax::ast,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -87,6 +90,10 @@ pub struct Ty {
 impl Ty {
     pub fn intern(db: &dyn IrDb, data: TypeData) -> Self {
         Self::new(db, data)
+    }
+
+    pub fn from_syntax(db: &dyn IrDb, ir_ty: expr::TypeSyntax) -> Option<Self> {
+        todo!()
     }
 }
 
