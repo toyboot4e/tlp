@@ -407,13 +407,14 @@ impl<'db> Collect<'db> {
     }
 }
 
-/// TODO: forbid duplciate inference
+/// # Type inference
+/// Invariant: The type inference only assigns types to type variables. Known pattern / expression types are never overwritten.
 impl<'db, 'map> Infer<'db, 'map> {
     pub fn infer_all(&mut self) {
         self.infer_expr(self.body_data.root_block)
     }
 
-    /// NOTE: Unify first
+    /// Unifies expression types with expected types
     fn infer_expr(&mut self, expr: Expr) {
         let expr_data = &self.body_data.tables[expr];
 
@@ -662,7 +663,7 @@ impl<'db, 'map> Infer<'db, 'map> {
 }
 
 impl<'db, 'map> Infer<'db, 'map> {
-    // FIXME: do occur check
+    // TODO: occur check for procedure types
     // /// Returns true if the type variable occurs in the compared type. This is used in [`unify`] to avoid inifinite call cycle.
     // fn occur(&self, var: TypeId, ty: TypeId) -> bool {
     //     assert_eq!(
@@ -699,7 +700,7 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
     }
 
-    /// Compares two types, tries to assign type to type variables and return if they match.
+    /// Compares two types, tries to assign type to type variables and returns true if they match.
     pub fn unify_2vars(&mut self, i1: TyIndex, i2: TyIndex) -> bool {
         if i1 == i2 {
             return true;

@@ -29,7 +29,7 @@ pub enum ParseError {
         err: LexError,
     },
     /// TODO: context "Expected Symbol as argument, found .."
-    #[error("Expected {expected}, found {found}")]
+    #[error("Expected {expected}, found `{found}`")]
     Unexpected {
         // TODO: add text length
         at: Offset,
@@ -259,7 +259,9 @@ impl ParseState {
     }
 
     /// list-proc → "proc" Ident params form* ")"
-    /// params → "(" ")"
+    ///
+    /// - params → "(" param ")"
+    /// - param → Pat ":" Ident
     fn bump_list_proc(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
         assert_eq!(tk.slice(pcx.src), "proc");
@@ -329,23 +331,42 @@ impl ParseState {
 
             let checkpoint = self.builder.checkpoint();
             if self.maybe_bump_pat(pcx).is_some() {
-                // TODO: parse parameter types
                 self.builder
                     .start_node_at(checkpoint, SyntaxKind::Param.into());
+
+                // `:`
+                self.maybe_bump_ws(pcx);
+                if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none() {
+                    let text = self.peek(pcx).unwrap().slice(pcx.src);
+
+                    self.errs.push(ParseError::Unexpected {
+                        at: pcx.src.len().into(),
+                        expected: ":".to_string(),
+                        found: text.to_string(),
+                    });
+
+                    self.maybe_bump_sexp(pcx);
+                } else {
+                    // `<Type>`
+                    self.maybe_bump_ws(pcx);
+                    self.maybe_bump_type(pcx);
+                }
+
                 self.builder.finish_node();
-                continue;
+            } else {
+                let text = self.peek(pcx).unwrap().slice(pcx.src);
+
+                self.errs.push(ParseError::Unexpected {
+                    // TODO: figure out why it's at this point
+                    // TODO: use span for error location
+                    at: pcx.src.len().into(),
+                    expected: "`)` or parameter".to_string(),
+                    found: text.to_string(),
+                });
+
+                // anyway consume the syntax
+                self.maybe_bump_sexp(pcx);
             }
-
-            self.errs.push(ParseError::Unexpected {
-                // TODO: figure out why it's at this point
-                // TODO: use span for error location
-                at: pcx.src.len().into(),
-                expected: ")".to_string(),
-                found: "<non-pattern>".to_string(),
-            });
-
-            // consume the syntax
-            self.maybe_bump_sexp(pcx);
         }
 
         self.builder.finish_node();
@@ -374,6 +395,24 @@ impl ParseState {
                 return None;
             }
         }
+    }
+
+    fn maybe_bump_type(&mut self, pcx: &ParseContext) {
+        if self.maybe_bump_path(pcx).is_some() {
+            return;
+        }
+
+        let text = if let Some(peek) = self.peek(pcx) {
+            peek.slice(pcx.src).to_string()
+        } else {
+            "<EoF>".to_string()
+        };
+
+        self.errs.push(ParseError::Unexpected {
+            at: pcx.src.len().into(),
+            expected: "<type>".to_string(),
+            found: text,
+        });
     }
 
     /// "let" Pat Expr ")"

@@ -41,13 +41,13 @@ impl LexError {
 
 /// Convers text into a CST. It doesn't fail even if the given text has wrong syntax.
 pub fn from_str<'s>(src: &'s str) -> (Vec<Token>, Vec<LexError>) {
-    let l = Lexer {
+    let lex = Lexer {
         src: src.as_bytes(),
         sp: Span::from(0u32, 0u32),
         tks: vec![],
         errs: vec![],
     };
-    l.run()
+    lex.run()
 }
 
 /// Stateful lexer that converts given string into simple [`Token`] s
@@ -285,7 +285,8 @@ impl<'s> Lexer<'s> {
         let s: &str = unsafe { std::str::from_utf8_unchecked(self.src) };
         let s = tk.slice(s);
 
-        if let Some(kind) = parse_kwd(s) {
+        // overwrite keyword's syntax kind
+        if let Some(kind) = to_kwd(s) {
             tk.kind = kind;
         }
 
@@ -296,7 +297,7 @@ impl<'s> Lexer<'s> {
             me.lex_syntax(self::is_ident_start, self::is_ident_body, SyntaxKind::Ident)
         }
 
-        fn parse_kwd(kwd: &str) -> Option<SyntaxKind> {
+        fn to_kwd(kwd: &str) -> Option<SyntaxKind> {
             Some(match kwd {
                 // literals are recognized
                 "true" => SyntaxKind::True,

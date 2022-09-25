@@ -497,8 +497,16 @@ impl Param {
         self.syn.children().find_map(|elem| Pat::cast_node(elem))
     }
 
-    // TODO: parameter type annotation
-    // pub fn ty
+    pub fn colon(&self) -> Option<SyntaxToken> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .find(|tk| tk.kind() == SyntaxKind::Colon)
+    }
+
+    // pub fn ty(&self) -> Option<Type> {
+    //     self.syn.children().find_map(|elem| Type::cast_node(elem))
+    // }
 }
 
 define_enum_node! {
@@ -506,6 +514,12 @@ define_enum_node! {
     Pat = PatIdent | PatPath,
     SyntaxKind::PatIdent | SyntaxKind::PatPath
 }
+
+// define_enum_node! {
+//     /// Type node (transparent)
+//     Type = TypePath,
+//     SyntaxKind::TypePath
+// }
 
 define_token_wrapper! {
     /// Literal node (token wrapper)

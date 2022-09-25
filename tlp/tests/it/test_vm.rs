@@ -274,7 +274,7 @@ fn user_function_call() {
         "
 (proc main ()
     (f 10))
-(proc f (x)
+(proc f (x:i32)
     (+ x 5))
     ",
         15,
@@ -294,7 +294,7 @@ fn user_function_call() {
 (proc main ()
     (fib 10))
 
-(proc fib (x)
+(proc fib (x:i32)
     (cond ((= x 0) 0)
           ((= x 1) 1)
           (true (+ (fib (- x 1)) (fib (- x 2))))))
