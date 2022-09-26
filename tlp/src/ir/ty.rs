@@ -18,7 +18,6 @@ use crate::{
         },
         IrDb, IrJar,
     },
-    syntax::ast,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -76,6 +75,13 @@ impl WipTypeData {
         match self {
             Self::Var => unreachable!("failed to cast to `TypeData`"),
             Self::Ty(ty) => ty.data(db),
+        }
+    }
+
+    pub fn ty(&self) -> Option<&Ty> {
+        match self {
+            Self::Var => None,
+            Self::Ty(ty) => Some(ty),
         }
     }
 }

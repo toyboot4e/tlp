@@ -492,11 +492,8 @@ impl<'db, 'map> Infer<'db, 'map> {
                 }
 
                 // infer and unify block types
-                let tys = cond
-                    .cases
-                    .iter()
-                    .map(|case| (case.block, self.expr_types[&case.block]));
-                self.infer_and_unify_many_vars(tys);
+                let exprs = cond.cases.iter().map(|case| case.block).collect::<Vec<_>>();
+                self.infer_and_unify_branch_types(&exprs);
 
                 // FIXME: Get unified type and use it for the cond's type
                 let wip_ty_data = if let Some(case) = cond.cases.first() {
@@ -531,14 +528,7 @@ impl<'db, 'map> Infer<'db, 'map> {
     }
 
     fn infer_builtin_op(&mut self, call_op_expr: Expr, call_op: &expr::CallOp) {
-        // infer and unify the argument types
-        {
-            let tys = call_op
-                .args
-                .iter()
-                .map(|expr| (*expr, self.expr_types[expr]));
-            self.infer_and_unify_many_vars(tys);
-        }
+        self.infer_and_unify_branch_types(&call_op.args);
 
         let operand_ty = call_op
             .args
@@ -731,40 +721,37 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
     }
 
-    pub fn infer_and_unify_many_vars(
-        &mut self,
-        mut tys: impl Iterator<Item = (Expr, TyIndex)>,
-    ) -> bool {
-        let mut res = true;
+    pub fn infer_and_unify_branch_types(&mut self, exprs: &[Expr]) -> bool {
+        // infer all the expressions
+        exprs.iter().for_each(|&expr| {
+            self.infer_expr(expr);
+        });
 
-        // window(2)
-        let (e1, mut t1) = match tys.next() {
+        // the first unknown type of the branches is used as the expected type:
+        let (expected_expr, expected_ty) = match exprs.iter().find_map(|&expr| {
+            let wip_ty = &self.types[self.expr_types[&expr]];
+            wip_ty
+                .ty()
+                .filter(|&&ty| ty != self.interned.unknown)
+                .map(|&ty| (expr, ty))
+        }) {
             Some(x) => x,
             None => return false,
         };
 
-        self.infer_expr(e1);
+        // unify
+        let mut all_match = true;
 
-        let (mut e2, mut t2) = match tys.next() {
-            Some(x) => x,
-            None => return false,
-        };
-
-        loop {
-            self.infer_expr(e2);
-            res &= self.unify_2vars(t1, t2);
-
-            if let Some((e, t)) = tys.next() {
-                t1 = t2;
-                // e1 = e2;
-                t2 = t;
-                e2 = e;
-            } else {
-                break;
+        for &expr in exprs {
+            if expr == expected_expr {
+                continue;
             }
+
+            let ty_index = self.expr_types[&expr];
+            all_match &= self.unify_expected(ty_index, expected_ty);
         }
 
-        res
+        all_match
     }
 
     /// Compares two known types
