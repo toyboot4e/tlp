@@ -10,14 +10,12 @@ use std::ops;
 use rustc_hash::FxHashMap;
 use typed_index_collections::TiVec;
 
-use crate::{
-    ir::{
-        body::{
-            expr::{self, Expr},
-            pat::Pat,
-        },
-        IrDb, IrJar,
+use crate::ir::{
+    body::{
+        expr::{self, Expr},
+        pat::Pat,
     },
+    IrDb, IrJar,
 };
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

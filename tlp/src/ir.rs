@@ -18,6 +18,7 @@ pub struct IrJar(
     item_scope::ItemScope,
     body::Body,
     ty::Ty,
+    ty::lower_type::TypeDiagnostics,
     // TODO: Consider ditching? Thoguh it adds lifetimes to `Resolver`
     body::expr_scope::ExprScopeMap,
     lower_ir::lower_items,
@@ -114,6 +115,11 @@ impl item::Proc {
 
     pub fn ty_data<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeData {
         self.ty(db).data(db)
+    }
+
+    /// Returns type diagnostics accumulated on [`Self::ty_data`]
+    pub fn ty_diags<'db>(&self, db: &'db dyn IrDb) -> Vec<ty::lower_type::TypeDiagnostic> {
+        ty::lower_type::lower_proc_type::accumulated::<ty::lower_type::TypeDiagnostics>(db, *self)
     }
 
     pub fn ty_data_as_proc<'db>(&self, db: &'db dyn IrDb) -> &'db ty::ProcType {

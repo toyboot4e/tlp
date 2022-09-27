@@ -15,13 +15,40 @@ use crate::ir::{
         expr::{self, Expr, ExprData},
         expr_debug::DebugContext,
         pat::{Pat, PatData},
-        BodyData,
+        BodyData, BodySpans,
     },
     item,
     resolve::{Resolver, ValueNs},
     ty::{self, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
+
+#[salsa::accumulator(jar = IrJar)]
+pub struct TypeDiagnostics(TypeDiagnostic);
+
+crate::util::define_enum! {
+    #[derive(Debug, Clone)]
+    TypeDiagnostic = MissingParamType | TypeMismatch | CantResolve;
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeMismatch {
+    expr: Expr,
+    expected: Ty,
+    actual: Ty,
+    // why:
+}
+
+#[derive(Debug, Clone)]
+pub struct MissingParamType {
+    proc: item::Proc,
+    param: item::Param,
+}
+
+#[derive(Debug, Clone)]
+pub struct CantResolve {
+    expr: Expr,
+}
 
 #[salsa::tracked(jar = IrJar, return_ref)]
 pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
@@ -32,6 +59,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let Collect {
         db,
         body_data,
+        body_spans,
         debug,
         interned,
         proc,
@@ -42,6 +70,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         let mut collect = Collect {
             db,
             body_data: proc.body_data(db),
+            body_spans: proc.body_spans(db),
             debug,
             interned,
             proc,
@@ -58,6 +87,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let mut infer = Infer {
         db,
         body_data,
+        body_spans,
         debug,
         interned,
         proc,
@@ -109,6 +139,7 @@ impl InternedTypes {
 struct Collect<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
+    body_spans: &'db BodySpans,
     debug: DebugContext<'db>,
     interned: InternedTypes,
     proc: item::Proc,
@@ -122,6 +153,7 @@ struct Collect<'db> {
 struct Infer<'db, 'map> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
+    body_spans: &'db BodySpans,
     debug: DebugContext<'db>,
     interned: InternedTypes,
     proc: item::Proc,
@@ -292,6 +324,8 @@ impl<'db> Collect<'db> {
                     return;
                 } else {
                     // path to nothing
+                    let diag = CantResolve { expr };
+                    TypeDiagnostics::push(self.db, diag.into());
                     WipTypeData::Ty(self.interned.unknown)
                 }
             }
@@ -394,7 +428,12 @@ impl<'db> Collect<'db> {
                         // TODO: call variable as a procedure
                     }
                 }
+            } else {
+                let diag = CantResolve { expr: path_expr };
+                TypeDiagnostics::push(self.db, diag.into());
             }
+        } else {
+            // error already emitted?
         }
 
         // can't resolve path; conclude as unknown type
@@ -455,24 +494,24 @@ impl<'db, 'map> Infer<'db, 'map> {
             ExprData::And(and) => {
                 and.exprs.iter().for_each(|&expr| {
                     self.infer_expr(expr);
-                    self.unify_expected(self.expr_types[&expr], self.interned.bool_);
+                    self.unify_expected_expr(expr, self.interned.bool_);
                 });
             }
             ExprData::Or(or) => {
                 or.exprs.iter().for_each(|&expr| {
                     self.infer_expr(expr);
-                    self.unify_expected(self.expr_types[&expr], self.interned.bool_);
+                    self.unify_expected_expr(expr, self.interned.bool_);
                 });
             }
             ExprData::When(when) => {
                 self.infer_expr(when.pred);
-                self.unify_expected(self.expr_types[&when.pred], self.interned.bool_);
+                self.unify_expected_expr(when.pred, self.interned.bool_);
 
                 self.infer_expr(when.block);
             }
             ExprData::Unless(unless) => {
                 self.infer_expr(unless.pred);
-                self.unify_expected(self.expr_types[&unless.pred], self.interned.bool_);
+                self.unify_expected_expr(unless.pred, self.interned.bool_);
 
                 self.infer_expr(unless.block);
             }
@@ -480,7 +519,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                 // infer predicates
                 for case in &cond.cases {
                     self.infer_expr(case.pred);
-                    self.unify_expected(self.expr_types[&case.pred], self.interned.bool_);
+                    self.unify_expected_expr(case.pred, self.interned.bool_);
                 }
 
                 if !cond.can_be_expr {
@@ -493,7 +532,7 @@ impl<'db, 'map> Infer<'db, 'map> {
 
                 // infer and unify block types
                 let exprs = cond.cases.iter().map(|case| case.block).collect::<Vec<_>>();
-                self.infer_and_unify_branch_types(&exprs);
+                self.infer_and_unify_same_types(&exprs);
 
                 // FIXME: Get unified type and use it for the cond's type
                 let wip_ty_data = if let Some(case) = cond.cases.first() {
@@ -512,23 +551,19 @@ impl<'db, 'map> Infer<'db, 'map> {
             }
             ExprData::While(while_) => {
                 self.infer_expr(while_.pred);
-                self.unify_expected(self.expr_types[&while_.pred], self.interned.bool_);
+                self.unify_expected_expr(while_.pred, self.interned.bool_);
                 self.infer_expr(while_.block);
             }
             ExprData::Set(set) => {
                 self.infer_expr(set.place);
-                let i1 = self.expr_types[&set.place];
-
                 self.infer_expr(set.rhs);
-                let i2 = self.expr_types[&set.rhs];
-
-                self.unify_2vars(i1, i2);
+                self.unify_expr_vars(set.place, set.rhs);
             }
         }
     }
 
     fn infer_builtin_op(&mut self, call_op_expr: Expr, call_op: &expr::CallOp) {
-        self.infer_and_unify_branch_types(&call_op.args);
+        self.infer_and_unify_same_types(&call_op.args);
 
         let operand_ty = call_op
             .args
@@ -545,11 +580,6 @@ impl<'db, 'map> Infer<'db, 'map> {
             .unwrap_or(ty::OpOperandType::Unknown);
 
         if operand_ty == ty::OpOperandType::Unknown {
-            eprintln!(
-                "unknown operand type on: {:?}",
-                call_op_expr.debug(&self.debug)
-            );
-
             // call operator type is unknown
             self.types[self.expr_types[&call_op_expr]] = WipTypeData::Ty(self.interned.unknown);
             // call node type is unknown
@@ -609,7 +639,8 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
 
         // TODO: diagnostics
-        eprintln!("unknown procedure call {:?}", call_expr.debug(&self.debug));
+        let diag = CantResolve { expr: call_expr };
+        TypeDiagnostics::push(self.db, diag.into());
 
         // infer the unresolved procedure call with best effor
         self.infer_expr(call.path);
@@ -640,9 +671,8 @@ impl<'db, 'map> Infer<'db, 'map> {
         for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
             let param_ty = proc_ty.param_tys[i];
             let arg_expr = call.args[i];
-            let arg_ty_index = self.expr_types[&arg_expr];
 
-            fail |= self.unify_expected(arg_ty_index, param_ty);
+            fail |= self.unify_expected_expr(arg_expr, param_ty);
         }
 
         !fail
@@ -666,27 +696,30 @@ impl<'db, 'map> Infer<'db, 'map> {
     //     todo!()
     // }
 
-    pub fn unify_expected(&mut self, i: TyIndex, expected: Ty) -> bool {
-        let w = &self.types[i];
-        match w {
+    pub fn unify_expected_expr(&mut self, expr: Expr, expected: Ty) -> bool {
+        let ty_index = self.expr_types[&expr];
+        let wip_ty = &self.types[ty_index];
+
+        match wip_ty {
             WipTypeData::Var => {
-                self.types[i] = WipTypeData::Ty(expected.clone());
+                self.types[ty_index] = WipTypeData::Ty(expected.clone());
                 true
             }
             WipTypeData::Ty(ty) => {
                 let ty_data = ty.data(self.db);
                 let expected_data = expected.data(self.db);
 
+                // TODO: consider comparing by ID
                 if ty_data == expected_data {
                     return true;
                 }
 
-                // TODO: diagnostics
-                eprintln!(
-                    "expected type mismatch: {:?} and {:?}",
-                    ty_data.debug(self.db),
-                    expected_data.debug(self.db)
-                );
+                let diag = TypeMismatch {
+                    expr,
+                    expected,
+                    actual: *ty,
+                };
+                TypeDiagnostics::push(self.db, diag.into());
 
                 false
             }
@@ -694,7 +727,10 @@ impl<'db, 'map> Infer<'db, 'map> {
     }
 
     /// Compares two types, tries to assign type to type variables and returns true if they match.
-    pub fn unify_2vars(&mut self, i1: TyIndex, i2: TyIndex) -> bool {
+    pub fn unify_expr_vars(&mut self, e1: Expr, e2: Expr) -> bool {
+        let i1 = self.expr_types[&e1];
+        let i2 = self.expr_types[&e2];
+
         if i1 == i2 {
             return true;
         }
@@ -717,11 +753,11 @@ impl<'db, 'map> Infer<'db, 'map> {
                 self.types[i1] = w2;
                 true
             }
-            (WipTypeData::Ty(_t1), WipTypeData::Ty(_t2)) => self.cmp_known(i1, i2),
+            (WipTypeData::Ty(t1), WipTypeData::Ty(t2)) => self.cmp_known_expr_tys(e1, *t1, e2, *t2),
         }
     }
 
-    pub fn infer_and_unify_branch_types(&mut self, exprs: &[Expr]) -> bool {
+    pub fn infer_and_unify_same_types(&mut self, exprs: &[Expr]) -> bool {
         // infer all the expressions
         exprs.iter().for_each(|&expr| {
             self.infer_expr(expr);
@@ -748,29 +784,41 @@ impl<'db, 'map> Infer<'db, 'map> {
             }
 
             let ty_index = self.expr_types[&expr];
-            all_match &= self.unify_expected(ty_index, expected_ty);
+            let wip_ty = &self.types[ty_index];
+
+            match wip_ty {
+                // if the type is unknown, there's already some error emitted so skip
+                WipTypeData::Ty(ty) if *ty == self.interned.unknown => continue,
+                _ => {}
+            }
+
+            all_match &= self.unify_expected_expr(expr, expected_ty);
         }
 
         all_match
     }
 
     /// Compares two known types
-    fn cmp_known(&self, i1: TyIndex, i2: TyIndex) -> bool {
-        let t1 = &self.types[i1].cast_as_data(self.db);
-        let t2 = &self.types[i2].cast_as_data(self.db);
+    fn cmp_known_expr_tys(&self, e1: Expr, t1: Ty, e2: Expr, t2: Ty) -> bool {
+        let i1 = self.expr_types[&e1];
+        let i2 = self.expr_types[&e2];
 
-        let matches = match (t1, t2) {
+        let ty_data1 = &self.types[i1].cast_as_data(self.db);
+        let ty_data2 = &self.types[i2].cast_as_data(self.db);
+
+        let matches = match (ty_data1, ty_data2) {
             (TypeData::Primitive(p1), TypeData::Primitive(p2)) => p1 == p2,
             (TypeData::Op(o1), TypeData::Op(o2)) => o1 == o2,
             _ => false,
         };
 
         if !matches {
-            eprintln!(
-                "type mismatch: {:?} and {:?}",
-                t1.debug(self.db),
-                t2.debug(self.db)
-            );
+            let diag = TypeMismatch {
+                expr: e2,
+                expected: t1,
+                actual: t2,
+            };
+            TypeDiagnostics::push(self.db, diag.into());
         }
 
         matches
@@ -784,7 +832,7 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
 
         let resolver = proc.proc_ty_resolver(db);
         for param in proc.params(db).iter() {
-            let ty = self::lower_type_syntax(db, &resolver, &param.ty);
+            let ty = self::lower_param_ty(db, &resolver, proc, param, &param.ty);
             param_tys.push(ty);
         }
 
@@ -799,13 +847,23 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
     Ty::intern(db, TypeData::Proc(proc_ty))
 }
 
-fn lower_type_syntax(db: &dyn IrDb, resolver: &Resolver, ty_syntax: &expr::TypeSyntax) -> Ty {
+fn lower_param_ty(
+    db: &dyn IrDb,
+    resolver: &Resolver,
+    proc: item::Proc,
+    param: &item::Param,
+    ty_syntax: &expr::TypeSyntax,
+) -> Ty {
     use expr::TypeSyntax;
 
     match ty_syntax {
         TypeSyntax::Missing => {
-            // TODO: diagnostics
-            eprintln!("missing TypeSyntax");
+            let diag = MissingParamType {
+                proc,
+                param: param.clone(),
+            };
+            TypeDiagnostics::push(db, diag.into());
+
             Ty::intern(db, ty::TypeData::Unknown)
         }
         TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),

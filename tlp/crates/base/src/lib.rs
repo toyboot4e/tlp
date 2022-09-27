@@ -29,9 +29,14 @@ impl<T: salsa::DbWithJar<BaseJar>> BaseDb for T {
 // TODO: remote those interpolation code to the `syntax` module
 
 impl span::Span {
-    pub fn from_rowan_range(rng: rowan::TextRange) -> Self {
-        let (start, end): (u32, u32) = (rng.start().into(), rng.end().into());
+    pub fn from_rowan_range(range: rowan::TextRange) -> Self {
+        let (start, end): (u32, u32) = (range.start().into(), range.end().into());
         Self::from(start, end)
+    }
+
+    pub fn into_rowan_rang(self) -> rowan::TextRange {
+        let (start, end): (u32, u32) = (self.start.into(), self.end.into());
+        rowan::TextRange::new(start.into(), end.into())
     }
 
     pub fn slice<'a>(&self, s: &'a str) -> &'a str {

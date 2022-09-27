@@ -31,6 +31,10 @@ impl SyntaxNodePtr {
         }
     }
 
+    pub fn from_range(kind: SyntaxKind, range: TextRange) -> Self {
+        Self { kind, range }
+    }
+
     /// "Dereferences" the pointer to get the [`SyntaxNode`] it points to.
     ///
     /// Panics if node is not found, so make sure that `root` syntax tree is
@@ -86,6 +90,13 @@ impl<N: AstNode> AstPtr<N> {
     pub fn new(node: &N) -> Self {
         Self {
             raw: SyntaxNodePtr::new(node.syntax()),
+            _ty: PhantomData,
+        }
+    }
+
+    pub fn from_range(kind: SyntaxKind, range: TextRange) -> Self {
+        Self {
+            raw: SyntaxNodePtr::from_range(kind, range),
             _ty: PhantomData,
         }
     }
