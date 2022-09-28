@@ -2,9 +2,9 @@
 
 #[macro_export]
 macro_rules! define_enum {
-    ( $( #[ $meta:meta ] )* $ty:ident = $( $variant:ident )|* ; ) => {
+    ( $( #[ $meta:meta ] )* $vis:vis $ty:ident = $( $variant:ident )|* ; ) => {
         $( #[$meta] )*
-        pub enum $ty {
+        $vis enum $ty {
             $( $variant($variant), )*
         }
 

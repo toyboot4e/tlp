@@ -4,6 +4,7 @@
 
 pub mod lower_type;
 pub mod ty_debug;
+pub mod ty_diag;
 
 use std::ops;
 

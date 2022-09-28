@@ -19,36 +19,9 @@ use crate::ir::{
     },
     item,
     resolve::{Resolver, ValueNs},
-    ty::{self, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
+    ty::{self, ty_diag::*, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
     IrDb, IrJar,
 };
-
-#[salsa::accumulator(jar = IrJar)]
-pub struct TypeDiagnostics(TypeDiagnostic);
-
-crate::util::define_enum! {
-    #[derive(Debug, Clone)]
-    TypeDiagnostic = MissingParamType | TypeMismatch | CantResolve;
-}
-
-#[derive(Debug, Clone)]
-pub struct TypeMismatch {
-    expr: Expr,
-    expected: Ty,
-    actual: Ty,
-    // why:
-}
-
-#[derive(Debug, Clone)]
-pub struct MissingParamType {
-    proc: item::Proc,
-    param: item::Param,
-}
-
-#[derive(Debug, Clone)]
-pub struct CantResolve {
-    expr: Expr,
-}
 
 #[salsa::tracked(jar = IrJar, return_ref)]
 pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
@@ -324,7 +297,9 @@ impl<'db> Collect<'db> {
                     return;
                 } else {
                     // path to nothing
-                    let diag = CantResolve { expr };
+                    let diag = CantResolve {
+                        expr,
+                    };
                     TypeDiagnostics::push(self.db, diag.into());
                     WipTypeData::Ty(self.interned.unknown)
                 }
@@ -429,7 +404,9 @@ impl<'db> Collect<'db> {
                     }
                 }
             } else {
-                let diag = CantResolve { expr: path_expr };
+                let diag = CantResolve {
+                    expr: path_expr,
+                };
                 TypeDiagnostics::push(self.db, diag.into());
             }
         } else {
@@ -639,7 +616,9 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
 
         // TODO: diagnostics
-        let diag = CantResolve { expr: call_expr };
+        let diag = CantResolve {
+            expr: call_expr,
+        };
         TypeDiagnostics::push(self.db, diag.into());
 
         // infer the unresolved procedure call with best effor
@@ -832,7 +811,7 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
 
         let resolver = proc.proc_ty_resolver(db);
         for param in proc.params(db).iter() {
-            let ty = self::lower_param_ty(db, &resolver, proc, param, &param.ty);
+            let ty = self::lower_param_ty(db, &resolver, param, &param.ty);
             param_tys.push(ty);
         }
 
@@ -850,7 +829,6 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
 fn lower_param_ty(
     db: &dyn IrDb,
     resolver: &Resolver,
-    proc: item::Proc,
     param: &item::Param,
     ty_syntax: &expr::TypeSyntax,
 ) -> Ty {
@@ -859,7 +837,6 @@ fn lower_param_ty(
     match ty_syntax {
         TypeSyntax::Missing => {
             let diag = MissingParamType {
-                proc,
                 param: param.clone(),
             };
             TypeDiagnostics::push(db, diag.into());
