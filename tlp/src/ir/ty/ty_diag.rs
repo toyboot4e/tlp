@@ -8,15 +8,38 @@ use crate::ir::{
     body::{expr::Expr, expr_debug::DebugContext},
     item,
     ty::Ty,
-    IrDb, IrJar,
+    IrJar,
 };
 
+/// Type diagnostics for a procedure
 #[salsa::accumulator(jar = IrJar)]
 pub struct TypeDiagnostics(TypeDiagnostic);
 
 crate::util::define_enum! {
+    /// Type diagnostic for a procedure
     #[derive(Debug, Clone)]
     pub TypeDiagnostic = MissingParamType | TypeMismatch | CantResolve;
+}
+
+#[derive(Debug, Clone)]
+pub struct MissingParamType {
+    pub param: item::Param,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeMismatch {
+    pub expr: Expr,
+    pub expected: Ty,
+    pub actual: Ty,
+    // why:
+}
+
+// /// Type mismatch of branches
+// pub struct IncompatibleTypes {
+
+#[derive(Debug, Clone)]
+pub struct CantResolve {
+    pub expr: Expr,
 }
 
 impl DebugWithDb<DebugContext<'_>> for TypeDiagnostic {
@@ -58,22 +81,4 @@ impl DebugWithDb<DebugContext<'_>> for TypeDiagnostic {
 
         Ok(())
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct MissingParamType {
-    pub param: item::Param,
-}
-
-#[derive(Debug, Clone)]
-pub struct TypeMismatch {
-    pub expr: Expr,
-    pub expected: Ty,
-    pub actual: Ty,
-    // why:
-}
-
-#[derive(Debug, Clone)]
-pub struct CantResolve {
-    pub expr: Expr,
 }

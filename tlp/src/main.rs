@@ -10,7 +10,7 @@ use std::{
 use salsa::DebugWithDb;
 
 use tlp::{
-    ir::{item, ty, InputFileExt},
+    ir::{item, InputFileExt},
     Db,
 };
 
@@ -33,7 +33,6 @@ fn main() {
         if let item::Item::Proc(proc) = item {
             let dcx = proc.with_db(&db);
 
-            // TODO: print with span
             // let body_spans = proc.body(&db).spans(&db);
 
             let diags = proc.param_ty_diags(&db);

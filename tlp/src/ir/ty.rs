@@ -96,10 +96,6 @@ impl Ty {
     pub fn intern(db: &dyn IrDb, data: TypeData) -> Self {
         Self::new(db, data)
     }
-
-    pub fn from_syntax(db: &dyn IrDb, ir_ty: expr::TypeSyntax) -> Option<Self> {
-        todo!()
-    }
 }
 
 /// Best-effor type information

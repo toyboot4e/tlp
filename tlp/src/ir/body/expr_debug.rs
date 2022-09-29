@@ -188,7 +188,7 @@ impl DebugWithDb<DebugContext<'_>> for CallOp {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "CallOp({:?}, ", self.op_expr.debug_with(dcx, all_fields));
+        write!(f, "CallOp({:?}, ", self.op_expr.debug_with(dcx, all_fields))?;
         self::fmt_exprs(&self.args, f, dcx, all_fields)?;
         write!(f, ")")?;
         Ok(())

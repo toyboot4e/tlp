@@ -1,7 +1,6 @@
 //! Type lowering
 
-// TODO: Accumulate diagnostics
-// TODO: Do not infer twice
+// TODO: Nevernot infer twice
 // TODO: Never overwrite known types on inference
 
 use std::cmp;
@@ -15,7 +14,7 @@ use crate::ir::{
         expr::{self, Expr, ExprData},
         expr_debug::DebugContext,
         pat::{Pat, PatData},
-        BodyData, BodySpans,
+        BodyData,
     },
     item,
     resolve::{Resolver, ValueNs},
@@ -32,8 +31,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let Collect {
         db,
         body_data,
-        body_spans,
-        debug,
+        debug: _,
         interned,
         proc,
         expr_types,
@@ -43,7 +41,6 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
         let mut collect = Collect {
             db,
             body_data: proc.body_data(db),
-            body_spans: proc.body_spans(db),
             debug,
             interned,
             proc,
@@ -60,8 +57,7 @@ pub(crate) fn lower_body_types(db: &dyn IrDb, proc: item::Proc) -> TypeTable {
     let mut infer = Infer {
         db,
         body_data,
-        body_spans,
-        debug,
+        // debug,
         interned,
         proc,
         expr_types: &expr_types,
@@ -112,7 +108,6 @@ impl InternedTypes {
 struct Collect<'db> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
-    body_spans: &'db BodySpans,
     debug: DebugContext<'db>,
     interned: InternedTypes,
     proc: item::Proc,
@@ -126,8 +121,7 @@ struct Collect<'db> {
 struct Infer<'db, 'map> {
     db: &'db dyn IrDb,
     body_data: &'db BodyData,
-    body_spans: &'db BodySpans,
-    debug: DebugContext<'db>,
+    // debug: DebugContext<'db>,
     interned: InternedTypes,
     proc: item::Proc,
     // resolver: Resolver,
@@ -297,9 +291,7 @@ impl<'db> Collect<'db> {
                     return;
                 } else {
                     // path to nothing
-                    let diag = CantResolve {
-                        expr,
-                    };
+                    let diag = CantResolve { expr };
                     TypeDiagnostics::push(self.db, diag.into());
                     WipTypeData::Ty(self.interned.unknown)
                 }
@@ -404,9 +396,7 @@ impl<'db> Collect<'db> {
                     }
                 }
             } else {
-                let diag = CantResolve {
-                    expr: path_expr,
-                };
+                let diag = CantResolve { expr: path_expr };
                 TypeDiagnostics::push(self.db, diag.into());
             }
         } else {
@@ -616,9 +606,7 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
 
         // TODO: diagnostics
-        let diag = CantResolve {
-            expr: call_expr,
-        };
+        let diag = CantResolve { expr: call_expr };
         TypeDiagnostics::push(self.db, diag.into());
 
         // infer the unresolved procedure call with best effor
