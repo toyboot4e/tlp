@@ -49,6 +49,42 @@ impl std::fmt::Debug for Span {
     }
 }
 
+impl std::ops::Add<Offset> for Span {
+    type Output = Span;
+
+    fn add(self, offset: Offset) -> Self::Output {
+        Self {
+            start: Offset::from(self.start.0 + offset.0),
+            end: Offset::from(self.end.0 + offset.0),
+        }
+    }
+}
+
+impl std::ops::AddAssign<Offset> for Span {
+    fn add_assign(&mut self, offset: Offset) {
+        self.start = Offset::from(self.start.0 + offset.0);
+        self.end = Offset::from(self.end.0 + offset.0);
+    }
+}
+
+impl std::ops::Sub<Offset> for Span {
+    type Output = Span;
+
+    fn sub(self, offset: Offset) -> Self::Output {
+        Self {
+            start: Offset(self.start - offset),
+            end: Offset(self.end - offset),
+        }
+    }
+}
+
+impl std::ops::SubAssign<Offset> for Span {
+    fn sub_assign(&mut self, offset: Offset) {
+        self.start = Offset::from(self.start.0.checked_sub(offset.0).unwrap());
+        self.end = Offset::from(self.end.0.checked_sub(offset.0).unwrap());
+    }
+}
+
 /// 0-based byte offset within a file.
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Offset(u32);

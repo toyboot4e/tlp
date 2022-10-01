@@ -4,12 +4,12 @@ use std::fmt;
 
 use salsa::DebugWithDb;
 
-use crate::ir::{
+use crate::{util::diag, ir::{
     body::{expr::Expr, expr_debug::DebugContext},
     item,
     ty::Ty,
     IrJar,
-};
+}};
 
 /// Type diagnostics for a procedure
 #[salsa::accumulator(jar = IrJar)]
@@ -19,6 +19,28 @@ crate::util::define_enum! {
     /// Type diagnostic for a procedure
     #[derive(Debug, Clone)]
     pub TypeDiagnostic = MissingParamType | TypeMismatch | CantResolve;
+}
+
+impl diag::Diagnostic for TypeDiagnostic {
+    fn code(&self) -> &str {
+        match self {
+            TypeDiagnostic::MissingParamType(_) => "E0000",
+            TypeDiagnostic::TypeMismatch(_) => "E0001",
+            TypeDiagnostic::CantResolve(_) => "E0002",
+        }
+    }
+
+    fn severity(&self) -> diag::Severity {
+        diag::Severity::Error
+    }
+
+    fn msg(&self) -> &str {
+        match self {
+            TypeDiagnostic::MissingParamType(_) => "missing parameter type",
+            TypeDiagnostic::TypeMismatch(_) => "type mismatch",
+            TypeDiagnostic::CantResolve(_) => "can't resolve path",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +62,20 @@ pub struct TypeMismatch {
 #[derive(Debug, Clone)]
 pub struct CantResolve {
     pub expr: Expr,
+}
+
+impl TypeDiagnostic {
+    pub fn severity(&self) -> diag::Severity {
+        diag::Severity::Error
+    }
+
+    pub fn msg(&self) -> &str {
+        match self {
+            TypeDiagnostic::MissingParamType(_) => "missing parameter type",
+            TypeDiagnostic::TypeMismatch(_) => "type mismatch",
+            TypeDiagnostic::CantResolve(_) => "can't resolve",
+        }
+    }
 }
 
 impl DebugWithDb<DebugContext<'_>> for TypeDiagnostic {

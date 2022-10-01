@@ -1,5 +1,7 @@
 //! Common utilities
 
+pub mod diag;
+
 #[macro_export]
 macro_rules! define_enum {
     ( $( #[ $meta:meta ] )* $vis:vis $ty:ident = $( $variant:ident )|* ; ) => {

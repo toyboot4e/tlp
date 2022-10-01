@@ -7,10 +7,12 @@ use std::{
     path::PathBuf,
 };
 
-use salsa::DebugWithDb;
+use base::jar::InputFile;
 
 use tlp::{
-    ir::{item, InputFileExt},
+    ir::{item, ty::ty_diag::TypeDiagnostic, InputFileExt, IrDb},
+    util::diag,
+    vm::UnitVariant,
     Db,
 };
 
@@ -27,27 +29,16 @@ fn main() {
     let (mut vm, errs) = tlp::compile::compile_file(&db, main_file);
 
     let items = main_file.items(&db);
-    let mut s = String::new();
 
     for item in items {
         if let item::Item::Proc(proc) = item {
-            let dcx = proc.with_db(&db);
-
-            // let body_spans = proc.body(&db).spans(&db);
-
             let diags = proc.param_ty_diags(&db);
-            for diag in diags {
-                write!(s, "{:?}", diag.debug(&dcx)).unwrap();
-            }
+            self::print_diagnostics(&db, diags.iter(), *proc, main_file);
 
             let diags = proc.body_ty_diags(&db);
-            for diag in diags {
-                write!(s, "{:?}", diag.debug(&dcx)).unwrap();
-            }
+            self::print_diagnostics(&db, diags.iter(), *proc, main_file);
         }
     }
-
-    println!("{}", s);
 
     self::print_errors(&errs, &src, "compile error");
 
@@ -55,11 +46,37 @@ fn main() {
     let proc = tlp::vm::VmProcId(0);
 
     match vm.run_proc(proc) {
-        Ok(unit) => println!("=> {:?}", unit),
+        Ok(unit) => {
+            let res = u32::from_unit(unit);
+            println!("=> {:?}", res);
+        }
         Err(e) => {
             // TODO: use `log_vm` in `test_vm.rs`
             panic!("error: {}", e);
         }
+    }
+}
+
+fn print_diagnostics<'a>(
+    db: &dyn IrDb,
+    diags: impl Iterator<Item = &'a TypeDiagnostic>,
+    proc: item::Proc,
+    input_file: InputFile,
+) {
+    let body_spans = proc.body(db).spans(db);
+
+    for diag in diags {
+        let span = match diag {
+            TypeDiagnostic::MissingParamType(x) => {
+                todo!()
+            }
+            TypeDiagnostic::TypeMismatch(x) => &body_spans[x.expr],
+            TypeDiagnostic::CantResolve(x) => &body_spans[x.expr],
+        }
+        .as_ref()
+        .unwrap();
+
+        diag::line(db, diag, input_file, *span).print();
     }
 }
 
