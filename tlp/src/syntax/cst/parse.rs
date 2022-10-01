@@ -13,7 +13,7 @@ use crate::syntax::cst::{
     SyntaxKind, SyntaxNode,
 };
 
-use rowan::{Checkpoint, GreenNode, GreenNodeBuilder};
+use rowan::{GreenNode, GreenNodeBuilder};
 
 // FIXME: make self-contained error type
 

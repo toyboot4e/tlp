@@ -1,6 +1,6 @@
 use std::fmt::{self, Write};
 
-// TODO: add debug format framework
+// TODO: consider `all_fields`
 
 use base::tbl::InternKey;
 use salsa::DebugWithDb;
@@ -14,7 +14,6 @@ use crate::ir::{
     item, IrDb,
 };
 
-// TODO: proper implementation format?
 impl<T: ?Sized + IrDb> DebugWithDb<T> for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>, db: &T, _all_fields: bool) -> fmt::Result {
         let (first, rest) = match self.segments.split_first() {
@@ -118,7 +117,7 @@ impl DebugWithDb<DebugContext<'_>> for ExprData {
         all_fields: bool,
     ) -> fmt::Result {
         match self {
-            Self::Missing => write!(f, "<missing>"),
+            Self::Missing => write!(f, "<missing-expr>"),
             Self::Block(x) => x.fmt(f, dcx, all_fields),
             Self::Let(x) => x.fmt(f, dcx, all_fields),
             Self::Call(x) => x.fmt(f, dcx, all_fields),
@@ -159,14 +158,12 @@ impl DebugWithDb<DebugContext<'_>> for Let {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "Let {{ ")?;
-
-        self.pat.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
-        self.rhs.fmt(f, dcx, all_fields)?;
-
-        write!(f, " }}")?;
-        Ok(())
+        write!(
+            f,
+            "Let({:?}, {:?})",
+            self.pat.debug_with(dcx, all_fields),
+            self.rhs.debug_with(dcx, all_fields)
+        )
     }
 }
 
@@ -177,12 +174,8 @@ impl DebugWithDb<DebugContext<'_>> for Call {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "Call(")?;
-
-        self.path.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
+        write!(f, "Call({:?},", self.path.debug_with(dcx, all_fields))?;
         self::fmt_exprs(&self.args, f, dcx, all_fields)?;
-
         write!(f, ")")?;
         Ok(())
     }
@@ -195,12 +188,8 @@ impl DebugWithDb<DebugContext<'_>> for CallOp {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "CallOp(")?;
-
-        self.op_expr.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
+        write!(f, "CallOp({:?}, ", self.op_expr.debug_with(dcx, all_fields))?;
         self::fmt_exprs(&self.args, f, dcx, all_fields)?;
-
         write!(f, ")")?;
         Ok(())
     }
@@ -270,13 +259,12 @@ impl DebugWithDb<DebugContext<'_>> for Set {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "Set(")?;
-        self.place.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
-        self.rhs.fmt(f, dcx, all_fields)?;
-        write!(f, ")")?;
-
-        Ok(())
+        write!(
+            f,
+            "Set({:?}, {:?})",
+            self.place.debug_with(dcx, all_fields),
+            self.rhs.debug_with(dcx, all_fields)
+        )
     }
 }
 
@@ -287,13 +275,12 @@ impl DebugWithDb<DebugContext<'_>> for When {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "When(")?;
-        self.pred.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
-        self.block.fmt(f, dcx, all_fields)?;
-        write!(f, ")")?;
-
-        Ok(())
+        write!(
+            f,
+            "When({:?}, {:?})",
+            self.pred.debug_with(dcx, all_fields),
+            self.block.debug_with(dcx, all_fields)
+        )
     }
 }
 
@@ -304,13 +291,12 @@ impl DebugWithDb<DebugContext<'_>> for Unless {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "Unless(")?;
-        self.pred.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
-        self.block.fmt(f, dcx, all_fields)?;
-        write!(f, ")")?;
-
-        Ok(())
+        write!(
+            f,
+            "Unless({:?}, {:?}",
+            self.pred.debug_with(dcx, all_fields),
+            self.block.debug_with(dcx, all_fields)
+        )
     }
 }
 
@@ -342,13 +328,12 @@ impl DebugWithDb<DebugContext<'_>> for CondCase {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "CondCase(")?;
-        self.pred.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
-        self.block.fmt(f, dcx, all_fields)?;
-        write!(f, ")")?;
-
-        Ok(())
+        write!(
+            f,
+            "CondCase({:?}, {:?}",
+            self.pred.debug_with(dcx, all_fields),
+            self.block.debug_with(dcx, all_fields),
+        )
     }
 }
 
@@ -359,11 +344,7 @@ impl DebugWithDb<DebugContext<'_>> for Loop {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "Loop(")?;
-        self.block.fmt(f, dcx, all_fields)?;
-        write!(f, ")")?;
-
-        Ok(())
+        write!(f, "Loop({:?})", self.block.debug_with(dcx, all_fields))
     }
 }
 
@@ -374,15 +355,12 @@ impl DebugWithDb<DebugContext<'_>> for While {
         dcx: &DebugContext<'_>,
         all_fields: bool,
     ) -> fmt::Result {
-        write!(f, "While(")?;
-
-        self.pred.fmt(f, dcx, all_fields)?;
-        write!(f, ", ")?;
-        self.block.fmt(f, dcx, all_fields)?;
-
-        write!(f, ")")?;
-
-        Ok(())
+        write!(
+            f,
+            "While({:?}, {:?})",
+            self.pred.debug_with(dcx, all_fields),
+            self.block.debug_with(dcx, all_fields)
+        )
     }
 }
 
@@ -412,5 +390,36 @@ impl DebugWithDb<DebugContext<'_>> for PatData {
             Self::Missing => write!(f, "<missing>"),
             Self::Bind { name } => write!(f, "{:?}", name.as_str(dcx.db().base())),
         }
+    }
+}
+
+impl DebugWithDb<DebugContext<'_>> for TypeSyntax {
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        dcx: &DebugContext<'_>,
+        all_fields: bool,
+    ) -> fmt::Result {
+        match self {
+            Self::Missing => write!(f, "<missing-type>"),
+            Self::Primitive(prim) => write!(f, "{:?}", prim),
+            Self::Path(path) => write!(f, "{:?}", path.debug_with(dcx, all_fields)),
+        }
+    }
+}
+
+impl DebugWithDb<DebugContext<'_>> for item::Param {
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        dcx: &DebugContext<'_>,
+        all_fields: bool,
+    ) -> fmt::Result {
+        write!(
+            f,
+            "Param {{ pat: {:?}, ty: {:?} }}",
+            self.pat.debug_with(dcx, all_fields),
+            self.ty.debug_with(dcx, all_fields)
+        )
     }
 }

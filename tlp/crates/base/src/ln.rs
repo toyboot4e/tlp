@@ -57,11 +57,11 @@ impl LineTable {
         table
     }
 
-    fn num_lines(&self) -> usize {
+    pub fn num_lines(&self) -> usize {
         self.lines.len()
     }
 
-    fn offset(&self, position: LineColumn) -> Offset {
+    pub fn offset(&self, position: LineColumn) -> Offset {
         if position.line0_usize() >= self.num_lines() {
             return self.end_offset;
         }
@@ -75,7 +75,7 @@ impl LineTable {
         Offset::from(offset).min(self.end_offset)
     }
 
-    fn line_column(&self, position: Offset) -> LineColumn {
+    pub fn line_column(&self, position: Offset) -> LineColumn {
         match self.lines.binary_search_by_key(&position, |l| l.start) {
             Ok(line0) => LineColumn::new0(line0, 0u32),
             Err(next_line0) => {
@@ -95,5 +95,23 @@ impl LineTable {
                 LineColumn::new0(line0, column0)
             }
         }
+    }
+
+    pub fn line_column_span(&self, span: Span) -> (LineColumn, LineColumn) {
+        (self.line_column(span.start), self.line_column(span.end))
+    }
+
+    pub fn line_span(&self, position: Offset) -> Span {
+        let (i, start) = match self.lines.binary_search_by_key(&position, |l| l.start) {
+            Ok(line0) => (line0, self.lines[line0].start),
+            Err(next_line0) => (next_line0 - 1, self.lines[next_line0 - 1].start),
+        };
+
+        let end = match self.lines.get(i + 1) {
+            Some(line0) => line0.start,
+            None => self.end_offset,
+        };
+
+        Span { start, end }
     }
 }

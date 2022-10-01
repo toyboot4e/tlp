@@ -65,19 +65,7 @@ impl ExprData {
     }
 }
 
-macro_rules! impl_from {
-    ( $ty:ty = $( $ty_from:ident )|* ; ) => {
-        $(
-            impl From<$ty_from> for $ty {
-                fn from(x: $ty_from) -> $ty {
-                    Self::$ty_from(x)
-                }
-            }
-        )*
-    }
-}
-
-impl_from! {
+crate::util::enum_impl_from! {
     ExprData = Block | Let | Call | Literal | Path;
 }
 
