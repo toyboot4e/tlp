@@ -21,7 +21,7 @@ crate::util::define_enum! {
     #[derive(Debug, Clone)]
     pub TypeDiagnostic =
         | MissingParamType | MismatchedTypes
-        | WrongArgTypes | WrongOpArgTypes
+        | WrongArgTypes | IncompatibleOpArgTypes
         | CannotFindTypeInScope | CannotFindValueInScope
         ;
 }
@@ -32,7 +32,7 @@ impl diag::Diagnostic for TypeDiagnostic {
             TypeDiagnostic::MissingParamType(_) => "E0000",
             TypeDiagnostic::MismatchedTypes(_) => "E0001",
             TypeDiagnostic::WrongArgTypes(_) => "E0002",
-            TypeDiagnostic::WrongOpArgTypes(_) => "E0002",
+            TypeDiagnostic::IncompatibleOpArgTypes(_) => "E0002",
             TypeDiagnostic::CannotFindTypeInScope(_) => "E0020",
             TypeDiagnostic::CannotFindValueInScope(_) => "E0021",
         }
@@ -47,7 +47,7 @@ impl diag::Diagnostic for TypeDiagnostic {
             TypeDiagnostic::MissingParamType(_) => "missing parameter type",
             TypeDiagnostic::MismatchedTypes(_) => "mismatched types",
             TypeDiagnostic::WrongArgTypes(_) => "wrong argument types",
-            TypeDiagnostic::WrongOpArgTypes(_) => "wrong operator argument types",
+            TypeDiagnostic::IncompatibleOpArgTypes(_) => "incompatible operator argument types",
             TypeDiagnostic::CannotFindTypeInScope(_) => "cannot find type in scope",
             TypeDiagnostic::CannotFindValueInScope(_) => "cannot find value in scope",
         }
@@ -76,7 +76,7 @@ impl TypeDiagnostic {
                 diag::line(db, self, input_file, *span)
             }
             TypeDiagnostic::WrongArgTypes(_x) => todo!(),
-            TypeDiagnostic::WrongOpArgTypes(x) => {
+            TypeDiagnostic::IncompatibleOpArgTypes(x) => {
                 let span = body_spans[x.op_expr].as_ref().unwrap();
                 // TODO: show sub diagnostics
                 diag::line(db, self, input_file, *span)
@@ -110,7 +110,7 @@ pub struct WrongArgTypes {
 }
 
 #[derive(Debug, Clone)]
-pub struct WrongOpArgTypes {
+pub struct IncompatibleOpArgTypes {
     pub op_expr: Expr,
     /// First typed expression that is used for detecting the type mistmatch
     pub first_expr: Expr,

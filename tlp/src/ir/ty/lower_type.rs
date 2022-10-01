@@ -537,7 +537,7 @@ impl<'db, 'map> Infer<'db, 'map> {
         if let Some((first_expr, mismatch)) = self.unify_same_types(&call_op.args) {
             TypeDiagnostics::push(
                 self.db,
-                WrongOpArgTypes {
+                IncompatibleOpArgTypes {
                     op_expr: call_op.op_expr,
                     first_expr,
                     mismatch,
