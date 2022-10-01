@@ -1,9 +1,7 @@
 //! Runs given file
 
 use std::{
-    env,
-    fmt::{self, Write as _},
-    fs,
+    env, fmt, fs,
     io::{self, Write as _},
     path::PathBuf,
 };

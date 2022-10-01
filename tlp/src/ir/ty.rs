@@ -113,11 +113,35 @@ pub enum TypeData {
     Proc(ProcType),
 }
 
+impl TypeData {
+    // TODO: maybe move to `Expr` so that we have access to proc?
+    pub fn type_name(&self, db: &dyn IrDb) -> &str {
+        match self {
+            Self::Unknown => "<unknown>",
+            Self::Stmt => "<stmt>",
+            Self::Primitive(x) => x.type_name(),
+            Self::Op(x) => x.type_name(),
+            Self::Proc(x) => "<FIXME: proc type>",
+        }
+    }
+}
+
 // Builtin operator (function) type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OpType {
     pub kind: expr::OpKind,
     pub operand_ty: OpOperandType,
+}
+
+impl OpType {
+    pub fn type_name(&self) -> &str {
+        match self.operand_ty {
+            OpOperandType::I32 => "i32",
+            OpOperandType::F32 => "f32",
+            OpOperandType::Bool => "bool",
+            OpOperandType::Unknown => "<unknown>",
+        }
+    }
 }
 
 /// Builtin operators
@@ -170,6 +194,14 @@ impl PrimitiveType {
         };
 
         Some(ty)
+    }
+
+    pub fn type_name(&self) -> &str {
+        match self {
+            Self::I32 => "i32",
+            Self::F32 => "f32",
+            Self::Bool => "bool",
+        }
     }
 }
 

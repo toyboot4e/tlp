@@ -9,7 +9,7 @@ use crate::{
         ty::Ty,
         IrDb, IrJar,
     },
-    util::diag::{self, MsgSpan, Diagnostic},
+    util::diag::{self, Diagnostic, MsgSpan},
 };
 
 /// Type diagnostics for a procedure
@@ -63,31 +63,45 @@ impl TypeDiagnostic {
         body_spans: &BodySpans,
     ) -> diag::Render<'a> {
         match self {
-            TypeDiagnostic::MissingParamType(x) => {
+            TypeDiagnostic::MissingParamType(_x) => {
                 todo!()
             }
             TypeDiagnostic::MismatchedTypes(x) => {
                 let x = &x.mismatch;
-                let span = *body_spans[x.actual_expr].as_ref().unwrap();
-                let msg_span = MsgSpan::new(span, self.msg());
-                diag::line(db, self, input_file, msg_span)
+                let main_span = body_spans.get(x.actual_expr).unwrap();
+                let main_msg = MsgSpan::new(main_span, self.msg().to_string());
+                diag::main_msg(db, self, input_file, main_msg)
             }
             TypeDiagnostic::WrongArgTypes(_x) => todo!(),
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
-                let span = *body_spans[x.op_expr].as_ref().unwrap();
-                let msg_span = MsgSpan::new(span, self.msg());
-                // TODO: show sub diagnostics
-                diag::line(db, self, input_file, msg_span)
+                let main_span = body_spans.get(x.op_expr).unwrap();
+
+                let sub_msgs = vec![
+                    MsgSpan {
+                        span: body_spans.get(x.first_expr).unwrap(),
+                        msg: "expected because of this argument".to_string(),
+                    },
+                    MsgSpan {
+                        span: body_spans.get(x.mismatch.actual_expr).unwrap(),
+                        msg: format!(
+                            "expected `{}`, found `{}`",
+                            x.mismatch.expected_ty.data(db).type_name(db),
+                            x.mismatch.actual_ty.data(db).type_name(db),
+                        ),
+                    },
+                ];
+
+                diag::sub_msgs(db, self, input_file, main_span, sub_msgs)
             }
             TypeDiagnostic::CannotFindTypeInScope(x) => {
-                let span = *body_spans[x.expr].as_ref().unwrap();
-                let msg_span = MsgSpan::new(span, self.msg());
-                diag::line(db, self, input_file, msg_span)
+                let main_span = body_spans.get(x.expr).unwrap();
+                let main_msg = MsgSpan::new(main_span, self.msg().to_string());
+                diag::main_msg(db, self, input_file, main_msg)
             }
             TypeDiagnostic::CannotFindValueInScope(x) => {
-                let span = *body_spans[x.expr].as_ref().unwrap();
-                let msg_span = MsgSpan::new(span, self.msg());
-                diag::line(db, self, input_file, msg_span)
+                let main_span = *body_spans[x.expr].as_ref().unwrap();
+                let main_msg = MsgSpan::new(main_span, self.msg().to_string());
+                diag::main_msg(db, self, input_file, main_msg)
             }
         }
     }
@@ -138,4 +152,3 @@ pub struct TypeMismatch {
     pub actual_expr: Expr,
     pub actual_ty: Ty,
 }
-
