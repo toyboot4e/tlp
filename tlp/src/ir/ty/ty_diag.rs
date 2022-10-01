@@ -9,7 +9,7 @@ use crate::{
         ty::Ty,
         IrDb, IrJar,
     },
-    util::diag,
+    util::diag::{self, MsgSpan, Diagnostic},
 };
 
 /// Type diagnostics for a procedure
@@ -52,10 +52,6 @@ impl diag::Diagnostic for TypeDiagnostic {
             TypeDiagnostic::CannotFindValueInScope(_) => "cannot find value in scope",
         }
     }
-
-    fn reason(&self) -> &str {
-        self.msg()
-    }
 }
 
 impl TypeDiagnostic {
@@ -72,22 +68,26 @@ impl TypeDiagnostic {
             }
             TypeDiagnostic::MismatchedTypes(x) => {
                 let x = &x.mismatch;
-                let span = body_spans[x.actual_expr].as_ref().unwrap();
-                diag::line(db, self, input_file, *span)
+                let span = *body_spans[x.actual_expr].as_ref().unwrap();
+                let msg_span = MsgSpan::new(span, self.msg());
+                diag::line(db, self, input_file, msg_span)
             }
             TypeDiagnostic::WrongArgTypes(_x) => todo!(),
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
-                let span = body_spans[x.op_expr].as_ref().unwrap();
+                let span = *body_spans[x.op_expr].as_ref().unwrap();
+                let msg_span = MsgSpan::new(span, self.msg());
                 // TODO: show sub diagnostics
-                diag::line(db, self, input_file, *span)
+                diag::line(db, self, input_file, msg_span)
             }
             TypeDiagnostic::CannotFindTypeInScope(x) => {
-                let span = body_spans[x.expr].as_ref().unwrap();
-                diag::line(db, self, input_file, *span)
+                let span = *body_spans[x.expr].as_ref().unwrap();
+                let msg_span = MsgSpan::new(span, self.msg());
+                diag::line(db, self, input_file, msg_span)
             }
             TypeDiagnostic::CannotFindValueInScope(x) => {
-                let span = body_spans[x.expr].as_ref().unwrap();
-                diag::line(db, self, input_file, *span)
+                let span = *body_spans[x.expr].as_ref().unwrap();
+                let msg_span = MsgSpan::new(span, self.msg());
+                diag::line(db, self, input_file, msg_span)
             }
         }
     }
