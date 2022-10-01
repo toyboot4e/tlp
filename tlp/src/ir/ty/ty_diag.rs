@@ -4,12 +4,15 @@ use std::fmt;
 
 use salsa::DebugWithDb;
 
-use crate::{util::diag, ir::{
-    body::{expr::Expr, expr_debug::DebugContext},
-    item,
-    ty::Ty,
-    IrJar,
-}};
+use crate::{
+    ir::{
+        body::{expr::Expr, expr_debug::DebugContext},
+        item,
+        ty::Ty,
+        IrJar,
+    },
+    util::diag,
+};
 
 /// Type diagnostics for a procedure
 #[salsa::accumulator(jar = IrJar)]
@@ -18,15 +21,16 @@ pub struct TypeDiagnostics(TypeDiagnostic);
 crate::util::define_enum! {
     /// Type diagnostic for a procedure
     #[derive(Debug, Clone)]
-    pub TypeDiagnostic = MissingParamType | TypeMismatch | CantResolve;
+    pub TypeDiagnostic = MissingParamType | MismatchedTypes | CannotFindTypeInScope | CannotFindValueInScope;
 }
 
 impl diag::Diagnostic for TypeDiagnostic {
     fn code(&self) -> &str {
         match self {
             TypeDiagnostic::MissingParamType(_) => "E0000",
-            TypeDiagnostic::TypeMismatch(_) => "E0001",
-            TypeDiagnostic::CantResolve(_) => "E0002",
+            TypeDiagnostic::MismatchedTypes(_) => "E0001",
+            TypeDiagnostic::CannotFindTypeInScope(_) => "E0002",
+            TypeDiagnostic::CannotFindValueInScope(_) => "E0003",
         }
     }
 
@@ -37,9 +41,14 @@ impl diag::Diagnostic for TypeDiagnostic {
     fn msg(&self) -> &str {
         match self {
             TypeDiagnostic::MissingParamType(_) => "missing parameter type",
-            TypeDiagnostic::TypeMismatch(_) => "type mismatch",
-            TypeDiagnostic::CantResolve(_) => "can't resolve path",
+            TypeDiagnostic::MismatchedTypes(_) => "mismatched types",
+            TypeDiagnostic::CannotFindTypeInScope(_) => "cannot find type in scope",
+            TypeDiagnostic::CannotFindValueInScope(_) => "cannot find value in scope",
         }
+    }
+
+    fn reason(&self) -> &str {
+        self.msg()
     }
 }
 
@@ -49,33 +58,32 @@ pub struct MissingParamType {
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeMismatch {
+pub struct MismatchedTypes {
     pub expr: Expr,
     pub expected: Ty,
     pub actual: Ty,
     // why:
 }
 
+#[derive(Debug, Clone)]
+pub struct OpArgTypeMismatch {
+    pub first_expr: Expr,
+    pub expr: Expr,
+    pub expected_ty: Ty,
+    pub actual_ty: Ty,
+}
+
 // /// Type mismatch of branches
 // pub struct IncompatibleTypes {
 
 #[derive(Debug, Clone)]
-pub struct CantResolve {
+pub struct CannotFindTypeInScope {
     pub expr: Expr,
 }
 
-impl TypeDiagnostic {
-    pub fn severity(&self) -> diag::Severity {
-        diag::Severity::Error
-    }
-
-    pub fn msg(&self) -> &str {
-        match self {
-            TypeDiagnostic::MissingParamType(_) => "missing parameter type",
-            TypeDiagnostic::TypeMismatch(_) => "type mismatch",
-            TypeDiagnostic::CantResolve(_) => "can't resolve",
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct CannotFindValueInScope {
+    pub expr: Expr,
 }
 
 impl DebugWithDb<DebugContext<'_>> for TypeDiagnostic {
@@ -95,19 +103,26 @@ impl DebugWithDb<DebugContext<'_>> for TypeDiagnostic {
                     x.param.debug_with(dcx, all_fields)
                 )?;
             }
-            Self::TypeMismatch(x) => {
+            Self::MismatchedTypes(x) => {
                 write!(
                     f,
-                    "TypeMismatch {{ expr: {:?}, expected: {:?}, actual: {:?} }}",
+                    "MismatchedTypes {{ expr: {:?}, expected: {:?}, actual: {:?} }}",
                     x.expr.debug_with(dcx, all_fields),
                     x.expected.debug_with(dcx.db(), all_fields),
                     x.actual.debug_with(dcx.db(), all_fields),
                 )?;
             }
-            Self::CantResolve(x) => {
+            Self::CannotFindTypeInScope(x) => {
                 write!(
                     f,
-                    "CantResolve {{ param: {:?} }}",
+                    "CantResolveType {{ param: {:?} }}",
+                    x.expr.debug_with(dcx, all_fields),
+                )?;
+            }
+            Self::CannotFindValueInScope(x) => {
+                write!(
+                    f,
+                    "CantResolveValue {{ param: {:?} }}",
                     x.expr.debug_with(dcx, all_fields),
                 )?;
             }

@@ -12,7 +12,7 @@ use base::jar::InputFile;
 
 use tlp::{
     ir::{item, ty::ty_diag::TypeDiagnostic, InputFileExt, IrDb},
-    util::diag,
+    util::diag::{self, Diagnostic},
     vm::UnitVariant,
     Db,
 };
@@ -92,8 +92,9 @@ fn print_diagnostics<'a>(
             TypeDiagnostic::MissingParamType(x) => {
                 todo!()
             }
-            TypeDiagnostic::TypeMismatch(x) => &body_spans[x.expr],
-            TypeDiagnostic::CantResolve(x) => &body_spans[x.expr],
+            TypeDiagnostic::MismatchedTypes(x) => &body_spans[x.expr],
+            TypeDiagnostic::CannotFindTypeInScope(x) => &body_spans[x.expr],
+            TypeDiagnostic::CannotFindValueInScope(x) => &body_spans[x.expr],
         }
         .as_ref()
         .unwrap();

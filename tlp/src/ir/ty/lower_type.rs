@@ -291,7 +291,7 @@ impl<'db> Collect<'db> {
                     return;
                 } else {
                     // path to nothing
-                    let diag = CantResolve { expr };
+                    let diag = CannotFindValueInScope { expr };
                     TypeDiagnostics::push(self.db, diag.into());
                     WipTypeData::Ty(self.interned.unknown)
                 }
@@ -396,7 +396,7 @@ impl<'db> Collect<'db> {
                     }
                 }
             } else {
-                let diag = CantResolve { expr: path_expr };
+                let diag = CannotFindValueInScope { expr: path_expr };
                 TypeDiagnostics::push(self.db, diag.into());
             }
         } else {
@@ -606,7 +606,7 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
 
         // TODO: diagnostics
-        let diag = CantResolve { expr: call_expr };
+        let diag = CannotFindValueInScope { expr: call_expr };
         TypeDiagnostics::push(self.db, diag.into());
 
         // infer the unresolved procedure call with best effor
@@ -681,7 +681,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                     return true;
                 }
 
-                let diag = TypeMismatch {
+                let diag = MismatchedTypes {
                     expr,
                     expected,
                     actual: *ty,
@@ -780,7 +780,7 @@ impl<'db, 'map> Infer<'db, 'map> {
         };
 
         if !matches {
-            let diag = TypeMismatch {
+            let diag = MismatchedTypes {
                 expr: e2,
                 expected: t1,
                 actual: t2,

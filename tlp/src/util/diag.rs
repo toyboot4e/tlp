@@ -10,9 +10,12 @@ use crate::ir::IrDb;
 pub const QUOTE: colored::Color = colored::Color::BrightBlue;
 
 pub trait Diagnostic {
+    // [<code]<severity>: msg
     fn code(&self) -> &str;
     fn severity(&self) -> Severity;
     fn msg(&self) -> &str;
+    fn reason(&self) -> &str;
+    //    ^^^^ <reason>
 }
 
 /// Line diagnostic
@@ -45,7 +48,7 @@ pub fn line<'a>(
         column,
         line_text,
         line_span,
-        reason: "type mismatch",
+        reason: diag.reason(),
     }
 }
 
