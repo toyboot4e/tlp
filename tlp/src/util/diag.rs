@@ -1,5 +1,7 @@
 //! Diagnostic rendering
 
+use std::fmt;
+
 use base::{jar::InputFile, span::Span};
 use colored::Colorize;
 
@@ -92,16 +94,16 @@ pub struct Line<'a> {
     pub reason: &'a str,
 }
 
-impl<'a> Line<'a> {
-    pub fn print(&self) {
-        // TODO: Don't use `println` (don't flush a lot)
+impl<'a> fmt::Display for Line<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let code = format!("{}[{}]", self.severity.as_str(), self.code);
-        println!(
+        writeln!(
+            f,
             "{}: {}",
             code.color(self.severity.color()).bold(),
             self.msg.bold()
-        );
-        println!("  --> {}:{}:{}", self.src_file, self.line, self.column);
+        )?;
+        writeln!(f, "  --> {}:{}:{}", self.src_file, self.line, self.column)?;
 
         let n_digits = self::n_digits(self.line);
         let indent = " ".repeat(n_digits);
@@ -109,17 +111,22 @@ impl<'a> Line<'a> {
         let vbar = "|".color(QUOTE).bold();
         let line = format!("{}", self.line);
 
-        println!("{indent} {vbar}");
-        println!("{} {vbar} {}", line.color(QUOTE).bold(), self.line_text);
-        println!(
+        writeln!(f, "{indent} {vbar}")?;
+        writeln!(f, "{} {vbar} {}", line.color(QUOTE).bold(), self.line_text)?;
+        writeln!(
+            f,
             "{indent} {vbar} {} {}",
             self.reason_range_string()
                 .color(self.severity.color())
                 .bold(),
             self.reason.color(self.severity.color()).bold(),
-        );
-    }
+        )?;
 
+        Ok(())
+    }
+}
+
+impl<'a> Line<'a> {
     fn reason_range_string(&self) -> String {
         let mut s = String::new();
 

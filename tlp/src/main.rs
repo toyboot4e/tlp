@@ -2,8 +2,9 @@
 
 use std::{
     env,
-    fmt::{self, Write},
+    fmt::{self, Write as _},
     fs,
+    io::{self, Write as _},
     path::PathBuf,
 };
 
@@ -30,17 +31,29 @@ fn main() {
 
     let items = main_file.items(&db);
 
+    // TODO: don't count warnings
+    let mut any_error = false;
+
+    let out = io::stdout();
+    let mut out = out.lock();
+
     for item in items {
         if let item::Item::Proc(proc) = item {
             let diags = proc.param_ty_diags(&db);
-            self::print_diagnostics(&db, diags.iter(), *proc, main_file);
+            any_error |= self::print_diagnostics(&mut out, &db, &diags, *proc, main_file).unwrap();
 
             let diags = proc.body_ty_diags(&db);
-            self::print_diagnostics(&db, diags.iter(), *proc, main_file);
+            any_error |= self::print_diagnostics(&mut out, &db, &diags, *proc, main_file).unwrap();
         }
     }
 
-    self::print_errors(&errs, &src, "compile error");
+    any_error |= !errs.is_empty();
+    self::print_errors(&mut out, &errs, &src, "compile error");
+    out.flush().unwrap();
+
+    if any_error {
+        std::process::exit(1);
+    }
 
     // TODO: search main proc
     let proc = tlp::vm::VmProcId(0);
@@ -57,15 +70,24 @@ fn main() {
     }
 }
 
+/// Returns true on any error
 fn print_diagnostics<'a>(
+    out: &mut impl io::Write,
     db: &dyn IrDb,
-    diags: impl Iterator<Item = &'a TypeDiagnostic>,
+    diags: &'a [TypeDiagnostic],
     proc: item::Proc,
     input_file: InputFile,
-) {
+) -> io::Result<bool> {
+    if diags.is_empty() {
+        return Ok(false);
+    };
+
+    let mut any_error = false;
     let body_spans = proc.body(db).spans(db);
 
     for diag in diags {
+        any_error |= diag.severity() == diag::Severity::Error;
+
         let span = match diag {
             TypeDiagnostic::MissingParamType(x) => {
                 todo!()
@@ -76,23 +98,26 @@ fn print_diagnostics<'a>(
         .as_ref()
         .unwrap();
 
-        diag::line(db, diag, input_file, *span).print();
+        writeln!(out, "{}", diag::line(db, diag, input_file, *span))?;
     }
+
+    Ok(any_error)
 }
 
-fn print_errors(errs: &[impl fmt::Display], src: impl fmt::Display, header: impl ToString) {
+fn print_errors(
+    out: &mut impl io::Write,
+    errs: &[impl fmt::Display],
+    src: impl fmt::Display,
+    header: impl ToString,
+) {
     if errs.is_empty() {
         return;
     }
 
-    let mut s = String::new();
-
-    writeln!(s, "{}", header.to_string()).unwrap();
-    writeln!(s, "test code: {}", src).unwrap();
-    writeln!(s, "errors:").unwrap();
+    writeln!(out, "{}", header.to_string()).unwrap();
+    writeln!(out, "test code: {}", src).unwrap();
+    writeln!(out, "errors:").unwrap();
     for e in errs {
-        writeln!(s, "- {} ", e).unwrap();
+        writeln!(out, "- {} ", e).unwrap();
     }
-
-    panic!("{}", s);
 }
