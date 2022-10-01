@@ -461,24 +461,24 @@ impl<'db, 'map> Infer<'db, 'map> {
             ExprData::And(and) => {
                 and.exprs.iter().for_each(|&expr| {
                     self.infer_expr(expr);
-                    self.unify_expected_expr(expr, self.interned.bool_);
+                    self.unify_bool_expr(expr);
                 });
             }
             ExprData::Or(or) => {
                 or.exprs.iter().for_each(|&expr| {
                     self.infer_expr(expr);
-                    self.unify_expected_expr(expr, self.interned.bool_);
+                    self.unify_bool_expr(expr);
                 });
             }
             ExprData::When(when) => {
                 self.infer_expr(when.pred);
-                self.unify_expected_expr(when.pred, self.interned.bool_);
+                self.unify_bool_expr(when.pred);
 
                 self.infer_expr(when.block);
             }
             ExprData::Unless(unless) => {
                 self.infer_expr(unless.pred);
-                self.unify_expected_expr(unless.pred, self.interned.bool_);
+                self.unify_bool_expr(unless.pred);
 
                 self.infer_expr(unless.block);
             }
@@ -486,7 +486,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                 // infer predicates
                 for case in &cond.cases {
                     self.infer_expr(case.pred);
-                    self.unify_expected_expr(case.pred, self.interned.bool_);
+                    self.unify_bool_expr(case.pred);
                 }
 
                 if !cond.can_be_expr {
@@ -499,7 +499,10 @@ impl<'db, 'map> Infer<'db, 'map> {
 
                 // infer and unify block types
                 let exprs = cond.cases.iter().map(|case| case.block).collect::<Vec<_>>();
-                self.infer_and_unify_same_types(&exprs);
+                exprs.iter().for_each(|e| self.infer_expr(*e));
+                if let Some((_expr, _mismatch)) = self.unify_same_types(&exprs) {
+                    todo!("report cond case type mismatch");
+                }
 
                 // FIXME: Get unified type and use it for the cond's type
                 let wip_ty_data = if let Some(case) = cond.cases.first() {
@@ -518,7 +521,7 @@ impl<'db, 'map> Infer<'db, 'map> {
             }
             ExprData::While(while_) => {
                 self.infer_expr(while_.pred);
-                self.unify_expected_expr(while_.pred, self.interned.bool_);
+                self.unify_bool_expr(while_.pred);
                 self.infer_expr(while_.block);
             }
             ExprData::Set(set) => {
@@ -530,7 +533,18 @@ impl<'db, 'map> Infer<'db, 'map> {
     }
 
     fn infer_builtin_op(&mut self, call_op_expr: Expr, call_op: &expr::CallOp) {
-        self.infer_and_unify_same_types(&call_op.args);
+        call_op.args.iter().for_each(|e| self.infer_expr(*e));
+        if let Some((first_expr, mismatch)) = self.unify_same_types(&call_op.args) {
+            TypeDiagnostics::push(
+                self.db,
+                WrongOpArgTypes {
+                    op_expr: call_op.op_expr,
+                    first_expr,
+                    mismatch,
+                }
+                .into(),
+            );
+        }
 
         let operand_ty = call_op
             .args
@@ -539,7 +553,7 @@ impl<'db, 'map> Infer<'db, 'map> {
                 let index = self.expr_types[expr];
                 let ty = &self.types[index];
                 let ty_data = match ty {
-                    WipTypeData::Var => return None,
+                    WipTypeData::Var => unreachable!("not infferd type?"),
                     WipTypeData::Ty(ty) => ty.data(self.db),
                 };
                 ty::OpOperandType::from_type_data(ty_data)
@@ -639,7 +653,10 @@ impl<'db, 'map> Infer<'db, 'map> {
             let param_ty = proc_ty.param_tys[i];
             let arg_expr = call.args[i];
 
-            fail |= self.unify_expected_expr(arg_expr, param_ty);
+            if let Some(_mismatch) = self.unify_expected_expr(arg_expr, param_ty) {
+                fail = true;
+                todo!("handle arg type mismatch");
+            }
         }
 
         !fail
@@ -663,33 +680,42 @@ impl<'db, 'map> Infer<'db, 'map> {
     //     todo!()
     // }
 
-    pub fn unify_expected_expr(&mut self, expr: Expr, expected: Ty) -> bool {
+    pub fn unify_expected_expr(&mut self, expr: Expr, expected_ty: Ty) -> Option<TypeMismatch> {
         let ty_index = self.expr_types[&expr];
         let wip_ty = &self.types[ty_index];
 
         match wip_ty {
             WipTypeData::Var => {
-                self.types[ty_index] = WipTypeData::Ty(expected.clone());
-                true
+                self.types[ty_index] = WipTypeData::Ty(expected_ty.clone());
+                None
             }
             WipTypeData::Ty(ty) => {
                 let ty_data = ty.data(self.db);
-                let expected_data = expected.data(self.db);
+                let expected_data = expected_ty.data(self.db);
 
                 // TODO: consider comparing by ID
                 if ty_data == expected_data {
-                    return true;
+                    return None;
                 }
 
-                let diag = MismatchedTypes {
-                    expr,
-                    expected,
-                    actual: *ty,
-                };
-                TypeDiagnostics::push(self.db, diag.into());
-
-                false
+                Some(TypeMismatch {
+                    expected_ty,
+                    actual_expr: expr,
+                    actual_ty: *ty,
+                })
             }
+        }
+    }
+
+    /// Returns true on success
+    pub fn unify_bool_expr(&mut self, expr: Expr) -> bool {
+        let expected_ty = self.interned.bool_;
+        if let Some(mismatch) = self.unify_expected_expr(expr, expected_ty) {
+            let diag = MismatchedTypes { mismatch };
+            TypeDiagnostics::push(self.db, diag.into());
+            false
+        } else {
+            true
         }
     }
 
@@ -724,26 +750,27 @@ impl<'db, 'map> Infer<'db, 'map> {
         }
     }
 
-    pub fn infer_and_unify_same_types(&mut self, exprs: &[Expr]) -> bool {
-        // infer all the expressions
-        exprs.iter().for_each(|&expr| {
-            self.infer_expr(expr);
-        });
-
+    /// Be sure to infer first
+    ///
+    /// Returns the first type expression and the first mismatch information if any.
+    pub fn unify_same_types(&mut self, exprs: &[Expr]) -> Option<(Expr, TypeMismatch)> {
         // the first unknown type of the branches is used as the expected type:
-        let (expected_expr, expected_ty) = match exprs.iter().find_map(|&expr| {
+        let (expected_expr, expected_ty) = exprs.iter().find_map(|&expr| {
             let wip_ty = &self.types[self.expr_types[&expr]];
-            wip_ty
-                .ty()
-                .filter(|&&ty| ty != self.interned.unknown)
-                .map(|&ty| (expr, ty))
-        }) {
-            Some(x) => x,
-            None => return false,
-        };
 
-        // unify
-        let mut all_match = true;
+            let ty = match wip_ty {
+                WipTypeData::Var => {
+                    panic!("not inferred on unification: {:?}", wip_ty.debug(self.db),)
+                }
+                WipTypeData::Ty(ty) => *ty,
+            };
+
+            if ty == self.interned.unknown {
+                None
+            } else {
+                Some((expr, ty))
+            }
+        })?;
 
         for &expr in exprs {
             if expr == expected_expr {
@@ -752,17 +779,19 @@ impl<'db, 'map> Infer<'db, 'map> {
 
             let ty_index = self.expr_types[&expr];
             let wip_ty = &self.types[ty_index];
+            let ty = *wip_ty.ty().unwrap();
 
-            match wip_ty {
-                // if the type is unknown, there's already some error emitted so skip
-                WipTypeData::Ty(ty) if *ty == self.interned.unknown => continue,
-                _ => {}
+            if ty == self.interned.unknown {
+                continue;
             }
 
-            all_match &= self.unify_expected_expr(expr, expected_ty);
+            // unify, but without
+            if let Some(mismatch) = self.unify_expected_expr(expr, expected_ty) {
+                return Some((expected_expr, mismatch));
+            }
         }
 
-        all_match
+        None
     }
 
     /// Compares two known types
@@ -781,9 +810,11 @@ impl<'db, 'map> Infer<'db, 'map> {
 
         if !matches {
             let diag = MismatchedTypes {
-                expr: e2,
-                expected: t1,
-                actual: t2,
+                mismatch: TypeMismatch {
+                    expected_ty: t1,
+                    actual_expr: e2,
+                    actual_ty: t2,
+                },
             };
             TypeDiagnostics::push(self.db, diag.into());
         }

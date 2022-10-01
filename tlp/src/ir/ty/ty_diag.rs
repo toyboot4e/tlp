@@ -19,7 +19,11 @@ pub struct TypeDiagnostics(TypeDiagnostic);
 crate::util::define_enum! {
     /// Type diagnostic for a procedure
     #[derive(Debug, Clone)]
-    pub TypeDiagnostic = MissingParamType | MismatchedTypes | WrongArgTypes | CannotFindTypeInScope | CannotFindValueInScope;
+    pub TypeDiagnostic =
+        | MissingParamType | MismatchedTypes
+        | WrongArgTypes | WrongOpArgTypes
+        | CannotFindTypeInScope | CannotFindValueInScope
+        ;
 }
 
 impl diag::Diagnostic for TypeDiagnostic {
@@ -28,6 +32,7 @@ impl diag::Diagnostic for TypeDiagnostic {
             TypeDiagnostic::MissingParamType(_) => "E0000",
             TypeDiagnostic::MismatchedTypes(_) => "E0001",
             TypeDiagnostic::WrongArgTypes(_) => "E0002",
+            TypeDiagnostic::WrongOpArgTypes(_) => "E0002",
             TypeDiagnostic::CannotFindTypeInScope(_) => "E0020",
             TypeDiagnostic::CannotFindValueInScope(_) => "E0021",
         }
@@ -42,6 +47,7 @@ impl diag::Diagnostic for TypeDiagnostic {
             TypeDiagnostic::MissingParamType(_) => "missing parameter type",
             TypeDiagnostic::MismatchedTypes(_) => "mismatched types",
             TypeDiagnostic::WrongArgTypes(_) => "wrong argument types",
+            TypeDiagnostic::WrongOpArgTypes(_) => "wrong operator argument types",
             TypeDiagnostic::CannotFindTypeInScope(_) => "cannot find type in scope",
             TypeDiagnostic::CannotFindValueInScope(_) => "cannot find value in scope",
         }
@@ -65,10 +71,16 @@ impl TypeDiagnostic {
                 todo!()
             }
             TypeDiagnostic::MismatchedTypes(x) => {
-                let span = body_spans[x.expr].as_ref().unwrap();
+                let x = &x.mismatch;
+                let span = body_spans[x.actual_expr].as_ref().unwrap();
                 diag::line(db, self, input_file, *span)
             }
             TypeDiagnostic::WrongArgTypes(_x) => todo!(),
+            TypeDiagnostic::WrongOpArgTypes(x) => {
+                let span = body_spans[x.op_expr].as_ref().unwrap();
+                // TODO: show sub diagnostics
+                diag::line(db, self, input_file, *span)
+            }
             TypeDiagnostic::CannotFindTypeInScope(x) => {
                 let span = body_spans[x.expr].as_ref().unwrap();
                 diag::line(db, self, input_file, *span)
@@ -88,16 +100,21 @@ pub struct MissingParamType {
 
 #[derive(Debug, Clone)]
 pub struct MismatchedTypes {
-    pub expr: Expr,
-    pub expected: Ty,
-    pub actual: Ty,
-    // why:
+    pub mismatch: TypeMismatch,
 }
 
 #[derive(Debug, Clone)]
 pub struct WrongArgTypes {
     pub proc: Expr,
     pub wrong_args: Vec<(Expr, Ty)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WrongOpArgTypes {
+    pub op_expr: Expr,
+    /// First typed expression that is used for detecting the type mistmatch
+    pub first_expr: Expr,
+    pub mismatch: TypeMismatch,
 }
 
 #[derive(Debug, Clone)]
@@ -109,3 +126,16 @@ pub struct CannotFindTypeInScope {
 pub struct CannotFindValueInScope {
     pub expr: Expr,
 }
+
+// --------------------------------------------------------------------------------
+// Components
+// --------------------------------------------------------------------------------
+
+/// Type mismatch information
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeMismatch {
+    pub expected_ty: Ty,
+    pub actual_expr: Expr,
+    pub actual_ty: Ty,
+}
+

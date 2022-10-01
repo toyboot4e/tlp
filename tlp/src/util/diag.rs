@@ -212,55 +212,6 @@ pub fn line<'a>(
     }
 }
 
-pub struct Line<'a> {
-    // <severity>[code]: <msg>
-    pub code: &'a str,
-    pub severity: Severity,
-    pub msg: &'a str,
-    // --> <src_file>
-    pub src_file: &'a str,
-    //            |
-    // <ln>:<col> | <line_text>
-    //            |    ^^^^ <reason>
-    pub line: usize,
-    pub column: usize,
-    pub line_text: &'a str,
-    pub line_span: Span,
-    pub reason: &'a str,
-}
-
-impl<'a> fmt::Display for Line<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let code = format!("{}[{}]", self.severity.as_str(), self.code);
-        writeln!(
-            f,
-            "{}: {}",
-            code.color(self.severity.color()).bold(),
-            self.msg.bold()
-        )?;
-        writeln!(f, "  --> {}:{}:{}", self.src_file, self.line, self.column)?;
-
-        let n_digits = self::n_digits(self.line);
-        let indent = " ".repeat(n_digits);
-
-        let vbar = "|".color(QUOTE).bold();
-        let line = format!("{}", self.line);
-
-        writeln!(f, "{indent} {vbar}")?;
-        writeln!(f, "{} {vbar} {}", line.color(QUOTE).bold(), self.line_text)?;
-        writeln!(
-            f,
-            "{indent} {vbar} {} {}",
-            self::reason_range_string(self.line_span)
-                .color(self.severity.color())
-                .bold(),
-            self.reason.color(self.severity.color()).bold(),
-        )?;
-
-        Ok(())
-    }
-}
-
 fn reason_range_string(line_span: Span) -> String {
     let mut s = String::new();
 
