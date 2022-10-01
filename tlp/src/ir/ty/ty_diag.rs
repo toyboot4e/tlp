@@ -4,11 +4,10 @@ use base::jar::InputFile;
 
 use crate::{
     ir::{
-        IrDb,
-        body::{expr::Expr,BodySpans, expr_debug::DebugContext},
+        body::{expr::Expr, BodySpans},
         item,
         ty::Ty,
-        IrJar,
+        IrDb, IrJar,
     },
     util::diag,
 };
@@ -54,26 +53,31 @@ impl diag::Diagnostic for TypeDiagnostic {
 }
 
 impl TypeDiagnostic {
-    pub fn render<'db>(
-        &'db self,
-        db: &'db dyn IrDb,
+    pub fn render<'a>(
+        &'a self,
+        db: &'a dyn IrDb,
         input_file: InputFile,
         _proc: item::Proc,
         body_spans: &BodySpans,
-    ) -> diag::Line<'db> {
-        let span = match self {
+    ) -> diag::Render<'a> {
+        match self {
             TypeDiagnostic::MissingParamType(x) => {
                 todo!()
             }
-            TypeDiagnostic::MismatchedTypes(x) => &body_spans[x.expr],
+            TypeDiagnostic::MismatchedTypes(x) => {
+                let span = body_spans[x.expr].as_ref().unwrap();
+                diag::line(db, self, input_file, *span)
+            }
             TypeDiagnostic::WrongArgTypes(_x) => todo!(),
-            TypeDiagnostic::CannotFindTypeInScope(x) => &body_spans[x.expr],
-            TypeDiagnostic::CannotFindValueInScope(x) => &body_spans[x.expr],
+            TypeDiagnostic::CannotFindTypeInScope(x) => {
+                let span = body_spans[x.expr].as_ref().unwrap();
+                diag::line(db, self, input_file, *span)
+            }
+            TypeDiagnostic::CannotFindValueInScope(x) => {
+                let span = body_spans[x.expr].as_ref().unwrap();
+                diag::line(db, self, input_file, *span)
+            }
         }
-        .as_ref()
-        .unwrap();
-
-        diag::line(db, self, input_file, *span)
     }
 }
 

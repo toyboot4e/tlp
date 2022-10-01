@@ -101,6 +101,7 @@ impl LineTable {
         (self.line_column(span.start), self.line_column(span.end))
     }
 
+    /// Returns the line span containing given `position`, **including newline characters*:
     pub fn line_span(&self, position: Offset) -> Span {
         let (i, start) = match self.lines.binary_search_by_key(&position, |l| l.start) {
             Ok(line0) => (line0, self.lines[line0].start),
