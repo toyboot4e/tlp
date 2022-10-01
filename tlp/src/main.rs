@@ -40,10 +40,10 @@ fn main() {
     for item in items {
         if let item::Item::Proc(proc) = item {
             let diags = proc.param_ty_diags(&db);
-            any_error |= self::print_diagnostics(&mut out, &db, &diags, *proc, main_file).unwrap();
+            any_error |= self::print_diagnostics(&mut out, &db, &diags, main_file, *proc).unwrap();
 
             let diags = proc.body_ty_diags(&db);
-            any_error |= self::print_diagnostics(&mut out, &db, &diags, *proc, main_file).unwrap();
+            any_error |= self::print_diagnostics(&mut out, &db, &diags, main_file, *proc).unwrap();
         }
     }
 
@@ -75,8 +75,8 @@ fn print_diagnostics<'a>(
     out: &mut impl io::Write,
     db: &dyn IrDb,
     diags: &'a [TypeDiagnostic],
-    proc: item::Proc,
     input_file: InputFile,
+    proc: item::Proc,
 ) -> io::Result<bool> {
     if diags.is_empty() {
         return Ok(false);
@@ -87,19 +87,7 @@ fn print_diagnostics<'a>(
 
     for diag in diags {
         any_error |= diag.severity() == diag::Severity::Error;
-
-        let span = match diag {
-            TypeDiagnostic::MissingParamType(x) => {
-                todo!()
-            }
-            TypeDiagnostic::MismatchedTypes(x) => &body_spans[x.expr],
-            TypeDiagnostic::CannotFindTypeInScope(x) => &body_spans[x.expr],
-            TypeDiagnostic::CannotFindValueInScope(x) => &body_spans[x.expr],
-        }
-        .as_ref()
-        .unwrap();
-
-        writeln!(out, "{}", diag::line(db, diag, input_file, *span))?;
+        writeln!(out, "{}", diag.render(db, input_file, proc, body_spans))?;
     }
 
     Ok(any_error)
