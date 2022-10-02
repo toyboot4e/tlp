@@ -54,6 +54,18 @@ impl diag::Diagnostic for TypeDiagnostic {
     }
 }
 
+pub fn eprint_many(
+    db: &dyn IrDb,
+    diags: &[TypeDiagnostic],
+    input_file: InputFile,
+    proc: item::Proc,
+) {
+    let body_spans = proc.body_spans(db);
+    for diag in diags {
+        eprintln!("{}", diag.render(db, input_file, proc, body_spans));
+    }
+}
+
 impl TypeDiagnostic {
     pub fn render<'a>(
         &'a self,
