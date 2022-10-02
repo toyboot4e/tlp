@@ -59,9 +59,12 @@ impl TypeDiagnostic {
         &'a self,
         db: &'a dyn IrDb,
         input_file: InputFile,
-        _proc: item::Proc,
+        proc: item::Proc,
         body_spans: &BodySpans,
     ) -> diag::Render<'a> {
+        // show procedure name
+        let src_context = format!("(in proc `{}`)", proc.name(db).as_str(db.base()));
+
         match self {
             TypeDiagnostic::MissingParamType(_x) => {
                 todo!()
@@ -70,7 +73,7 @@ impl TypeDiagnostic {
                 let x = &x.mismatch;
                 let main_span = body_spans.get(x.actual_expr).unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::primary_msg(db, self, input_file, primary_msg)
+                diag::msg(db, self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::WrongArgTypes(_x) => todo!(),
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
@@ -91,17 +94,17 @@ impl TypeDiagnostic {
                     },
                 ];
 
-                diag::secondary_msgs(db, self, input_file, main_span, sub_msgs)
+                diag::multi_msgs(db, self, input_file, src_context, main_span, sub_msgs)
             }
             TypeDiagnostic::CannotFindTypeInScope(x) => {
                 let main_span = body_spans.get(x.expr).unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::primary_msg(db, self, input_file, primary_msg)
+                diag::msg(db, self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::CannotFindValueInScope(x) => {
                 let main_span = *body_spans[x.expr].as_ref().unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::primary_msg(db, self, input_file, primary_msg)
+                diag::msg(db, self, input_file, src_context, primary_msg)
             }
         }
     }

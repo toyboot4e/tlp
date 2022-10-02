@@ -79,7 +79,7 @@ pub trait Diagnostic {
 ///
 /// ```text
 /// <severity>[code]: <msg>
-/// --> <src_file>:<ln>:<col>
+/// --> <src_file>:<ln>:<col> <src_context>
 /// ```
 #[derive(Debug)]
 pub struct Header<'a> {
@@ -87,16 +87,24 @@ pub struct Header<'a> {
     pub severity: Severity,
     pub msg: &'a str,
     pub src_file: &'a str,
+    /// in procedure `f`
+    pub src_context: String,
     pub ln_col: LineColumn,
 }
 
 impl<'a> Header<'a> {
-    pub fn new(diag: &'a impl Diagnostic, src_file: &'a str, ln_col: LineColumn) -> Self {
+    pub fn new(
+        diag: &'a impl Diagnostic,
+        src_file: &'a str,
+        src_context: String,
+        ln_col: LineColumn,
+    ) -> Self {
         Self {
             code: diag.code(),
             severity: diag.severity(),
             msg: diag.msg(),
             src_file,
+            src_context,
             ln_col,
         }
     }
@@ -108,13 +116,14 @@ impl<'a> fmt::Display for Header<'a> {
 
         writeln!(
             f,
-            "{}: {}\n  {} {}:{}:{}",
+            "{}: {}\n  {} {}:{}:{} {}",
             severity_code.color(self.severity.color()).bold(),
             self.msg.bold(),
             R_ARROW.color(QUOTE),
             self.src_file,
             self.ln_col.line1(),
             self.ln_col.column1(),
+            self.src_context.color(QUOTE),
         )
     }
 }
@@ -206,10 +215,7 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
         let vbar = VBAR.color(QUOTE).bold();
         let vdot = VDOT.color(QUOTE).bold();
 
-        // TODO: add newline space or nto
-        // writeln!(f, "{indent} {vbar}")?;
-
-        // source code
+        // <line> | <line_text>
         let line1 = format!("{}", self.line1);
         let line_text = self.line_span.slice(self.src_text).trim_end();
 
@@ -219,7 +225,7 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
             writeln!(f, "{} {vdot} {}", line1.color(QUOTE).bold(), line_text)?;
         }
 
-        // ranges + last sub message:
+        // markers + last sub message:
         let line_offset = self.line_span.start;
         let last_relative_span = if let Some(primary_span) = self.primary_span {
             //  |  ^
@@ -229,11 +235,12 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
             let carets = "^"
                 .repeat(last_relative_span.len() as usize)
                 .color(self.severity.color());
-            write!(f, "{indent} {vbar} {ws}{}", carets)?;
 
-            // on primary message only:
-            if self.secondary_msgs.is_empty() {
-                writeln!(f, "")?;
+            if !self.secondary_msgs.is_empty() {
+                write!(f, "{indent} {vbar} {ws}{}", carets)?;
+            } else {
+                // primary message only:
+                writeln!(f, "{indent} {vbar} {ws}{}", carets)?;
                 return Ok(());
             }
 
@@ -250,7 +257,7 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
             }
         };
 
-        //     ┌──  ╷  ─────
+        //    ├──  │  ╰───
         self::print_hbar_markers(
             f,
             line_offset,
@@ -272,17 +279,21 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
                 .map(|m| m.span),
         )?;
 
-        // sub messages in preceding lines:
-        //    |  1.0  14
-        // <1>   |    |
-        // <2>   |    expected `f32`, found `i32`
-        // <2>   expected because of this variable
+        if self.secondary_msgs.len() == 1 {
+            return Ok(());
+        }
+
+        // show secondary messages in preceding lines:
+        //       1.0  14
+        // <1>   │    │
+        // <2>   │    ╰──expected `f32`, found `i32`
+        // <2>   ╰── expected because of this variable
 
         // <1>:  |    |
         writeln!(f, "{indent} {vdot} {vbars_string}")?;
 
-        // <2>:  |    └─ <msg>
-        // <2>:  └─ <msg>
+        // <2>:  │    ╰── <msg>
+        // <2>:  ╰─ <msg>
         for i in (0..self.secondary_msgs.len() - 1).rev() {
             let target_msg = &self.secondary_msgs[i];
             let vbars_str = &vbars_string[0..vbars_spans[i].end_ws];
@@ -465,13 +476,15 @@ impl<'a> fmt::Display for Render<'a> {
 }
 
 /// Diagnostic window rendering with a primary message only
-pub fn primary_msg<'a>(
+pub fn msg<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
+    src_context: String,
     primary_msg: MsgSpan,
 ) -> Render<'a> {
-    let (header, line_span, src_text) = self::get(db, diag, input_file, primary_msg.span);
+    let (header, line_span, src_text) =
+        self::get(db, diag, input_file, src_context, primary_msg.span);
 
     let primary_span = PrimaryLineRender {
         severity: diag.severity(),
@@ -488,14 +501,15 @@ pub fn primary_msg<'a>(
 }
 
 /// Diagnostic window rendering with a primary span and secondary messages
-pub fn secondary_msgs<'a>(
+pub fn multi_msgs<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
+    src_context: String,
     primary_span: Span,
     secondary_msgs: Vec<MsgSpan>,
 ) -> Render<'a> {
-    let (header, line_span, src_text) = self::get(db, diag, input_file, primary_span);
+    let (header, line_span, src_text) = self::get(db, diag, input_file, src_context, primary_span);
 
     let ln_tbl = input_file.line_column_table(db.base());
 
@@ -576,12 +590,13 @@ fn get<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
+    src_context: String,
     primary_span: Span,
 ) -> (Header<'a>, Span, &'a str) {
     let src_file = input_file.name(db.base()).as_str(db.base());
     let ln_tbl = input_file.line_column_table(db.base());
     let ln_col = ln_tbl.line_column(primary_span.start);
-    let header = Header::new(diag, src_file, ln_col);
+    let header = Header::new(diag, src_file, src_context, ln_col);
 
     let line_span = ln_tbl.line_span(primary_span.start);
     let src_text = input_file.source_text(db.base());
