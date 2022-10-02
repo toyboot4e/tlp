@@ -1,6 +1,6 @@
 //! Diagnostic rendering
 
-use std::fmt;
+use std::fmt::{self, Write};
 
 use base::{
     jar::InputFile,
@@ -207,55 +207,35 @@ impl<'a> fmt::Display for LineSpanSubs<'a> {
             )?;
         }
 
+        let (vbars_string, vbars_spans) = self::format_bars(
+            line_offset,
+            self.sub_msgs[0..self.sub_msgs.len() - 1]
+                .iter()
+                .map(|m| m.span),
+        )?;
+
         // sub messages in preceding lines:
-        for len in (1..self.sub_msgs.len()).rev() {
-            let (target_msg, prev_msgs) = self.sub_msgs[0..len].split_last().unwrap();
+        //    |  1.0  14
+        // <1>   |    |
+        // <2>   |    expected `f32`, found `i32`
+        // <2>   expected because of this variable
 
-            let last_ds = if len == 1 {
-                // on last message's span
-                Span {
-                    start: line_offset,
-                    end: target_msg.span.start,
-                }
-            } else {
-                let start = self.sub_msgs[len - 1].span.start;
-                // `|` has length of 1
-                Span {
-                    start,
-                    end: start + 1u32,
-                }
-            };
+        // <1>:  |    |
+        writeln!(f, "{indent} {vbar} {vbars_string}")?;
 
-            let last_ds = last_ds - line_offset;
+        // <2>:  |    <msg>
+        // <2>:  <msg>
+        for i in (0..self.sub_msgs.len() - 1).rev() {
+            let target_msg = &self.sub_msgs[i];
 
-            // get one line spacing
-            if len == self.sub_msgs.len() - 1 {
-                write!(f, "{indent} {vbar} ")?;
+            let len = vbars_spans[i].end_ws.into_usize() - line_offset.into_usize();
+            let vbars_slice = &vbars_string[0..len];
 
-                self::print_bars(
-                    f,
-                    line_offset,
-                    last_ds,
-                    prev_msgs.iter().map(|m| m.span),
-                    target_msg.span,
-                )?;
-
-                // `|` for the first message
-                writeln!(f, "{vbar}")?;
-            }
-
-            //   |       | <msg>
-            write!(f, "{indent} {vbar} ")?;
-
-            self::print_bars(
+            writeln!(
                 f,
-                line_offset,
-                last_ds,
-                prev_msgs.iter().map(|m| m.span),
-                target_msg.span,
+                "{indent} {vbar} {vbars_slice}{}",
+                target_msg.msg.color(Color::BrightBlue).bold()
             )?;
-
-            writeln!(f, "{}", target_msg.msg.color(Color::BrightBlue).bold())?;
         }
 
         Ok(())
@@ -283,29 +263,54 @@ fn print_markers(
     Ok(())
 }
 
-///        |     |
-fn print_bars(
-    f: &mut fmt::Formatter<'_>,
+/// Span returned by [`format_bars`]
+#[derive(Debug)]
+struct VBarSpan {
+    /// Span excluding `|`
+    end_ws: Offset,
+    /// Span including `|`
+    end_vbar: Offset,
+}
+
+/// Formats colored vertical bars `  |  |` with slices
+///
+/// # Example
+///
+/// ```text
+///   |  1.0  14
+///      |    |
+///      |    expected `f32`, found `i32`
+///      expected because of this variable
+/// ```
+fn format_bars(
     line_offset: Offset,
-    mut last_ds: Span,
     spans: impl Iterator<Item = Span>,
-    last_span: Span,
-) -> fmt::Result {
-    let bar = "|".color(Color::BrightBlue).bold();
+) -> Result<(String, Vec<VBarSpan>), fmt::Error> {
+    let vbar = "|".color(Color::BrightBlue).bold();
+
+    let mut s = String::new();
+    let mut slices = Vec::new();
+
+    // last span relative to the line offset
+    let mut last_relative_span = Span {
+        start: Offset::from(0u32),
+        end: Offset::from(0u32),
+    };
 
     for span in spans {
-        let ds = span - line_offset;
-        let ws = " ".repeat(ds.start.into_usize() - (last_ds.start.into_usize()));
-        write!(f, "{ws}{bar}")?;
+        let reletive_span = span - line_offset;
+        let ws = " ".repeat(reletive_span.start.into_usize() - (last_relative_span.start.into_usize()));
+        write!(s, "{ws}{vbar}")?;
 
-        last_ds = ds;
+        slices.push(VBarSpan {
+            end_ws: Offset::from(span.end.into_usize() - vbar.len()),
+            end_vbar: span.end,
+        });
+
+        last_relative_span = reletive_span;
     }
 
-    let ds = last_span - line_offset;
-    let ws = " ".repeat(ds.start.into_usize() - (last_ds.start.into_usize()));
-    write!(f, "{ws}")?;
-
-    Ok(())
+    Ok((s, slices))
 }
 
 /// Diagnostic window
