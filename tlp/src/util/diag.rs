@@ -177,11 +177,11 @@ impl<'a> fmt::Display for LineSpanSubs<'a> {
         let line_offset = self.line_span.start;
         {
             //  ^^^
-            let last_ds = self.main_span - line_offset;
+            let last_relative_span = self.main_span - line_offset;
 
-            let ws = " ".repeat(last_ds.start.into_usize());
+            let ws = " ".repeat(last_relative_span.start.into_usize());
             let carets = "^"
-                .repeat(last_ds.len() as usize)
+                .repeat(last_relative_span.len() as usize)
                 .color(self.severity.color());
             write!(f, "{indent} {vbar} {ws}{}", carets)?;
 
@@ -190,7 +190,7 @@ impl<'a> fmt::Display for LineSpanSubs<'a> {
                 f,
                 "-",
                 line_offset,
-                last_ds,
+                last_relative_span,
                 self.sub_msgs.iter().map(|m| m.span),
             )?;
 
@@ -247,17 +247,17 @@ fn print_markers(
     f: &mut fmt::Formatter<'_>,
     marker: &str,
     line_offset: Offset,
-    mut last_ds: Span,
+    mut last_relative_span: Span,
     spans: impl Iterator<Item = Span>,
 ) -> fmt::Result {
     for span in spans {
-        let ds = span - line_offset;
+        let relative_span = span - line_offset;
 
-        let ws = " ".repeat(ds.start.into_usize() - last_ds.end.into_usize());
-        let markers = marker.repeat(ds.len() as usize);
+        let ws = " ".repeat(relative_span.start.into_usize() - last_relative_span.end.into_usize());
+        let markers = marker.repeat(relative_span.len() as usize);
         write!(f, "{ws}{}", markers.color(Color::BrightBlue).bold())?;
 
-        last_ds = ds;
+        last_relative_span = relative_span;
     }
 
     Ok(())
