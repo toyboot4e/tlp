@@ -307,7 +307,7 @@ Function parameter types are restricted to `i32` for now. I will add syntax for 
 +
 Parameter type annotation is ready:
 +
-[source,rust]
+[source,lisp]
 ----
 (proc fib (x:i32)
     (cond ((= x 0) 0)
@@ -321,17 +321,17 @@ Parameter type annotation is ready:
 Type mismatches are reported and printed beautifully:
 +
 .main.tlp
-[source,rust]
+[source,lisp]
 ----
 (proc main ()
     (+ 4.5 3))
 ----
 +
 .Like Rust
-image::devlog/diag-rust-like.png[]
+image::devlog/diag-rust-like.png[width=432]
 +
 .Like Rust and {ariadne}
-image::devlog/diag-tlp.png[]
+image::devlog/diag-tlp.png[width=432]
 +
 Colors / bolds are by {colored}.
 
