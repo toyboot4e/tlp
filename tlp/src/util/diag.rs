@@ -142,7 +142,7 @@ impl MsgSpan {
 ///      |    ^^^^ <msg>
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PrimaryWindow<'a> {
+pub struct PrimaryLineRender<'a> {
     pub severity: Severity,
     /// Line number for merge and display
     pub line1: u32,
@@ -151,7 +151,7 @@ pub struct PrimaryWindow<'a> {
     pub primary_msg: MsgSpan,
 }
 
-impl<'a> fmt::Display for PrimaryWindow<'a> {
+impl<'a> fmt::Display for PrimaryLineRender<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let n_digits = self::n_digits(self.line1 as usize);
         let indent = " ".repeat(n_digits);
@@ -185,33 +185,45 @@ impl<'a> fmt::Display for PrimaryWindow<'a> {
 ///      |    expected `u32`, found `i32`
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SecondaryWindow<'a> {
+pub struct SecondaryLineRender<'a> {
     pub severity: Severity,
     /// Line number for merge and display
     pub line1: u32,
     pub src_text: &'a str,
     pub line_span: Span,
-    pub primary_span: Span,
+    pub primary_span: Option<Span>,
     pub secondary_msgs: Vec<MsgSpan>,
 }
 
-impl<'a> fmt::Display for SecondaryWindow<'a> {
+impl<'a> fmt::Display for SecondaryLineRender<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let n_digits = self::n_digits(self.line1 as usize);
-        let indent = " ".repeat(n_digits);
+        // indent for line number
+        let indent = {
+            let n_digits = self::n_digits(self.line1 as usize);
+            " ".repeat(n_digits)
+        };
 
         let vbar = VBAR.color(QUOTE).bold();
-        let line = format!("{}", self.line1);
+        let vdot = VDOT.color(QUOTE).bold();
+
+        // TODO: add newline space or nto
+        // writeln!(f, "{indent} {vbar}")?;
+
+        // source code
+        let line1 = format!("{}", self.line1);
         let line_text = self.line_span.slice(self.src_text).trim_end();
 
-        writeln!(f, "{indent} {vbar}")?;
-        writeln!(f, "{} {vbar} {}", line.color(QUOTE).bold(), line_text)?;
+        if self.primary_span.is_some() {
+            writeln!(f, "{} {vbar} {}", line1.color(QUOTE).bold(), line_text)?;
+        } else {
+            writeln!(f, "{} {vdot} {}", line1.color(QUOTE).bold(), line_text)?;
+        }
 
         // ranges + last sub message:
         let line_offset = self.line_span.start;
-        {
+        let last_relative_span = if let Some(primary_span) = self.primary_span {
             //  |  ^
-            let last_relative_span = self.primary_span - line_offset;
+            let last_relative_span = primary_span - line_offset;
 
             let ws = " ".repeat(last_relative_span.start.into_usize());
             let carets = "^"
@@ -219,21 +231,39 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
                 .color(self.severity.color());
             write!(f, "{indent} {vbar} {ws}{}", carets)?;
 
-            //     ┌──  ╷  ─────
-            self::print_hbar_markers(
-                f,
-                line_offset,
-                last_relative_span,
-                self.secondary_msgs.iter().map(|m| m.span),
-            )?;
+            // on primary message only:
+            if self.secondary_msgs.is_empty() {
+                writeln!(f, "")?;
+                return Ok(());
+            }
 
-            //                   expected `f32`, found `i32`
-            writeln!(
-                f,
-                " {}",
-                self.secondary_msgs.last().unwrap().msg.color(QUOTE).bold()
-            )?;
-        }
+            last_relative_span
+        } else {
+            write!(f, "{indent} {vdot} ")?;
+
+            assert!(!self.secondary_msgs.is_empty());
+
+            // no relative span consumed
+            Span {
+                start: Offset::default(),
+                end: Offset::default(),
+            }
+        };
+
+        //     ┌──  ╷  ─────
+        self::print_hbar_markers(
+            f,
+            line_offset,
+            last_relative_span,
+            self.secondary_msgs.iter().map(|m| m.span),
+        )?;
+
+        //                   expected `f32`, found `i32`
+        writeln!(
+            f,
+            " {}",
+            self.secondary_msgs.last().unwrap().msg.color(QUOTE).bold()
+        )?;
 
         let (vbars_string, vbars_spans) = self::format_vbar_pointers(
             line_offset,
@@ -241,8 +271,6 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
                 .iter()
                 .map(|m| m.span),
         )?;
-
-        let vdot = VDOT.color(QUOTE).bold();
 
         // sub messages in preceding lines:
         //    |  1.0  14
@@ -366,11 +394,47 @@ fn format_vbar_pointers(
     Ok((s, slices))
 }
 
+#[derive(Debug)]
+pub struct SecondaryWindow<'a> {
+    lines: Vec<SecondaryLineRender<'a>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LineSpan {
+    pub line1: u32,
+    pub msg_span: MsgSpan,
+    // marker: &'static str,
+    // show_msg: bool,
+}
+
+impl<'a> SecondaryWindow<'a> {
+    pub fn new(mut spans: Vec<LineSpan>, severity: Severity, src_text: &'a str) -> Self {
+        // sort by `line1` then `msg_span.start`
+        use std::cmp::Ordering;
+        spans.sort_unstable_by(|x1, x2| match x1.line1.cmp(&x2.line1) {
+            Ordering::Equal => x1.msg_span.span.start.cmp(&x2.msg_span.span.start),
+            x => x,
+        });
+
+        todo!()
+    }
+}
+
+impl<'a> fmt::Display for SecondaryWindow<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for ln in &self.lines {
+            ln.fmt(f)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Diagnostic window
 #[derive(Debug)]
 pub enum Window<'a> {
     /// Primary message only
-    Primary(PrimaryWindow<'a>),
+    Primary(PrimaryLineRender<'a>),
     /// Primary span and secondary messages
     Secondary(SecondaryWindow<'a>),
 }
@@ -409,7 +473,7 @@ pub fn primary_msg<'a>(
 ) -> Render<'a> {
     let (header, line_span, src_text) = self::get(db, diag, input_file, primary_msg.span);
 
-    let primary_span = PrimaryWindow {
+    let primary_span = PrimaryLineRender {
         severity: diag.severity(),
         line1: header.ln_col.line1(),
         src_text,
@@ -433,18 +497,78 @@ pub fn secondary_msgs<'a>(
 ) -> Render<'a> {
     let (header, line_span, src_text) = self::get(db, diag, input_file, primary_span);
 
-    let window = SecondaryWindow {
-        severity: diag.severity(),
-        line1: header.ln_col.line1(),
-        src_text,
-        line_span,
-        primary_span,
-        secondary_msgs,
+    let ln_tbl = input_file.line_column_table(db.base());
+
+    let primary_span_line1 = ln_tbl.line_column(primary_span.start).line1();
+
+    // FIXME: efficiency
+    let (line_spans, contains_primary_span) = {
+        let mut line_spans = secondary_msgs
+            .into_iter()
+            .map(|msg_span| LineSpan {
+                line1: ln_tbl.line_column(msg_span.span.start).line1(),
+                msg_span,
+            })
+            .collect::<Vec<_>>();
+
+        // sort by `line1` then `msg_span.start`
+        // TODO: repolace with `Ord` impl
+        use std::cmp::Ordering;
+        line_spans.sort_unstable_by(|x1, x2| match x1.line1.cmp(&x2.line1) {
+            Ordering::Equal => x1.msg_span.span.start.cmp(&x2.msg_span.span.start),
+            x => x,
+        });
+
+        let contains_primary_span = line_spans.iter().any(|sp| sp.line1 == primary_span_line1);
+
+        (line_spans, contains_primary_span)
     };
+
+    let mut line_renders = Vec::new();
+
+    // primary span only
+    if !contains_primary_span {
+        let line_render = SecondaryLineRender {
+            severity: diag.severity(),
+            line1: header.ln_col.line1(),
+            src_text,
+            line_span,
+            primary_span: Some(primary_span),
+            secondary_msgs: vec![],
+        };
+
+        line_renders.push(line_render);
+    }
+
+    // primary span + secondary spans
+    use itertools::Itertools;
+    for (line1, group) in &line_spans.into_iter().group_by(|line_span| line_span.line1) {
+        let primary_span = if line1 == primary_span_line1 {
+            Some(primary_span)
+        } else {
+            None
+        };
+
+        let secondary_msgs = group.map(|group| group.msg_span).collect::<Vec<_>>();
+        let line_span = ln_tbl.line_span(secondary_msgs[0].span.start);
+
+        let line_render = SecondaryLineRender {
+            severity: diag.severity(),
+            line1,
+            src_text,
+            line_span,
+            primary_span,
+            secondary_msgs,
+        };
+
+        line_renders.push(line_render);
+    }
 
     Render {
         header,
-        window: Window::Secondary(window),
+        window: Window::Secondary(SecondaryWindow {
+            lines: line_renders,
+        }),
     }
 }
 

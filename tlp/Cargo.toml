@@ -22,12 +22,13 @@ camino = "1.1.1"
 salsa = { git = "https://github.com/salsa-rs/salsa/", package = "salsa-2022" }
 
 # utilities
+colored = "2.0.0"
 derivative = "2.2.0"
 hashbrown = "0.12.3"
+itertools = "0.10.5"
 rowan = "0.15.10"
 rustc-hash = "1.1.0"
 smallvec = "1.9.0"
 la-arena = "0.2.1"
 typed-index-collections = "3.1.0"
-colored = "2.0.0"
 

@@ -90,6 +90,8 @@ impl std::ops::SubAssign<Offset> for Span {
 pub struct Offset(u32);
 
 impl Offset {
+    pub const ZERO: Self = Self(0);
+
     pub fn into_usize(self) -> usize {
         self.0 as usize
     }

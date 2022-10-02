@@ -333,5 +333,8 @@ image::devlog/diag-rust-like.png[width=432]
 .Like Rust and {ariadne}
 image::devlog/diag-tlp.png[width=432]
 +
+.Diagnostic in multiple lines / multiple diagnostics
+image::devlog/diag-multi-line.png[width=433]
++
 Colors / bolds are by {colored}.
 
