@@ -12,6 +12,32 @@ use crate::ir::IrDb;
 
 const QUOTE: Color = Color::BrightBlue;
 
+const R_ARROW: &'static str = "──►";
+// const R_ARROW: &'static str = "――→";
+
+/// Horizontal bar string
+const HBAR: &'static str = "─";
+
+/// Vertical bar string
+const VBAR: &'static str = "│";
+
+const VDOT: &'static str = "┊";
+
+// /// Down half of the `VBAR`
+// const VBAR_DOWN: &'static str = "╷";
+
+/// Left up corner of rectangle
+// const RECT_LU: &'static str = "╭";
+const RECT_LU: &'static str = "├";
+// const RECT_LU: &'static str = "┌";
+
+// /// Left down corner of rectangle
+// const RECT_LD: &'static str = "└";
+
+/// Secondary diagnostic messages under marked text span
+const UNDER_MSG_PREFIX: &'static str = "╰──";
+// const UNDER_MSG_PREFIX: &'static str = "└─";
+
 /// Error | Warning | Info | Hint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Severity {
@@ -82,9 +108,10 @@ impl<'a> fmt::Display for Header<'a> {
 
         writeln!(
             f,
-            "{}: {}\n--> {}:{}:{}",
+            "{}: {}\n  {} {}:{}:{}",
             severity_code.color(self.severity.color()).bold(),
             self.msg.bold(),
+            R_ARROW.color(QUOTE),
             self.src_file,
             self.ln_col.line1(),
             self.ln_col.column1(),
@@ -129,7 +156,7 @@ impl<'a> fmt::Display for PrimaryWindow<'a> {
         let n_digits = self::n_digits(self.line1 as usize);
         let indent = " ".repeat(n_digits);
 
-        let vbar = "|".color(QUOTE).bold();
+        let vbar = VBAR.color(QUOTE).bold();
         let line = format!("{}", self.line1);
         let line_text = self.line_span.slice(self.src_text).trim_end();
 
@@ -173,7 +200,7 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
         let n_digits = self::n_digits(self.line1 as usize);
         let indent = " ".repeat(n_digits);
 
-        let vbar = "|".color(QUOTE).bold();
+        let vbar = VBAR.color(QUOTE).bold();
         let line = format!("{}", self.line1);
         let line_text = self.line_span.slice(self.src_text).trim_end();
 
@@ -192,10 +219,9 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
                 .color(self.severity.color());
             write!(f, "{indent} {vbar} {ws}{}", carets)?;
 
-            //        ---   ----
-            self::print_markers(
+            //     ┌──  ╷  ─────
+            self::print_hbar_markers(
                 f,
-                "-",
                 line_offset,
                 last_relative_span,
                 self.secondary_msgs.iter().map(|m| m.span),
@@ -205,21 +231,18 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
             writeln!(
                 f,
                 " {}",
-                self.secondary_msgs
-                    .last()
-                    .unwrap()
-                    .msg
-                    .color(QUOTE)
-                    .bold()
+                self.secondary_msgs.last().unwrap().msg.color(QUOTE).bold()
             )?;
         }
 
-        let (vbars_string, vbars_spans) = self::format_bars(
+        let (vbars_string, vbars_spans) = self::format_vbar_pointers(
             line_offset,
             self.secondary_msgs[0..self.secondary_msgs.len() - 1]
                 .iter()
                 .map(|m| m.span),
         )?;
+
+        let vdot = VDOT.color(QUOTE).bold();
 
         // sub messages in preceding lines:
         //    |  1.0  14
@@ -228,20 +251,19 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
         // <2>   expected because of this variable
 
         // <1>:  |    |
-        writeln!(f, "{indent} {vbar} {vbars_string}")?;
+        writeln!(f, "{indent} {vdot} {vbars_string}")?;
 
-        // <2>:  |    <msg>
-        // <2>:  <msg>
+        // <2>:  |    └─ <msg>
+        // <2>:  └─ <msg>
         for i in (0..self.secondary_msgs.len() - 1).rev() {
             let target_msg = &self.secondary_msgs[i];
-
-            let len = vbars_spans[i].end_ws.into_usize() - line_offset.into_usize();
-            let vbars_slice = &vbars_string[0..len];
+            let vbars_str = &vbars_string[0..vbars_spans[i].end_ws];
 
             writeln!(
                 f,
-                "{indent} {vbar} {vbars_slice}{}",
-                target_msg.msg.color(QUOTE).bold()
+                "{indent} {vdot} {vbars_str}{} {}",
+                UNDER_MSG_PREFIX.color(QUOTE).bold(),
+                target_msg.msg.color(QUOTE).bold(),
             )?;
         }
 
@@ -249,20 +271,41 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
     }
 }
 
-///        ---   ----
-fn print_markers(
+///     ┌──  ╷  ─────
+fn print_hbar_markers(
     f: &mut fmt::Formatter<'_>,
-    marker: &str,
     line_offset: Offset,
     mut last_relative_span: Span,
     spans: impl Iterator<Item = Span>,
 ) -> fmt::Result {
-    for span in spans {
+    let mut spans = spans.peekable();
+
+    // ┌
+    let rect_lu = RECT_LU.color(QUOTE).bold();
+
+    while let Some(span) = spans.next().map(|s| s.clone()) {
         let relative_span = span - line_offset;
+        let len = relative_span.len() as usize;
 
         let ws = " ".repeat(relative_span.start.into_usize() - last_relative_span.end.into_usize());
-        let markers = marker.repeat(relative_span.len() as usize);
-        write!(f, "{ws}{}", markers.color(QUOTE).bold())?;
+
+        if spans.peek().is_some() {
+            if len == 1 {
+                // write!(f, "{ws}{}", VBAR_DOWN.color(QUOTE).bold())?;
+                write!(f, "{ws}{}", VBAR.color(QUOTE).bold())?;
+            } else {
+                write!(
+                    f,
+                    "{ws}{rect_lu}{}",
+                    HBAR.repeat(len - 1).color(QUOTE).bold()
+                )?;
+            }
+        } else {
+            // last span does not contain `┌`
+            let x = "╰".color(QUOTE).bold();
+            let markers = HBAR.repeat((len - 1).max(2));
+            write!(f, "{ws}{x}{}", markers.color(QUOTE).bold())?;
+        }
 
         last_relative_span = relative_span;
     }
@@ -273,10 +316,10 @@ fn print_markers(
 /// Span returned by [`format_bars`]
 #[derive(Debug)]
 struct VBarSpan {
-    /// Span excluding `|`
-    end_ws: Offset,
-    /// Span including `|`
-    end_vbar: Offset,
+    /// Span for the vbars stirngexcluding `|`
+    end_ws: usize,
+    /// Span for the vbars stirngincluding `|`
+    end_vbar: usize,
 }
 
 /// Formats colored vertical bars `  |  |` with slices
@@ -284,16 +327,18 @@ struct VBarSpan {
 /// # Example
 ///
 /// ```text
-///   |  1.0  14
-///      |    |
-///      |    expected `f32`, found `i32`
-///      expected because of this variable
+///   │ 1.0  14 "str"
+///   │ ┌──  ╷  ───── expected `f32`, found `String`
+///   │ │    │
+///   │ │    └─ expected `f32`, found `i32`
+///   │ └─ expected because of this variable
 /// ```
-fn format_bars(
+fn format_vbar_pointers(
     line_offset: Offset,
     spans: impl Iterator<Item = Span>,
 ) -> Result<(String, Vec<VBarSpan>), fmt::Error> {
-    let vbar = "|".color(QUOTE).bold();
+    // NOTE: Converted to string in order to measure the length considering the color escapes
+    let vbar = format!("{}", VBAR.color(QUOTE).bold());
 
     let mut s = String::new();
     let mut slices = Vec::new();
@@ -306,12 +351,13 @@ fn format_bars(
 
     for span in spans {
         let reletive_span = span - line_offset;
-        let ws = " ".repeat(reletive_span.start.into_usize() - (last_relative_span.start.into_usize()));
+        let ws_len = (reletive_span.start - last_relative_span.start) as usize;
+        let ws = " ".repeat(ws_len);
         write!(s, "{ws}{vbar}")?;
 
         slices.push(VBarSpan {
-            end_ws: Offset::from(span.end.into_usize() - vbar.len()),
-            end_vbar: span.end,
+            end_ws: s.len() - vbar.len(),
+            end_vbar: s.len(),
         });
 
         last_relative_span = reletive_span;
