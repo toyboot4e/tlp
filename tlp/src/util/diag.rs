@@ -13,7 +13,6 @@ use crate::ir::IrDb;
 const QUOTE: Color = Color::BrightBlue;
 
 const R_ARROW: &'static str = "──►";
-// const R_ARROW: &'static str = "――→";
 
 /// Horizontal bar string
 const HBAR: &'static str = "─";
@@ -23,20 +22,11 @@ const VBAR: &'static str = "│";
 
 const VDOT: &'static str = "┊";
 
-// /// Down half of the `VBAR`
-// const VBAR_DOWN: &'static str = "╷";
-
 /// Left up corner of rectangle
-// const RECT_LU: &'static str = "╭";
 const RECT_LU: &'static str = "├";
-// const RECT_LU: &'static str = "┌";
-
-// /// Left down corner of rectangle
-// const RECT_LD: &'static str = "└";
 
 /// Secondary diagnostic messages under marked text span
 const UNDER_MSG_PREFIX: &'static str = "╰──";
-// const UNDER_MSG_PREFIX: &'static str = "└─";
 
 /// Error | Warning | Info | Hint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -416,19 +406,6 @@ pub struct LineSpan {
     pub msg_span: MsgSpan,
     // marker: &'static str,
     // show_msg: bool,
-}
-
-impl<'a> SecondaryWindow<'a> {
-    pub fn new(mut spans: Vec<LineSpan>, severity: Severity, src_text: &'a str) -> Self {
-        // sort by `line1` then `msg_span.start`
-        use std::cmp::Ordering;
-        spans.sort_unstable_by(|x1, x2| match x1.line1.cmp(&x2.line1) {
-            Ordering::Equal => x1.msg_span.span.start.cmp(&x2.msg_span.span.start),
-            x => x,
-        });
-
-        todo!()
-    }
 }
 
 impl<'a> fmt::Display for SecondaryWindow<'a> {

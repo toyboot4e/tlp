@@ -115,13 +115,13 @@ pub enum TypeData {
 
 impl TypeData {
     // TODO: maybe move to `Expr` so that we have access to proc?
-    pub fn type_name(&self, db: &dyn IrDb) -> &str {
+    pub fn type_name(&self, _db: &dyn IrDb) -> &str {
         match self {
             Self::Unknown => "<unknown>",
             Self::Stmt => "<stmt>",
             Self::Primitive(x) => x.type_name(),
             Self::Op(x) => x.type_name(),
-            Self::Proc(x) => "<FIXME: proc type>",
+            Self::Proc(_x) => "<FIXME: proc type>",
         }
     }
 }
