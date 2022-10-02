@@ -263,7 +263,7 @@ fn user_function_call() {
         "
 (proc main ()
     (+ 5 (f)))
-(proc f ()
+(proc f () -> i32
     15)
 ",
         20,

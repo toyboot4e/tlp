@@ -140,7 +140,7 @@ impl Proc {
 
         let return_ty = ast
             .return_ty()
-            .map(|ast_ty| expr::TypeSyntax::from_ast(db, ast_ty.clone()));
+            .map(|ast_ret_ty| expr::TypeSyntax::from_ast(db, ast_ret_ty.ty()));
 
         Some(Proc::new(
             db,

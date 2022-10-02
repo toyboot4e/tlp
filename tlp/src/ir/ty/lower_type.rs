@@ -157,7 +157,7 @@ impl<'db> Collect<'db> {
             self.pat_types.insert(pat, ty_index).is_none(),
             "bug: duplicate visit to pat: {:?} {:?}",
             pat,
-            self.body_data.tables[pat]
+            self.body_data.tables[pat].debug(&self.debug)
         );
     }
 
@@ -202,7 +202,7 @@ impl<'db> Collect<'db> {
             self.expr_types.insert(expr, index).is_none(),
             "bug: duplicate visit of expr: {:?} {:?}",
             expr,
-            self.body_data.tables[expr]
+            self.body_data.tables[expr].debug(&self.debug)
         );
     }
 }
@@ -254,16 +254,15 @@ impl<'db> Collect<'db> {
                 WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::Call(call) => {
-                self.collect_callee(call.path);
+                let ret_ty = self
+                    .collect_user_proc(call.path)
+                    .unwrap_or(self.interned.unknown);
 
                 call.args.iter().for_each(|&expr| {
                     self.collect_expr(expr);
                 });
 
-                self.collect_expr(call.path);
-
-                // FIXME: parse return type
-                WipTypeData::Ty(self.interned.i32_)
+                WipTypeData::Ty(ret_ty)
             }
             ExprData::CallOp(op) => {
                 op.args.iter().for_each(|&expr| {
@@ -382,7 +381,8 @@ impl<'db> Collect<'db> {
         }
     }
 
-    fn collect_callee(&mut self, path_expr: Expr) -> Option<Ty> {
+    /// Returns the procedure's return type if known
+    fn collect_user_proc(&mut self, path_expr: Expr) -> Option<Ty> {
         // FIXME(perf):
         let resolver = self.proc.expr_resolver(self.db, path_expr);
 
@@ -391,9 +391,15 @@ impl<'db> Collect<'db> {
             if let Some(v) = resolver.resolve_path_as_value(self.db, path) {
                 match v {
                     ValueNs::Proc(proc) => {
-                        let ty = proc.ty(self.db);
-                        self.insert_expr_ty(path_expr, ty);
-                        return Some(ty);
+                        let proc_ty = proc.ty(self.db);
+                        self.insert_expr_ty(path_expr, proc_ty);
+
+                        let ret_ty = match proc_ty.data(self.db) {
+                            TypeData::Proc(proc_ty) => proc_ty.ret_ty,
+                            _ => unreachable!(),
+                        };
+
+                        return Some(ret_ty);
                     }
                     ValueNs::Pat(_pat) => {
                         // TODO: call variable as a procedure
