@@ -62,7 +62,8 @@ pub trait Diagnostic {
     // [<code]<severity>: msg
     fn code(&self) -> &str;
     fn severity(&self) -> Severity;
-    fn msg(&self) -> &str;
+    /// Primary error message shown in the header
+    fn msg(&self) -> String;
 }
 
 /// Header part of diagnostic rendering
@@ -75,7 +76,7 @@ pub trait Diagnostic {
 pub struct Header<'a> {
     pub code: &'a str,
     pub severity: Severity,
-    pub msg: &'a str,
+    pub msg: String,
     pub src_file: &'a str,
     /// in procedure `f`
     pub src_context: String,

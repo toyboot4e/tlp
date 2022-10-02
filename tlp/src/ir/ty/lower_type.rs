@@ -18,7 +18,11 @@ use crate::ir::{
     },
     item,
     resolve::{Resolver, ValueNs},
-    ty::{self, ty_diag::*, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
+    ty::{
+        self,
+        ty_diag::{self, *},
+        Ty, TyIndex, TypeData, TypeTable, WipTypeData,
+    },
     IrDb, IrJar,
 };
 
@@ -604,7 +608,6 @@ impl<'db, 'map> Infer<'db, 'map> {
         // FIXME(perf):
         let resolver = self.proc.expr_resolver(self.db, call_expr);
 
-        // TODO: resolve procudure and run check
         if let ExprData::Path(path) = &self.body_data.tables[call.path] {
             if let Some(v) = resolver.resolve_path_as_value(self.db, path) {
                 match v {
@@ -643,27 +646,43 @@ impl<'db, 'map> Infer<'db, 'map> {
             self.infer_expr(*arg);
         }
 
-        // unify
-        let mut fail = false;
-
         let proc_ty = proc.ty_data_as_proc(self.db);
-        fail |= proc_ty.param_tys.len() == call.args.len();
+
+        let mut type_mismatches = Vec::new();
 
         for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
             let param_ty = proc_ty.param_tys[i];
             let arg_expr = call.args[i];
 
-            if let Some(_mismatch) = self.unify_expected_expr(arg_expr, param_ty) {
-                fail = true;
-                todo!("handle arg type mismatch");
+            if let Some(mismatch) = self.unify_expected_expr(arg_expr, param_ty) {
+                type_mismatches.push(mismatch);
             }
         }
 
-        !fail
-    }
+        let arity_match = proc_ty.param_tys.len() == call.args.len();
+        let err = !(arity_match && type_mismatches.is_empty());
 
-    fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {
-        //
+        if err {
+            let arity_mismatch = if arity_match {
+                None
+            } else {
+                Some(ty_diag::ArityMismatch {
+                    expected: proc_ty.param_tys.len(),
+                    actual: call.args.len(),
+                })
+            };
+
+            let diag = ty_diag::IncorrectProcArgs {
+                proc_expr: call.path,
+                proc_id: proc,
+                type_mismatches,
+                arity_mismatch,
+            };
+
+            ty_diag::TypeDiagnostics::push(self.db, diag.into());
+        }
+
+        !err
     }
 }
 

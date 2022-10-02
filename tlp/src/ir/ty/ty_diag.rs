@@ -21,7 +21,7 @@ crate::util::define_enum! {
     #[derive(Debug, Clone)]
     pub TypeDiagnostic =
         | MissingParamType | MismatchedTypes
-        | WrongArgTypes | IncompatibleOpArgTypes
+        | IncompatibleOpArgTypes | IncorrectProcArgs
         | CannotFindTypeInScope | CannotFindValueInScope
         ;
 }
@@ -31,8 +31,8 @@ impl diag::Diagnostic for TypeDiagnostic {
         match self {
             TypeDiagnostic::MissingParamType(_) => "E0000",
             TypeDiagnostic::MismatchedTypes(_) => "E0001",
-            TypeDiagnostic::WrongArgTypes(_) => "E0002",
             TypeDiagnostic::IncompatibleOpArgTypes(_) => "E0002",
+            TypeDiagnostic::IncorrectProcArgs(_) => "E0003",
             TypeDiagnostic::CannotFindTypeInScope(_) => "E0020",
             TypeDiagnostic::CannotFindValueInScope(_) => "E0021",
         }
@@ -42,15 +42,16 @@ impl diag::Diagnostic for TypeDiagnostic {
         diag::Severity::Error
     }
 
-    fn msg(&self) -> &str {
+    fn msg(&self) -> String {
         match self {
             TypeDiagnostic::MissingParamType(_) => "missing parameter type",
             TypeDiagnostic::MismatchedTypes(_) => "mismatched types",
-            TypeDiagnostic::WrongArgTypes(_) => "wrong argument types",
             TypeDiagnostic::IncompatibleOpArgTypes(_) => "incompatible operator argument types",
+            TypeDiagnostic::IncorrectProcArgs(x) => return x.primary_msg(),
             TypeDiagnostic::CannotFindTypeInScope(_) => "cannot find type in scope",
             TypeDiagnostic::CannotFindValueInScope(_) => "cannot find value in scope",
         }
+        .to_string()
     }
 }
 
@@ -87,7 +88,6 @@ impl TypeDiagnostic {
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
                 diag::msg(db, self, input_file, src_context, primary_msg)
             }
-            TypeDiagnostic::WrongArgTypes(_x) => todo!(),
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
                 let main_span = body_spans.get(x.op_expr).unwrap();
 
@@ -105,6 +105,24 @@ impl TypeDiagnostic {
                         ),
                     },
                 ];
+
+                diag::multi_msgs(db, self, input_file, src_context, main_span, sub_msgs)
+            }
+            TypeDiagnostic::IncorrectProcArgs(x) => {
+                let main_span = body_spans.get(x.proc_expr).unwrap();
+
+                let sub_msgs = x
+                    .type_mismatches
+                    .iter()
+                    .map(|type_mismatch| MsgSpan {
+                        span: body_spans.get(type_mismatch.actual_expr).unwrap(),
+                        msg: format!(
+                            "expected `{}`, found `{}`",
+                            type_mismatch.expected_ty.data(db).type_name(db),
+                            type_mismatch.actual_ty.data(db).type_name(db),
+                        ),
+                    })
+                    .collect::<Vec<_>>();
 
                 diag::multi_msgs(db, self, input_file, src_context, main_span, sub_msgs)
             }
@@ -133,12 +151,6 @@ pub struct MismatchedTypes {
 }
 
 #[derive(Debug, Clone)]
-pub struct WrongArgTypes {
-    pub proc: Expr,
-    pub wrong_args: Vec<(Expr, Ty)>,
-}
-
-#[derive(Debug, Clone)]
 pub struct IncompatibleOpArgTypes {
     pub op_expr: Expr,
     /// First typed expression that is used for detecting the type mistmatch
@@ -156,6 +168,29 @@ pub struct CannotFindValueInScope {
     pub expr: Expr,
 }
 
+#[derive(Debug, Clone)]
+pub struct IncorrectProcArgs {
+    pub proc_expr: Expr,
+    /// Resolved procedure ID
+    pub proc_id: item::Proc,
+    pub type_mismatches: Vec<TypeMismatch>,
+    pub arity_mismatch: Option<ArityMismatch>,
+}
+
+impl IncorrectProcArgs {
+    // TODO: consider number
+    pub fn primary_msg(&self) -> String {
+        if let Some(arity) = &self.arity_mismatch {
+            format!(
+                "this procedure takes {} arguments but {} argumetns were given",
+                arity.expected, arity.actual
+            )
+        } else {
+            format!("arguments to this procedure are incorrect")
+        }
+    }
+}
+
 // --------------------------------------------------------------------------------
 // Components
 // --------------------------------------------------------------------------------
@@ -166,4 +201,11 @@ pub struct TypeMismatch {
     pub expected_ty: Ty,
     pub actual_expr: Expr,
     pub actual_ty: Ty,
+}
+
+/// Arity mismatch information
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ArityMismatch {
+    pub expected: usize,
+    pub actual: usize,
 }
