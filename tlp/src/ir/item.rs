@@ -72,8 +72,8 @@ pub struct Proc {
     pub span: FileSpan,
     #[return_ref]
     pub params: Box<[Param]>,
-    // #[return_ref]
-    // pub return_ty: expr::Type,
+    #[return_ref]
+    pub return_ty: Option<expr::TypeSyntax>,
     /// Lazily analyzed body AST
     pub ast: ast::DefProc,
 }
@@ -138,11 +138,16 @@ impl Proc {
             }
         }
 
+        let return_ty = ast
+            .return_ty()
+            .map(|ast_ty| expr::TypeSyntax::from_ast(db, ast_ty.clone()));
+
         Some(Proc::new(
             db,
             name,
             file_span,
             params.into_boxed_slice(),
+            return_ty,
             ast,
         ))
     }

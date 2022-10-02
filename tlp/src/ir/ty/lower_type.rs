@@ -838,7 +838,13 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
     };
 
     // TODO: parse return type annotation and use it
-    let ret_ty = Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::I32));
+    let ret_ty = match proc.return_ty(db) {
+        Some(ty_syntax) => {
+            let resolver = proc.proc_ty_resolver(db);
+            self::lower_type_syntax(db, &resolver, ty_syntax)
+        }
+        None => Ty::intern(db, TypeData::Stmt),
+    };
 
     let proc_ty = ty::ProcType { param_tys, ret_ty };
 
@@ -860,6 +866,19 @@ fn lower_param_ty(
             };
             TypeDiagnostics::push(db, diag.into());
 
+            Ty::intern(db, ty::TypeData::Unknown)
+        }
+        TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),
+        TypeSyntax::Primitive(prim) => Ty::intern(db, ty::TypeData::Primitive(*prim)),
+    }
+}
+
+fn lower_type_syntax(db: &dyn IrDb, resolver: &Resolver, ty_syntax: &expr::TypeSyntax) -> Ty {
+    use expr::TypeSyntax;
+
+    match ty_syntax {
+        TypeSyntax::Missing => {
+            // FIXME: report missing type syntax
             Ty::intern(db, ty::TypeData::Unknown)
         }
         TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),

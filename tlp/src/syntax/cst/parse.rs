@@ -269,11 +269,16 @@ impl ParseState {
         // wrap the list
         self.builder
             .start_node_at(checkpoint, SyntaxKind::DefProc.into());
-        self.maybe_bump_ws(pcx);
 
         let found_rparen = {
             // start `Body` node
+            self.maybe_bump_ws(pcx);
             self._bump_to_proc_param(pcx);
+
+            self.maybe_bump_ws(pcx);
+            self._maybe_bump_return_type(pcx);
+
+            self.maybe_bump_ws(pcx);
             self.builder.start_node(SyntaxKind::Block.into());
 
             // maybe other list items
@@ -397,14 +402,29 @@ impl ParseState {
         }
     }
 
-    fn maybe_bump_type(&mut self, pcx: &ParseContext) {
+    /// -> Type
+    fn _maybe_bump_return_type(&mut self, pcx: &ParseContext) -> Option<()> {
+        let checkpoint = self.builder.checkpoint();
+        self.maybe_bump_kind(pcx, SyntaxKind::RightArrow)?;
+
+        self.maybe_bump_ws(pcx);
+        self.maybe_bump_type(pcx)?;
+
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::ReturnType.into());
+        self.builder.finish_node();
+
+        Some(())
+    }
+
+    fn maybe_bump_type(&mut self, pcx: &ParseContext) -> Option<()> {
         let checkpoint = self.builder.checkpoint();
 
         if self.maybe_bump_path(pcx).is_some() {
             self.builder
                 .start_node_at(checkpoint, SyntaxKind::TypePath.into());
             self.builder.finish_node();
-            return;
+            return Some(());
         }
 
         let text = if let Some(peek) = self.peek(pcx) {
@@ -418,6 +438,8 @@ impl ParseState {
             expected: "<type>".to_string(),
             found: text,
         });
+
+        None
     }
 
     /// "let" Pat Expr ")"
