@@ -212,9 +212,22 @@ impl<'s> Lexer<'s> {
             b':' => SyntaxKind::Colon,
             b'.' => SyntaxKind::Dot,
             b'-' => {
+                // peek one character
                 if let Some(c2) = self.src.get(self.sp.end.into_usize() + 1usize) {
-                    if self::is_num_body(*c2) {
-                        return None;
+                    match *c2 {
+                        // number
+                        _ if self::is_num_body(*c2) => {
+                            return None;
+                        }
+                        // right arrow
+                        b'>' => {
+                            debug_assert_eq!(self.sp.start, self.sp.end);
+                            self.sp.end += 2u32;
+                            let tk = self.consume_span_as(SyntaxKind::RightArrow);
+                            return Some(tk);
+                        }
+                        // minus operator
+                        _ => {}
                     }
                 }
                 SyntaxKind::Ident

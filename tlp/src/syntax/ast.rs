@@ -344,6 +344,17 @@ impl DefProc {
             .map(|node| ProcParams { syn: node.clone() })
     }
 
+    pub fn right_arrow(&self) -> Option<SyntaxToken> {
+        self.syn
+            .children_with_tokens()
+            .filter_map(|e| e.into_token())
+            .find(|t| t.kind() == SyntaxKind::RightArrow)
+    }
+
+    pub fn return_ty(&self) -> Option<ReturnType> {
+        self.syn.children().find_map(|elem| ReturnType::cast_node(elem))
+    }
+
     pub fn block(&self) -> Block {
         self.syn.children().find_map(Block::cast_node).unwrap()
     }
@@ -506,6 +517,9 @@ define_node! {
 
     /// A single procedure parameter
     Param: SyntaxKind::Param,
+
+    /// Return type
+    ReturnType: SyntaxKind::ReturnType,
 }
 
 impl ProcParams {
@@ -528,6 +542,12 @@ impl Param {
 
     pub fn ty(&self) -> Option<Type> {
         self.syn.children().find_map(|elem| Type::cast_node(elem))
+    }
+}
+
+impl ReturnType {
+    pub fn ty(&self) -> Type {
+        self.syn.children().find_map(|elem| Type::cast_node(elem)).unwrap()
     }
 }
 

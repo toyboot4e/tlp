@@ -18,7 +18,11 @@ use crate::ir::{
     },
     item,
     resolve::{Resolver, ValueNs},
-    ty::{self, ty_diag::*, Ty, TyIndex, TypeData, TypeTable, WipTypeData},
+    ty::{
+        self,
+        ty_diag::{self, *},
+        Ty, TyIndex, TypeData, TypeTable, WipTypeData,
+    },
     IrDb, IrJar,
 };
 
@@ -153,7 +157,7 @@ impl<'db> Collect<'db> {
             self.pat_types.insert(pat, ty_index).is_none(),
             "bug: duplicate visit to pat: {:?} {:?}",
             pat,
-            self.body_data.tables[pat]
+            self.body_data.tables[pat].debug(&self.debug)
         );
     }
 
@@ -198,7 +202,7 @@ impl<'db> Collect<'db> {
             self.expr_types.insert(expr, index).is_none(),
             "bug: duplicate visit of expr: {:?} {:?}",
             expr,
-            self.body_data.tables[expr]
+            self.body_data.tables[expr].debug(&self.debug)
         );
     }
 }
@@ -250,16 +254,15 @@ impl<'db> Collect<'db> {
                 WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::Call(call) => {
-                self.collect_callee(call.path);
+                let ret_ty = self
+                    .collect_user_proc(call.path)
+                    .unwrap_or(self.interned.unknown);
 
                 call.args.iter().for_each(|&expr| {
                     self.collect_expr(expr);
                 });
 
-                self.collect_expr(call.path);
-
-                // FIXME: parse return type
-                WipTypeData::Ty(self.interned.i32_)
+                WipTypeData::Ty(ret_ty)
             }
             ExprData::CallOp(op) => {
                 op.args.iter().for_each(|&expr| {
@@ -378,7 +381,8 @@ impl<'db> Collect<'db> {
         }
     }
 
-    fn collect_callee(&mut self, path_expr: Expr) -> Option<Ty> {
+    /// Returns the procedure's return type if known
+    fn collect_user_proc(&mut self, path_expr: Expr) -> Option<Ty> {
         // FIXME(perf):
         let resolver = self.proc.expr_resolver(self.db, path_expr);
 
@@ -387,9 +391,15 @@ impl<'db> Collect<'db> {
             if let Some(v) = resolver.resolve_path_as_value(self.db, path) {
                 match v {
                     ValueNs::Proc(proc) => {
-                        let ty = proc.ty(self.db);
-                        self.insert_expr_ty(path_expr, ty);
-                        return Some(ty);
+                        let proc_ty = proc.ty(self.db);
+                        self.insert_expr_ty(path_expr, proc_ty);
+
+                        let ret_ty = match proc_ty.data(self.db) {
+                            TypeData::Proc(proc_ty) => proc_ty.ret_ty,
+                            _ => unreachable!(),
+                        };
+
+                        return Some(ret_ty);
                     }
                     ValueNs::Pat(_pat) => {
                         // TODO: call variable as a procedure
@@ -604,7 +614,6 @@ impl<'db, 'map> Infer<'db, 'map> {
         // FIXME(perf):
         let resolver = self.proc.expr_resolver(self.db, call_expr);
 
-        // TODO: resolve procudure and run check
         if let ExprData::Path(path) = &self.body_data.tables[call.path] {
             if let Some(v) = resolver.resolve_path_as_value(self.db, path) {
                 match v {
@@ -643,27 +652,43 @@ impl<'db, 'map> Infer<'db, 'map> {
             self.infer_expr(*arg);
         }
 
-        // unify
-        let mut fail = false;
-
         let proc_ty = proc.ty_data_as_proc(self.db);
-        fail |= proc_ty.param_tys.len() == call.args.len();
+
+        let mut type_mismatches = Vec::new();
 
         for i in 0..cmp::min(proc_ty.param_tys.len(), call.args.len()) {
             let param_ty = proc_ty.param_tys[i];
             let arg_expr = call.args[i];
 
-            if let Some(_mismatch) = self.unify_expected_expr(arg_expr, param_ty) {
-                fail = true;
-                todo!("handle arg type mismatch");
+            if let Some(mismatch) = self.unify_expected_expr(arg_expr, param_ty) {
+                type_mismatches.push(mismatch);
             }
         }
 
-        !fail
-    }
+        let arity_match = proc_ty.param_tys.len() == call.args.len();
+        let err = !(arity_match && type_mismatches.is_empty());
 
-    fn infer_pat(&mut self, _pat: Pat, _expr: Expr) {
-        //
+        if err {
+            let arity_mismatch = if arity_match {
+                None
+            } else {
+                Some(ty_diag::ArityMismatch {
+                    expected: proc_ty.param_tys.len(),
+                    actual: call.args.len(),
+                })
+            };
+
+            let diag = ty_diag::IncorrectProcArgs {
+                proc_expr: call.path,
+                proc_id: proc,
+                type_mismatches,
+                arity_mismatch,
+            };
+
+            ty_diag::TypeDiagnostics::push(self.db, diag.into());
+        }
+
+        !err
     }
 }
 
@@ -838,7 +863,13 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
     };
 
     // TODO: parse return type annotation and use it
-    let ret_ty = Ty::intern(db, TypeData::Primitive(ty::PrimitiveType::I32));
+    let ret_ty = match proc.return_ty(db) {
+        Some(ty_syntax) => {
+            let resolver = proc.proc_ty_resolver(db);
+            self::lower_type_syntax(db, &resolver, ty_syntax)
+        }
+        None => Ty::intern(db, TypeData::Stmt),
+    };
 
     let proc_ty = ty::ProcType { param_tys, ret_ty };
 
@@ -860,6 +891,19 @@ fn lower_param_ty(
             };
             TypeDiagnostics::push(db, diag.into());
 
+            Ty::intern(db, ty::TypeData::Unknown)
+        }
+        TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),
+        TypeSyntax::Primitive(prim) => Ty::intern(db, ty::TypeData::Primitive(*prim)),
+    }
+}
+
+fn lower_type_syntax(db: &dyn IrDb, resolver: &Resolver, ty_syntax: &expr::TypeSyntax) -> Ty {
+    use expr::TypeSyntax;
+
+    match ty_syntax {
+        TypeSyntax::Missing => {
+            // FIXME: report missing type syntax
             Ty::intern(db, ty::TypeData::Unknown)
         }
         TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),

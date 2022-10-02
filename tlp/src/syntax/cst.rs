@@ -75,6 +75,8 @@ pub enum SyntaxKind {
     Ident,
     /// Any kind of comment (oneline or multiline, normal comment or docstring)
     Comment,
+    /// Right arrow
+    RightArrow,
     // ----------------------------------------
     // Compsitors (parser only, not used by lexer)
     // ----------------------------------------
@@ -116,6 +118,8 @@ pub enum SyntaxKind {
     Params,
     /// A single procedure parameter
     Param,
+    /// ReturnType,
+    ReturnType,
     /// Type node
     TypePath,
     /// Expressions marked as inline code block

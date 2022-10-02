@@ -263,7 +263,7 @@ fn user_function_call() {
         "
 (proc main ()
     (+ 5 (f)))
-(proc f ()
+(proc f () -> i32
     15)
 ",
         20,
@@ -294,12 +294,12 @@ fn user_function_call() {
 (proc main ()
     (fib 10))
 
-(proc fib (x:i32)
+(proc fib (x:i32) -> i32
     (cond ((= x 0) 0)
           ((= x 1) 1)
           (true (+ (fib (- x 1)) (fib (- x 2))))))
 ",
-        fib(10) as u32,
+        fib(10) as i32,
     );
 }
 

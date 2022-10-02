@@ -56,9 +56,28 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
         .collect::<FxHashMap<_, _>>();
 
     for item in items {
+        // TODO: use validated IR
+        // FIXME: consider item declaration diagnostics
         let proc = match item {
             item::Item::Proc(proc) => proc,
         };
+
+        // FIXME: consider procedure body diagnostics
+
+        // FIXME: `#[return_ref]`?
+        let diags = proc.param_ty_diags(db);
+        if !diags.is_empty() {
+            eprintln!("TODO: type error on compile");
+            crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
+            continue;
+        }
+
+        let diags = proc.body_ty_diags(db);
+        if !diags.is_empty() {
+            eprintln!("TODO: type error on compile");
+            crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
+            continue;
+        }
 
         let mut compiler = CompileProc::new(&proc_ids, db, proc.clone());
         compiler.compile_proc();
