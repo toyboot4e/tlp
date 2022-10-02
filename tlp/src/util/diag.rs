@@ -10,8 +10,9 @@ use colored::{Color, Colorize};
 
 use crate::ir::IrDb;
 
-pub const QUOTE: Color = Color::BrightBlue;
+const QUOTE: Color = Color::BrightBlue;
 
+/// Error | Warning | Info | Hint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Severity {
     Error,
@@ -208,7 +209,7 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
                     .last()
                     .unwrap()
                     .msg
-                    .color(Color::BrightBlue)
+                    .color(QUOTE)
                     .bold()
             )?;
         }
@@ -240,7 +241,7 @@ impl<'a> fmt::Display for SecondaryWindow<'a> {
             writeln!(
                 f,
                 "{indent} {vbar} {vbars_slice}{}",
-                target_msg.msg.color(Color::BrightBlue).bold()
+                target_msg.msg.color(QUOTE).bold()
             )?;
         }
 
@@ -261,7 +262,7 @@ fn print_markers(
 
         let ws = " ".repeat(relative_span.start.into_usize() - last_relative_span.end.into_usize());
         let markers = marker.repeat(relative_span.len() as usize);
-        write!(f, "{ws}{}", markers.color(Color::BrightBlue).bold())?;
+        write!(f, "{ws}{}", markers.color(QUOTE).bold())?;
 
         last_relative_span = relative_span;
     }
@@ -292,7 +293,7 @@ fn format_bars(
     line_offset: Offset,
     spans: impl Iterator<Item = Span>,
 ) -> Result<(String, Vec<VBarSpan>), fmt::Error> {
-    let vbar = "|".color(Color::BrightBlue).bold();
+    let vbar = "|".color(QUOTE).bold();
 
     let mut s = String::new();
     let mut slices = Vec::new();
@@ -351,19 +352,6 @@ impl<'a> fmt::Display for Render<'a> {
         write!(f, "{}", self.window)?;
         Ok(())
     }
-}
-
-pub fn header<'a>(
-    db: &'a dyn IrDb,
-    diag: &'a impl Diagnostic,
-    input_file: InputFile,
-    primary_span: Span,
-) -> Header<'a> {
-    let src_file = input_file.name(db.base()).as_str(db.base());
-    let ln_tbl = input_file.line_column_table(db.base());
-    let ln_col = ln_tbl.line_column(primary_span.start);
-
-    Header::new(diag, src_file, ln_col)
 }
 
 /// Diagnostic window rendering with a primary message only
