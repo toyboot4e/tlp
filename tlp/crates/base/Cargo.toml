@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 indexmap = "1.9.1"
-rowan = "0.15.9"
+rowan = "0.15.10"
 salsa = { git = "https://github.com/salsa-rs/salsa/", package = "salsa-2022" }
 typed-index-collections = "3.1.0"
 

@@ -15,7 +15,7 @@ base = { path = "crates/base" }
 # std++
 env_logger = "0.9.1"
 log = "0.4.17"
-thiserror = "1.0.36"
+thiserror = "1.0.37"
 camino = "1.1.1"
 
 # framework
@@ -24,7 +24,7 @@ salsa = { git = "https://github.com/salsa-rs/salsa/", package = "salsa-2022" }
 # utilities
 derivative = "2.2.0"
 hashbrown = "0.12.3"
-rowan = "0.15.9"
+rowan = "0.15.10"
 rustc-hash = "1.1.0"
 smallvec = "1.9.0"
 la-arena = "0.2.1"
