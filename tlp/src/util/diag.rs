@@ -40,6 +40,7 @@ impl Severity {
     }
 }
 
+/// Basic diagnostic information
 pub trait Diagnostic {
     // [<code]<severity>: msg
     fn code(&self) -> &str;
@@ -47,6 +48,8 @@ pub trait Diagnostic {
     fn msg(&self) -> &str;
 }
 
+/// Header part of diagnostic rendering
+///
 /// ```text
 /// <severity>[code]: <msg>
 /// --> <src_file>:<ln>:<col>
@@ -88,6 +91,7 @@ impl<'a> fmt::Display for Header<'a> {
     }
 }
 
+/// Span for primary and secondary messages
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MsgSpan {
     /// Span in the source text
@@ -102,22 +106,24 @@ impl MsgSpan {
     }
 }
 
+/// Window with primary message only
+///
 /// ```text
 ///      |
 /// <ln> | <line_text>
 ///      |    ^^^^ <msg>
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct LineSpanMain<'a> {
+pub struct PrimaryWindow<'a> {
     pub severity: Severity,
     /// Line number for merge and display
     pub line1: u32,
     pub src_text: &'a str,
     pub line_span: Span,
-    pub main_msg: MsgSpan,
+    pub primary_msg: MsgSpan,
 }
 
-impl<'a> fmt::Display for LineSpanMain<'a> {
+impl<'a> fmt::Display for PrimaryWindow<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let n_digits = self::n_digits(self.line1 as usize);
         let indent = " ".repeat(n_digits);
@@ -131,17 +137,17 @@ impl<'a> fmt::Display for LineSpanMain<'a> {
         writeln!(
             f,
             "{indent} {vbar} {} {}",
-            self::msg_range_string(self.main_msg.span - self.line_span.start)
+            self::msg_range_string(self.primary_msg.span - self.line_span.start)
                 .color(self.severity.color())
                 .bold(),
-            self.main_msg.msg.color(self.severity.color()).bold(),
+            self.primary_msg.msg.color(self.severity.color()).bold(),
         )?;
 
         Ok(())
     }
 }
 
-/// Spans for a line window
+/// Window with primary span and secondary messages
 ///
 /// ```text
 ///      |
@@ -151,17 +157,17 @@ impl<'a> fmt::Display for LineSpanMain<'a> {
 ///      |    expected `u32`, found `i32`
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct LineSpanSubs<'a> {
+pub struct SecondaryWindow<'a> {
     pub severity: Severity,
     /// Line number for merge and display
     pub line1: u32,
     pub src_text: &'a str,
     pub line_span: Span,
-    pub main_span: Span,
-    pub sub_msgs: Vec<MsgSpan>,
+    pub primary_span: Span,
+    pub secondary_msgs: Vec<MsgSpan>,
 }
 
-impl<'a> fmt::Display for LineSpanSubs<'a> {
+impl<'a> fmt::Display for SecondaryWindow<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let n_digits = self::n_digits(self.line1 as usize);
         let indent = " ".repeat(n_digits);
@@ -176,8 +182,8 @@ impl<'a> fmt::Display for LineSpanSubs<'a> {
         // ranges + last sub message:
         let line_offset = self.line_span.start;
         {
-            //  ^^^
-            let last_relative_span = self.main_span - line_offset;
+            //  |  ^
+            let last_relative_span = self.primary_span - line_offset;
 
             let ws = " ".repeat(last_relative_span.start.into_usize());
             let carets = "^"
@@ -191,14 +197,14 @@ impl<'a> fmt::Display for LineSpanSubs<'a> {
                 "-",
                 line_offset,
                 last_relative_span,
-                self.sub_msgs.iter().map(|m| m.span),
+                self.secondary_msgs.iter().map(|m| m.span),
             )?;
 
             //                   expected `f32`, found `i32`
             writeln!(
                 f,
                 " {}",
-                self.sub_msgs
+                self.secondary_msgs
                     .last()
                     .unwrap()
                     .msg
@@ -209,7 +215,7 @@ impl<'a> fmt::Display for LineSpanSubs<'a> {
 
         let (vbars_string, vbars_spans) = self::format_bars(
             line_offset,
-            self.sub_msgs[0..self.sub_msgs.len() - 1]
+            self.secondary_msgs[0..self.secondary_msgs.len() - 1]
                 .iter()
                 .map(|m| m.span),
         )?;
@@ -225,8 +231,8 @@ impl<'a> fmt::Display for LineSpanSubs<'a> {
 
         // <2>:  |    <msg>
         // <2>:  <msg>
-        for i in (0..self.sub_msgs.len() - 1).rev() {
-            let target_msg = &self.sub_msgs[i];
+        for i in (0..self.secondary_msgs.len() - 1).rev() {
+            let target_msg = &self.secondary_msgs[i];
 
             let len = vbars_spans[i].end_ws.into_usize() - line_offset.into_usize();
             let vbars_slice = &vbars_string[0..len];
@@ -316,19 +322,22 @@ fn format_bars(
 /// Diagnostic window
 #[derive(Debug)]
 pub enum Window<'a> {
-    Main(LineSpanMain<'a>),
-    Subs(LineSpanSubs<'a>),
+    /// Primary message only
+    Primary(PrimaryWindow<'a>),
+    /// Primary span and secondary messages
+    Secondary(SecondaryWindow<'a>),
 }
 
 impl<'a> fmt::Display for Window<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Main(x) => x.fmt(f),
-            Self::Subs(x) => x.fmt(f),
+            Self::Primary(x) => x.fmt(f),
+            Self::Secondary(x) => x.fmt(f),
         }
     }
 }
 
+/// Diagnostic rendering
 #[derive(Debug)]
 pub struct Render<'a> {
     pub header: Header<'a>,
@@ -348,58 +357,60 @@ pub fn header<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
-    main_span: Span,
+    primary_span: Span,
 ) -> Header<'a> {
     let src_file = input_file.name(db.base()).as_str(db.base());
     let ln_tbl = input_file.line_column_table(db.base());
-    let ln_col = ln_tbl.line_column(main_span.start);
+    let ln_col = ln_tbl.line_column(primary_span.start);
 
     Header::new(diag, src_file, ln_col)
 }
 
-pub fn main_msg<'a>(
+/// Diagnostic window rendering with a primary message only
+pub fn primary_msg<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
-    main: MsgSpan,
+    primary_msg: MsgSpan,
 ) -> Render<'a> {
-    let (header, line_span, src_text) = self::get(db, diag, input_file, main.span);
+    let (header, line_span, src_text) = self::get(db, diag, input_file, primary_msg.span);
 
-    let main_span = LineSpanMain {
+    let primary_span = PrimaryWindow {
         severity: diag.severity(),
         line1: header.ln_col.line1(),
         src_text,
         line_span,
-        main_msg: main,
+        primary_msg,
     };
 
     Render {
         header,
-        window: Window::Main(main_span),
+        window: Window::Primary(primary_span),
     }
 }
 
-pub fn sub_msgs<'a>(
+/// Diagnostic window rendering with a primary span and secondary messages
+pub fn secondary_msgs<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
-    main_span: Span,
-    sub_msgs: Vec<MsgSpan>,
+    primary_span: Span,
+    secondary_msgs: Vec<MsgSpan>,
 ) -> Render<'a> {
-    let (header, line_span, src_text) = self::get(db, diag, input_file, main_span);
+    let (header, line_span, src_text) = self::get(db, diag, input_file, primary_span);
 
-    let window = LineSpanSubs {
+    let window = SecondaryWindow {
         severity: diag.severity(),
         line1: header.ln_col.line1(),
         src_text,
         line_span,
-        main_span,
-        sub_msgs,
+        primary_span,
+        secondary_msgs,
     };
 
     Render {
         header,
-        window: Window::Subs(window),
+        window: Window::Secondary(window),
     }
 }
 
@@ -407,14 +418,14 @@ fn get<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
-    main_span: Span,
+    primary_span: Span,
 ) -> (Header<'a>, Span, &'a str) {
     let src_file = input_file.name(db.base()).as_str(db.base());
     let ln_tbl = input_file.line_column_table(db.base());
-    let ln_col = ln_tbl.line_column(main_span.start);
+    let ln_col = ln_tbl.line_column(primary_span.start);
     let header = Header::new(diag, src_file, ln_col);
 
-    let line_span = ln_tbl.line_span(main_span.start);
+    let line_span = ln_tbl.line_span(primary_span.start);
     let src_text = input_file.source_text(db.base());
 
     (header, line_span, src_text)

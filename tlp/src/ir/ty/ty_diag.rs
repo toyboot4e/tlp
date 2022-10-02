@@ -69,8 +69,8 @@ impl TypeDiagnostic {
             TypeDiagnostic::MismatchedTypes(x) => {
                 let x = &x.mismatch;
                 let main_span = body_spans.get(x.actual_expr).unwrap();
-                let main_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::main_msg(db, self, input_file, main_msg)
+                let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
+                diag::primary_msg(db, self, input_file, primary_msg)
             }
             TypeDiagnostic::WrongArgTypes(_x) => todo!(),
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
@@ -91,17 +91,17 @@ impl TypeDiagnostic {
                     },
                 ];
 
-                diag::sub_msgs(db, self, input_file, main_span, sub_msgs)
+                diag::secondary_msgs(db, self, input_file, main_span, sub_msgs)
             }
             TypeDiagnostic::CannotFindTypeInScope(x) => {
                 let main_span = body_spans.get(x.expr).unwrap();
-                let main_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::main_msg(db, self, input_file, main_msg)
+                let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
+                diag::primary_msg(db, self, input_file, primary_msg)
             }
             TypeDiagnostic::CannotFindValueInScope(x) => {
                 let main_span = *body_spans[x.expr].as_ref().unwrap();
-                let main_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::main_msg(db, self, input_file, main_msg)
+                let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
+                diag::primary_msg(db, self, input_file, primary_msg)
             }
         }
     }
