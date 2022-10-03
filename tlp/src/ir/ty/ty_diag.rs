@@ -175,9 +175,19 @@ impl IncorrectProcArgs {
     // TODO: consider number
     pub fn primary_msg(&self) -> String {
         if let Some(arity) = &self.arity_mismatch {
+            fn arity_to_arg(arity: usize) -> &'static str {
+                match arity {
+                    0 | 1 => "argument",
+                    _ => "arguments",
+                }
+            }
+
             format!(
-                "this procedure takes {} arguments but {} argumetns were given",
-                arity.expected, arity.actual
+                "this procedure takes {} {} but {} {} were given",
+                arity.expected,
+                arity_to_arg(arity.expected),
+                arity.actual,
+                arity_to_arg(arity.actual),
             )
         } else {
             format!("incorrect procedure arguments")
