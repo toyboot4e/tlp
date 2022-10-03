@@ -76,7 +76,7 @@ impl TypeDiagnostic {
         body_spans: &BodySpans,
     ) -> diag::Render<'a> {
         // show procedure name
-        let src_context = format!("(in proc `{}`)", proc.name(db).as_str(db.base()));
+        let src_context = format!("(`{}`)", proc.name(db).as_str(db.base()));
 
         match self {
             TypeDiagnostic::MissingParamType(_x) => {
@@ -230,7 +230,8 @@ impl ProcedureDefinedHere {
             db,
             self,
             self.proc.input_file(db),
-            "function defiend here".to_string(),
+            // no context
+            "".to_string(),
             primary_span,
             sub_msgs,
         )
