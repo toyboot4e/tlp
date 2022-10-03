@@ -47,6 +47,23 @@ pub enum Severity {
     Hint,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SeverityDisplay {
+    pub severity: Severity,
+    pub code: Option<&'static str>,
+}
+
+impl fmt::Display for SeverityDisplay {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(code) = &self.code {
+            let s = format!("[{}]{}", code, self.severity.as_str());
+            write!(f, "{}", s.color(self.severity.color()).bold())
+        } else {
+            write!(f, "{}", self.severity.as_str().color(self.severity.color()).bold())
+        }
+    }
+}
+
 impl Severity {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -70,8 +87,19 @@ impl Severity {
 /// Basic diagnostic information
 pub trait Diagnostic {
     // [<code]<severity>: msg
-    fn code(&self) -> &str;
+    fn code(&self) -> Option<&'static str> {
+        None
+    }
+
     fn severity(&self) -> Severity;
+
+    fn severity_display(&self) -> SeverityDisplay {
+        SeverityDisplay {
+            severity: self.severity(),
+            code: self.code(),
+        }
+    }
+
     /// Primary error message shown in the header
     fn msg(&self) -> String;
 }
@@ -84,8 +112,7 @@ pub trait Diagnostic {
 /// ```
 #[derive(Debug)]
 pub struct Header<'a> {
-    pub code: String,
-    pub severity: Severity,
+    pub severity_display: SeverityDisplay,
     pub msg: String,
     pub src_file: &'a str,
     /// in procedure `f`
@@ -101,8 +128,7 @@ impl<'a> Header<'a> {
         ln_col: LineColumn,
     ) -> Self {
         Self {
-            code: diag.code().to_string(),
-            severity: diag.severity(),
+            severity_display: diag.severity_display(),
             msg: diag.msg(),
             src_file,
             src_context,
@@ -113,12 +139,10 @@ impl<'a> Header<'a> {
 
 impl<'a> fmt::Display for Header<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let severity_code = format!("{}[{}]", self.severity.as_str(), self.code);
-
         writeln!(
             f,
             "{}: {}\n  {} {}:{}:{} {}",
-            severity_code.color(self.severity.color()).bold(),
+            self.severity_display,
             self.msg.bold(),
             R_ARROW.color(QUOTE),
             self.src_file,

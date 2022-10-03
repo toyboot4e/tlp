@@ -27,15 +27,15 @@ crate::util::define_enum! {
 }
 
 impl diag::Diagnostic for TypeDiagnostic {
-    fn code(&self) -> &str {
-        match self {
+    fn code(&self) -> Option<&'static str> {
+        Some(match self {
             TypeDiagnostic::MissingParamType(_) => "E0000",
             TypeDiagnostic::MismatchedTypes(_) => "E0001",
             TypeDiagnostic::IncompatibleOpArgTypes(_) => "E0002",
             TypeDiagnostic::IncorrectProcArgs(_) => "E0003",
             TypeDiagnostic::CannotFindTypeInScope(_) => "E0020",
             TypeDiagnostic::CannotFindValueInScope(_) => "E0021",
-        }
+        })
     }
 
     fn severity(&self) -> diag::Severity {
@@ -196,11 +196,6 @@ pub struct ProcedureDefinedHere {
 }
 
 impl Diagnostic for ProcedureDefinedHere {
-    // FIXME: non error/warning don't gave code. add enum
-    fn code(&self) -> &str {
-        "notenote"
-    }
-
     fn severity(&self) -> diag::Severity {
         diag::Severity::Note
     }
