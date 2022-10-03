@@ -86,7 +86,7 @@ impl TypeDiagnostic {
                 let x = &x.mismatch;
                 let main_span = body_spans.get(x.actual_expr).unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::msg(db, self, input_file, src_context, primary_msg)
+                diag::render_single_msg(db, self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
                 let main_span = body_spans.get(x.op_expr).unwrap();
@@ -106,37 +106,29 @@ impl TypeDiagnostic {
                     },
                 ];
 
-                diag::multi_msgs(db, self, input_file, src_context, main_span, sub_msgs)
+                diag::render_multi_msg(db, self, input_file, src_context, main_span, sub_msgs)
             }
             TypeDiagnostic::IncorrectProcArgs(x) => {
                 let main_span = body_spans.get(x.proc_expr).unwrap();
+                let sub_msgs = TypeMismatch::msg_spans(&x.type_mismatches, db, body_spans);
 
-                let sub_msgs = x
-                    .type_mismatches
-                    .iter()
-                    .map(|type_mismatch| MsgSpan {
-                        span: body_spans.get(type_mismatch.actual_expr).unwrap(),
-                        msg: format!(
-                            "expected `{}`, found `{}`",
-                            type_mismatch.expected_ty.data(db).type_name(db),
-                            type_mismatch.actual_ty.data(db).type_name(db),
-                        ),
-                    })
-                    .collect::<Vec<_>>();
+                let mut render =
+                    diag::render_multi_msg(db, self, input_file, src_context, main_span, sub_msgs);
 
+                render.sub_renders = vec![ProcedureDefinedHere::new(x.proc_id).render(db)];
                 // TODO: add node of the original procedure
 
-                diag::multi_msgs(db, self, input_file, src_context, main_span, sub_msgs)
+                render
             }
             TypeDiagnostic::CannotFindTypeInScope(x) => {
                 let main_span = body_spans.get(x.expr).unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::msg(db, self, input_file, src_context, primary_msg)
+                diag::render_single_msg(db, self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::CannotFindValueInScope(x) => {
                 let main_span = *body_spans[x.expr].as_ref().unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::msg(db, self, input_file, src_context, primary_msg)
+                diag::render_single_msg(db, self, input_file, src_context, primary_msg)
             }
         }
     }
@@ -188,8 +180,65 @@ impl IncorrectProcArgs {
                 arity.expected, arity.actual
             )
         } else {
-            format!("arguments to this procedure are incorrect")
+            format!("incorrect procedure arguments")
         }
+    }
+}
+
+// --------------------------------------------------------------------------------
+// Sub diagnostics
+// --------------------------------------------------------------------------------
+
+/// Shown on type mismatch
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProcedureDefinedHere {
+    pub proc: item::Proc,
+}
+
+impl Diagnostic for ProcedureDefinedHere {
+    // FIXME: non error/warning don't gave code. add enum
+    fn code(&self) -> &str {
+        "notenote"
+    }
+
+    fn severity(&self) -> diag::Severity {
+        diag::Severity::Note
+    }
+
+    fn msg(&self) -> String {
+        "function defined here".to_string()
+    }
+}
+
+impl ProcedureDefinedHere {
+    pub fn new(proc: item::Proc) -> Self {
+        Self { proc }
+    }
+
+    pub fn render<'a>(&self, db: &'a dyn IrDb) -> diag::Render<'a> {
+        let primary_span = self.proc.name(db).span(db.base()).span();
+
+        let sub_msgs = self
+            .proc
+            .params(db)
+            .iter()
+            .map(|param| {
+                // FIXME: use `Option<String>` for message
+                MsgSpan {
+                    span: param.span,
+                    msg: "".to_string(),
+                }
+            })
+            .collect::<Vec<_>>();
+
+        diag::render_multi_msg(
+            db,
+            self,
+            self.proc.input_file(db),
+            "function defiend here".to_string(),
+            primary_span,
+            sub_msgs,
+        )
     }
 }
 
@@ -203,6 +252,21 @@ pub struct TypeMismatch {
     pub expected_ty: Ty,
     pub actual_expr: Expr,
     pub actual_ty: Ty,
+}
+
+impl TypeMismatch {
+    pub fn msg_spans(xs: &[TypeMismatch], db: &dyn IrDb, body_spans: &BodySpans) -> Vec<MsgSpan> {
+        xs.iter()
+            .map(|type_mismatch| MsgSpan {
+                span: body_spans.get(type_mismatch.actual_expr).unwrap(),
+                msg: format!(
+                    "expected `{}`, found `{}`",
+                    type_mismatch.expected_ty.data(db).type_name(db),
+                    type_mismatch.actual_ty.data(db).type_name(db),
+                ),
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 /// Arity mismatch information

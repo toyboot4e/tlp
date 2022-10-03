@@ -82,15 +82,18 @@ pub struct Proc {
 pub struct Param {
     pub pat: pat::PatData,
     pub ty: expr::TypeSyntax,
-    // pub span: FileSpan,
+    pub span: Span,
 }
 
 impl Param {
     pub fn from_ast(db: &dyn ir::IrDb, ast: ast::Param) -> Option<Self> {
         let pat = ast.pat().and_then(|pat| pat::PatData::from_ast(db, pat))?;
-
         let ty = expr::TypeSyntax::from_opt_ast(db, ast.ty());
-        Some(Param { pat, ty })
+
+        use ast::AstNode;
+        let span = Span::from_rowan_range(ast.pat().unwrap().syntax().text_range());
+
+        Some(Param { pat, ty, span })
     }
 }
 

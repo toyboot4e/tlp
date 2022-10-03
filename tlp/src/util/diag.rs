@@ -30,20 +30,20 @@ const RECT_LU: &'static str = "├";
 const RECT_RU: &'static str = "┘";
 
 /// Left down corner of rectangle
-// const RECT_LD: &'static str = "╰";
-const RECT_LD: &'static str = "└";
+const RECT_LD: &'static str = "╰";
+// const RECT_LD: &'static str = "└";
 
 const INV_T: &'static str = "┴";
 
 /// Secondary diagnostic messages under marked text span
 const UNDER_MSG_PREFIX: &'static str = "╰──";
 
-/// Error | Warning | Info | Hint
+/// Error | Warning | Note | Hint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Severity {
     Error,
     Warning,
-    Info,
+    Note,
     Hint,
 }
 
@@ -52,7 +52,7 @@ impl Severity {
         match self {
             Severity::Error => "error",
             Severity::Warning => "warnign",
-            Severity::Info => "info",
+            Severity::Note => "note",
             Severity::Hint => "hint",
         }
     }
@@ -61,7 +61,7 @@ impl Severity {
         match self {
             Self::Error => Color::Red,
             Self::Warning => Color::Green,
-            Self::Info => Color::Blue,
+            Self::Note => Color::Blue,
             Self::Hint => Color::Yellow,
         }
     }
@@ -84,7 +84,7 @@ pub trait Diagnostic {
 /// ```
 #[derive(Debug)]
 pub struct Header<'a> {
-    pub code: &'a str,
+    pub code: String,
     pub severity: Severity,
     pub msg: String,
     pub src_file: &'a str,
@@ -95,13 +95,13 @@ pub struct Header<'a> {
 
 impl<'a> Header<'a> {
     pub fn new(
-        diag: &'a impl Diagnostic,
+        diag: &impl Diagnostic,
         src_file: &'a str,
         src_context: String,
         ln_col: LineColumn,
     ) -> Self {
         Self {
-            code: diag.code(),
+            code: diag.code().to_string(),
             severity: diag.severity(),
             msg: diag.msg(),
             src_file,
@@ -124,7 +124,7 @@ impl<'a> fmt::Display for Header<'a> {
             self.src_file,
             self.ln_col.line1(),
             self.ln_col.column1(),
-            self.src_context.color(QUOTE),
+            self.src_context.color(QUOTE).bold(),
         )
     }
 }
@@ -474,7 +474,10 @@ impl<'a> fmt::Display for Window<'a> {
 #[derive(Debug)]
 pub struct Render<'a> {
     pub header: Header<'a>,
+    /// Main diagnostic window (error, warning, ..)
     pub window: Window<'a>,
+    /// Sub diagnostic windows (note, hint, ..)
+    pub sub_renders: Vec<Render<'a>>,
 }
 
 impl<'a> fmt::Display for Render<'a> {
@@ -482,12 +485,15 @@ impl<'a> fmt::Display for Render<'a> {
         // NOTE: each format contains the last newline character, so don't use `writeln!`
         write!(f, "{}", self.header)?;
         write!(f, "{}", self.window)?;
+        for sub_win in &self.sub_renders {
+            write!(f, "{}", sub_win)?;
+        }
         Ok(())
     }
 }
 
 /// Diagnostic window rendering with a primary message only
-pub fn msg<'a>(
+pub fn render_single_msg<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
@@ -495,7 +501,7 @@ pub fn msg<'a>(
     primary_msg: MsgSpan,
 ) -> Render<'a> {
     let (header, line_span, src_text) =
-        self::get(db, diag, input_file, src_context, primary_msg.span);
+        self::get_header(db, diag, input_file, src_context, primary_msg.span);
 
     let primary_span = PrimaryLineRender {
         severity: diag.severity(),
@@ -508,19 +514,53 @@ pub fn msg<'a>(
     Render {
         header,
         window: Window::Primary(primary_span),
+        sub_renders: Vec::new(),
     }
 }
 
 /// Diagnostic window rendering with a primary span and secondary messages
-pub fn multi_msgs<'a>(
+pub fn render_multi_msg<'a>(
     db: &'a dyn IrDb,
-    diag: &'a impl Diagnostic,
+    diag: &impl Diagnostic,
     input_file: InputFile,
     src_context: String,
     primary_span: Span,
     secondary_msgs: Vec<MsgSpan>,
 ) -> Render<'a> {
-    let (header, line_span, src_text) = self::get(db, diag, input_file, src_context, primary_span);
+    let (header, _line_span, _src_text) =
+        self::get_header(db, diag, input_file, src_context, primary_span);
+
+    let window = self::window_multi_msg(
+        db,
+        diag.severity(),
+        input_file,
+        primary_span,
+        secondary_msgs,
+    );
+
+    Render {
+        header,
+        window,
+        sub_renders: Vec::new(),
+    }
+}
+
+pub fn window_multi_msg<'a>(
+    db: &'a dyn IrDb,
+    severity: Severity,
+    input_file: InputFile,
+    primary_span: Span,
+    secondary_msgs: Vec<MsgSpan>,
+) -> Window<'a> {
+    let src_text = input_file.source_text(db.base());
+
+    let (line_span, ln_col) = {
+        let ln_tbl = input_file.line_column_table(db.base());
+        (
+            ln_tbl.line_span(primary_span.start),
+            ln_tbl.line_column(primary_span.start),
+        )
+    };
 
     let ln_tbl = input_file.line_column_table(db.base());
 
@@ -554,8 +594,8 @@ pub fn multi_msgs<'a>(
     // primary span only
     if !contains_primary_span {
         let line_render = SecondaryLineRender {
-            severity: diag.severity(),
-            line1: header.ln_col.line1(),
+            severity,
+            line1: ln_col.line1(),
             src_text,
             line_span,
             primary_span: Some(primary_span),
@@ -578,7 +618,7 @@ pub fn multi_msgs<'a>(
         let line_span = ln_tbl.line_span(secondary_msgs[0].span.start);
 
         let line_render = SecondaryLineRender {
-            severity: diag.severity(),
+            severity,
             line1,
             src_text,
             line_span,
@@ -589,17 +629,14 @@ pub fn multi_msgs<'a>(
         line_renders.push(line_render);
     }
 
-    Render {
-        header,
-        window: Window::Secondary(SecondaryWindow {
-            lines: line_renders,
-        }),
-    }
+    Window::Secondary(SecondaryWindow {
+        lines: line_renders,
+    })
 }
 
-fn get<'a>(
+pub fn get_header<'a>(
     db: &'a dyn IrDb,
-    diag: &'a impl Diagnostic,
+    diag: &impl Diagnostic,
     input_file: InputFile,
     src_context: String,
     primary_span: Span,
