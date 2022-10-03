@@ -91,7 +91,7 @@ impl Param {
         let ty = expr::TypeSyntax::from_opt_ast(db, ast.ty());
 
         use ast::AstNode;
-        let span = Span::from_rowan_range(ast.pat().unwrap().syntax().text_range());
+        let span = Span::from_rowan_range(ast.syntax().text_range());
 
         Some(Param { pat, ty, span })
     }
@@ -136,6 +136,7 @@ impl Proc {
                 if let Some(param) = Param::from_ast(db, param_node) {
                     params.push(param);
                 } else {
+                    // FIXME: emit error?
                     // TODO: consider still adding parameter?
                 }
             }

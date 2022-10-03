@@ -92,18 +92,18 @@ impl TypeDiagnostic {
                 let main_span = body_spans.get(x.op_expr).unwrap();
 
                 let sub_msgs = vec![
-                    MsgSpan {
-                        span: body_spans.get(x.first_expr).unwrap(),
-                        msg: "expected because of this argument".to_string(),
-                    },
-                    MsgSpan {
-                        span: body_spans.get(x.mismatch.actual_expr).unwrap(),
-                        msg: format!(
+                    MsgSpan::new(
+                        body_spans.get(x.first_expr).unwrap(),
+                        "expected because of this argument".to_string(),
+                    ),
+                    MsgSpan::new(
+                        body_spans.get(x.mismatch.actual_expr).unwrap(),
+                        format!(
                             "expected `{}`, found `{}`",
                             x.mismatch.expected_ty.data(db).type_name(db),
                             x.mismatch.actual_ty.data(db).type_name(db),
                         ),
-                    },
+                    ),
                 ];
 
                 diag::render_multi_msg(db, self, input_file, src_context, main_span, sub_msgs)
@@ -217,13 +217,7 @@ impl ProcedureDefinedHere {
             .proc
             .params(db)
             .iter()
-            .map(|param| {
-                // FIXME: use `Option<String>` for message
-                MsgSpan {
-                    span: param.span,
-                    msg: "".to_string(),
-                }
-            })
+            .map(|param| MsgSpan::span_only(param.span))
             .collect::<Vec<_>>();
 
         diag::render_multi_msg(
@@ -253,13 +247,15 @@ pub struct TypeMismatch {
 impl TypeMismatch {
     pub fn msg_spans(xs: &[TypeMismatch], db: &dyn IrDb, body_spans: &BodySpans) -> Vec<MsgSpan> {
         xs.iter()
-            .map(|type_mismatch| MsgSpan {
-                span: body_spans.get(type_mismatch.actual_expr).unwrap(),
-                msg: format!(
-                    "expected `{}`, found `{}`",
-                    type_mismatch.expected_ty.data(db).type_name(db),
-                    type_mismatch.actual_ty.data(db).type_name(db),
-                ),
+            .map(|type_mismatch| {
+                MsgSpan::new(
+                    body_spans.get(type_mismatch.actual_expr).unwrap(),
+                    format!(
+                        "expected `{}`, found `{}`",
+                        type_mismatch.expected_ty.data(db).type_name(db),
+                        type_mismatch.actual_ty.data(db).type_name(db),
+                    ),
+                )
             })
             .collect::<Vec<_>>()
     }

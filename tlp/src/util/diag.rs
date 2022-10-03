@@ -59,7 +59,11 @@ impl fmt::Display for SeverityDisplay {
             let s = format!("[{}]{}", code, self.severity.as_str());
             write!(f, "{}", s.color(self.severity.color()).bold())
         } else {
-            write!(f, "{}", self.severity.as_str().color(self.severity.color()).bold())
+            write!(
+                f,
+                "{}",
+                self.severity.as_str().color(self.severity.color()).bold()
+            )
         }
     }
 }
@@ -159,12 +163,19 @@ pub struct MsgSpan {
     /// Span in the source text
     pub span: Span,
     /// Message for the spanned text
-    pub msg: String,
+    pub msg: Option<String>,
 }
 
 impl MsgSpan {
     pub fn new(span: Span, msg: String) -> Self {
-        Self { span, msg }
+        Self {
+            span,
+            msg: Some(msg),
+        }
+    }
+
+    pub fn span_only(span: Span) -> Self {
+        Self { span, msg: None }
     }
 }
 
@@ -196,14 +207,25 @@ impl<'a> fmt::Display for PrimaryLineRender<'a> {
 
         writeln!(f, "{indent} {vbar}")?;
         writeln!(f, "{} {vbar} {}", line.color(QUOTE).bold(), line_text)?;
-        writeln!(
-            f,
-            "{indent} {vbar} {} {}",
-            self::msg_range_string(self.primary_msg.span - self.line_span.start)
-                .color(self.severity.color())
-                .bold(),
-            self.primary_msg.msg.color(self.severity.color()).bold(),
-        )?;
+
+        if let Some(msg) = &self.primary_msg.msg {
+            writeln!(
+                f,
+                "{indent} {vbar} {} {}",
+                self::msg_range_string(self.primary_msg.span - self.line_span.start)
+                    .color(self.severity.color())
+                    .bold(),
+                msg.color(self.severity.color()).bold(),
+            )?;
+        } else {
+            writeln!(
+                f,
+                "{indent} {vbar} {}",
+                self::msg_range_string(self.primary_msg.span - self.line_span.start)
+                    .color(self.severity.color())
+                    .bold(),
+            )?;
+        }
 
         Ok(())
     }
@@ -282,27 +304,18 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
             }
         };
 
-        //    ├──  │  ╰───
-        self::print_hbar_markers(
-            f,
-            line_offset,
-            last_relative_span,
-            self.secondary_msgs.iter().map(|m| m.span),
-        )?;
+        {
+            //    ├──  │  ╰───
+            self::print_hbar_markers(f, line_offset, last_relative_span, &self.secondary_msgs)?;
 
-        //                   expected `f32`, found `i32`
-        writeln!(
-            f,
-            " {}",
-            self.secondary_msgs.last().unwrap().msg.color(QUOTE).bold()
-        )?;
+            // <msg>
+            if let Some(msg) = &self.secondary_msgs.last().unwrap().msg {
+                writeln!(f, " {}", msg.color(QUOTE).bold())?;
+            }
+        }
 
-        let (vbars_string, vbars_spans) = self::format_vbar_pointers(
-            line_offset,
-            self.secondary_msgs[0..self.secondary_msgs.len() - 1]
-                .iter()
-                .map(|m| m.span),
-        )?;
+        let (vbars_string, vbars_spans) =
+            self::format_vbar_pointers(line_offset, &self.secondary_msgs)?;
 
         if self.secondary_msgs.len() == 1 {
             return Ok(());
@@ -310,24 +323,24 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
 
         // show secondary messages in preceding lines:
         //       1.0  14
-        // <1>   │    │
-        // <2>   │    ╰──expected `f32`, found `i32`
-        // <2>   ╰── expected because of this variable
-
         // <1>:  |    |
         writeln!(f, "{indent} {vdot} {vbars_string}")?;
 
         // <2>:  │    ╰── <msg>
         // <2>:  ╰─ <msg>
-        for i in (0..self.secondary_msgs.len() - 1).rev() {
-            let target_msg = &self.secondary_msgs[i];
+        for i in (0..vbars_spans.len()).rev() {
+            let vbar_span = &vbars_spans[i];
+
+            let target_msg_span = &self.secondary_msgs[vbar_span.i_msg_span];
+            let target_msg = target_msg_span.msg.as_ref().unwrap();
+
             let vbars_str = &vbars_string[0..vbars_spans[i].end_ws];
 
             writeln!(
                 f,
                 "{indent} {vdot} {vbars_str}{} {}",
                 UNDER_MSG_PREFIX.color(QUOTE).bold(),
-                target_msg.msg.color(QUOTE).bold(),
+                target_msg.color(QUOTE).bold(),
             )?;
         }
 
@@ -340,22 +353,23 @@ fn print_hbar_markers(
     f: &mut fmt::Formatter<'_>,
     line_offset: Offset,
     mut last_relative_span: Span,
-    spans: impl Iterator<Item = Span>,
+    msg_spans: &[MsgSpan],
 ) -> fmt::Result {
-    let mut spans = spans.peekable();
+    let mut spans = msg_spans.iter().peekable();
 
-    // ┌
     let rect_lu = RECT_LU.color(QUOTE).bold();
+    let rect_ru = RECT_RU.color(QUOTE).bold();
 
-    while let Some(span) = spans.next().map(|s| s.clone()) {
-        let relative_span = span - line_offset;
+    while let Some(msg_span) = spans.next().map(|s| s.clone()) {
+        let relative_span = msg_span.span - line_offset;
         let len = relative_span.len() as usize;
 
         let ws = " ".repeat(relative_span.start.into_usize() - last_relative_span.end.into_usize());
 
-        if spans.peek().is_some() {
-            let rect_ru = RECT_RU.color(QUOTE).bold();
-
+        if msg_span.msg.is_none() {
+            // no need of vertical bar
+            write!(f, "{ws}{}", HBAR.repeat(len).color(QUOTE).bold())?;
+        } else if spans.peek().is_some() {
             match len {
                 1 => {
                     write!(f, "{ws}{}", VBAR.color(QUOTE).bold())?;
@@ -403,6 +417,8 @@ fn print_hbar_markers(
 /// Span returned by [`format_bars`]
 #[derive(Debug)]
 struct VBarSpan {
+    /// Index in the original `[MsgSapn]`
+    i_msg_span: usize,
     /// Span for the vbars stirngexcluding `|`
     end_ws: usize,
     /// Span for the vbars stirngincluding `|`
@@ -422,7 +438,7 @@ struct VBarSpan {
 /// ```
 fn format_vbar_pointers(
     line_offset: Offset,
-    spans: impl Iterator<Item = Span>,
+    msg_spans: &[MsgSpan],
 ) -> Result<(String, Vec<VBarSpan>), fmt::Error> {
     // NOTE: Converted to string in order to measure the length considering the color escapes
     let vbar = format!("{}", VBAR.color(QUOTE).bold());
@@ -436,13 +452,22 @@ fn format_vbar_pointers(
         end: Offset::from(0u32),
     };
 
-    for span in spans {
-        let reletive_span = span - line_offset;
+    // exclude the last message as it doesn't need vertical bar:
+    let msg_spans = &msg_spans[0..msg_spans.len() - 1];
+
+    for (i, msg_span) in msg_spans.iter().enumerate() {
+        if msg_span.msg.is_none() {
+            // no need of vertical bar
+            continue;
+        }
+
+        let reletive_span = msg_span.span - line_offset;
         let ws_len = (reletive_span.start - last_relative_span.start) as usize;
         let ws = " ".repeat(ws_len);
         write!(s, "{ws}{vbar}")?;
 
         slices.push(VBarSpan {
+            i_msg_span: i,
             end_ws: s.len() - vbar.len(),
             end_vbar: s.len(),
         });
@@ -501,6 +526,7 @@ pub struct Render<'a> {
     /// Main diagnostic window (error, warning, ..)
     pub window: Window<'a>,
     /// Sub diagnostic windows (note, hint, ..)
+    // FIXME: rename
     pub sub_renders: Vec<Render<'a>>,
 }
 
@@ -510,6 +536,8 @@ impl<'a> fmt::Display for Render<'a> {
         write!(f, "{}", self.header)?;
         write!(f, "{}", self.window)?;
         for sub_win in &self.sub_renders {
+            // FIXME: newline?
+            writeln!(f, "")?;
             write!(f, "{}", sub_win)?;
         }
         Ok(())
