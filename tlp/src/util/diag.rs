@@ -25,16 +25,47 @@ const VDOT: &'static str = "┊";
 /// Left up corner of rectangle
 const RECT_LU: &'static str = "├";
 
+/// Right up corner of rectangle
+// const RECT_RU: &'static str = "╯";
+const RECT_RU: &'static str = "┘";
+
+/// Left down corner of rectangle
+const RECT_LD: &'static str = "╰";
+// const RECT_LD: &'static str = "└";
+
+const INV_T: &'static str = "┴";
+
 /// Secondary diagnostic messages under marked text span
 const UNDER_MSG_PREFIX: &'static str = "╰──";
 
-/// Error | Warning | Info | Hint
+/// Error | Warning | Note | Hint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Severity {
     Error,
     Warning,
-    Info,
+    Note,
     Hint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SeverityDisplay {
+    pub severity: Severity,
+    pub code: Option<&'static str>,
+}
+
+impl fmt::Display for SeverityDisplay {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(code) = &self.code {
+            let s = format!("[{}]{}", code, self.severity.as_str());
+            write!(f, "{}", s.color(self.severity.color()).bold())
+        } else {
+            write!(
+                f,
+                "{}",
+                self.severity.as_str().color(self.severity.color()).bold()
+            )
+        }
+    }
 }
 
 impl Severity {
@@ -42,7 +73,7 @@ impl Severity {
         match self {
             Severity::Error => "error",
             Severity::Warning => "warnign",
-            Severity::Info => "info",
+            Severity::Note => "note",
             Severity::Hint => "hint",
         }
     }
@@ -51,7 +82,7 @@ impl Severity {
         match self {
             Self::Error => Color::Red,
             Self::Warning => Color::Green,
-            Self::Info => Color::Blue,
+            Self::Note => Color::Blue,
             Self::Hint => Color::Yellow,
         }
     }
@@ -60,8 +91,19 @@ impl Severity {
 /// Basic diagnostic information
 pub trait Diagnostic {
     // [<code]<severity>: msg
-    fn code(&self) -> &str;
+    fn code(&self) -> Option<&'static str> {
+        None
+    }
+
     fn severity(&self) -> Severity;
+
+    fn severity_display(&self) -> SeverityDisplay {
+        SeverityDisplay {
+            severity: self.severity(),
+            code: self.code(),
+        }
+    }
+
     /// Primary error message shown in the header
     fn msg(&self) -> String;
 }
@@ -74,8 +116,7 @@ pub trait Diagnostic {
 /// ```
 #[derive(Debug)]
 pub struct Header<'a> {
-    pub code: &'a str,
-    pub severity: Severity,
+    pub severity_display: SeverityDisplay,
     pub msg: String,
     pub src_file: &'a str,
     /// in procedure `f`
@@ -85,14 +126,13 @@ pub struct Header<'a> {
 
 impl<'a> Header<'a> {
     pub fn new(
-        diag: &'a impl Diagnostic,
+        diag: &impl Diagnostic,
         src_file: &'a str,
         src_context: String,
         ln_col: LineColumn,
     ) -> Self {
         Self {
-            code: diag.code(),
-            severity: diag.severity(),
+            severity_display: diag.severity_display(),
             msg: diag.msg(),
             src_file,
             src_context,
@@ -103,18 +143,16 @@ impl<'a> Header<'a> {
 
 impl<'a> fmt::Display for Header<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let severity_code = format!("{}[{}]", self.severity.as_str(), self.code);
-
         writeln!(
             f,
             "{}: {}\n  {} {}:{}:{} {}",
-            severity_code.color(self.severity.color()).bold(),
+            self.severity_display,
             self.msg.bold(),
             R_ARROW.color(QUOTE),
             self.src_file,
             self.ln_col.line1(),
             self.ln_col.column1(),
-            self.src_context.color(QUOTE),
+            self.src_context.color(QUOTE).bold(),
         )
     }
 }
@@ -125,12 +163,19 @@ pub struct MsgSpan {
     /// Span in the source text
     pub span: Span,
     /// Message for the spanned text
-    pub msg: String,
+    pub msg: Option<String>,
 }
 
 impl MsgSpan {
     pub fn new(span: Span, msg: String) -> Self {
-        Self { span, msg }
+        Self {
+            span,
+            msg: Some(msg),
+        }
+    }
+
+    pub fn span_only(span: Span) -> Self {
+        Self { span, msg: None }
     }
 }
 
@@ -162,14 +207,25 @@ impl<'a> fmt::Display for PrimaryLineRender<'a> {
 
         writeln!(f, "{indent} {vbar}")?;
         writeln!(f, "{} {vbar} {}", line.color(QUOTE).bold(), line_text)?;
-        writeln!(
-            f,
-            "{indent} {vbar} {} {}",
-            self::msg_range_string(self.primary_msg.span - self.line_span.start)
-                .color(self.severity.color())
-                .bold(),
-            self.primary_msg.msg.color(self.severity.color()).bold(),
-        )?;
+
+        if let Some(msg) = &self.primary_msg.msg {
+            writeln!(
+                f,
+                "{indent} {vbar} {} {}",
+                self::msg_range_string(self.primary_msg.span - self.line_span.start)
+                    .color(self.severity.color())
+                    .bold(),
+                msg.color(self.severity.color()).bold(),
+            )?;
+        } else {
+            writeln!(
+                f,
+                "{indent} {vbar} {}",
+                self::msg_range_string(self.primary_msg.span - self.line_span.start)
+                    .color(self.severity.color())
+                    .bold(),
+            )?;
+        }
 
         Ok(())
     }
@@ -248,27 +304,18 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
             }
         };
 
-        //    ├──  │  ╰───
-        self::print_hbar_markers(
-            f,
-            line_offset,
-            last_relative_span,
-            self.secondary_msgs.iter().map(|m| m.span),
-        )?;
+        {
+            //    ├──  │  ╰───
+            self::print_hbar_markers(f, line_offset, last_relative_span, &self.secondary_msgs)?;
 
-        //                   expected `f32`, found `i32`
-        writeln!(
-            f,
-            " {}",
-            self.secondary_msgs.last().unwrap().msg.color(QUOTE).bold()
-        )?;
+            // <msg>
+            if let Some(msg) = &self.secondary_msgs.last().unwrap().msg {
+                writeln!(f, " {}", msg.color(QUOTE).bold())?;
+            }
+        }
 
-        let (vbars_string, vbars_spans) = self::format_vbar_pointers(
-            line_offset,
-            self.secondary_msgs[0..self.secondary_msgs.len() - 1]
-                .iter()
-                .map(|m| m.span),
-        )?;
+        let (vbars_string, vbars_spans) =
+            self::format_vbar_pointers(line_offset, &self.secondary_msgs)?;
 
         if self.secondary_msgs.len() == 1 {
             return Ok(());
@@ -276,24 +323,24 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
 
         // show secondary messages in preceding lines:
         //       1.0  14
-        // <1>   │    │
-        // <2>   │    ╰──expected `f32`, found `i32`
-        // <2>   ╰── expected because of this variable
-
         // <1>:  |    |
         writeln!(f, "{indent} {vdot} {vbars_string}")?;
 
         // <2>:  │    ╰── <msg>
         // <2>:  ╰─ <msg>
-        for i in (0..self.secondary_msgs.len() - 1).rev() {
-            let target_msg = &self.secondary_msgs[i];
+        for i in (0..vbars_spans.len()).rev() {
+            let vbar_span = &vbars_spans[i];
+
+            let target_msg_span = &self.secondary_msgs[vbar_span.i_msg_span];
+            let target_msg = target_msg_span.msg.as_ref().unwrap();
+
             let vbars_str = &vbars_string[0..vbars_spans[i].end_ws];
 
             writeln!(
                 f,
                 "{indent} {vdot} {vbars_str}{} {}",
                 UNDER_MSG_PREFIX.color(QUOTE).bold(),
-                target_msg.msg.color(QUOTE).bold(),
+                target_msg.color(QUOTE).bold(),
             )?;
         }
 
@@ -306,35 +353,59 @@ fn print_hbar_markers(
     f: &mut fmt::Formatter<'_>,
     line_offset: Offset,
     mut last_relative_span: Span,
-    spans: impl Iterator<Item = Span>,
+    msg_spans: &[MsgSpan],
 ) -> fmt::Result {
-    let mut spans = spans.peekable();
+    let mut spans = msg_spans.iter().peekable();
 
-    // ┌
     let rect_lu = RECT_LU.color(QUOTE).bold();
+    let rect_ru = RECT_RU.color(QUOTE).bold();
 
-    while let Some(span) = spans.next().map(|s| s.clone()) {
-        let relative_span = span - line_offset;
+    while let Some(msg_span) = spans.next().map(|s| s.clone()) {
+        let relative_span = msg_span.span - line_offset;
         let len = relative_span.len() as usize;
 
         let ws = " ".repeat(relative_span.start.into_usize() - last_relative_span.end.into_usize());
 
-        if spans.peek().is_some() {
-            if len == 1 {
-                // write!(f, "{ws}{}", VBAR_DOWN.color(QUOTE).bold())?;
-                write!(f, "{ws}{}", VBAR.color(QUOTE).bold())?;
-            } else {
-                write!(
-                    f,
-                    "{ws}{rect_lu}{}",
-                    HBAR.repeat(len - 1).color(QUOTE).bold()
-                )?;
+        if msg_span.msg.is_none() {
+            // no need of vertical bar
+            write!(f, "{ws}{}", HBAR.repeat(len).color(QUOTE).bold())?;
+        } else if spans.peek().is_some() {
+            match len {
+                1 => {
+                    write!(f, "{ws}{}", VBAR.color(QUOTE).bold())?;
+                }
+                2 => {
+                    write!(f, "{ws}{rect_lu}{rect_ru}",)?;
+                }
+                _ => {
+                    write!(
+                        f,
+                        "{ws}{rect_lu}{}{rect_ru}",
+                        HBAR.repeat(len - 2).color(QUOTE).bold(),
+                    )?;
+                }
             }
         } else {
             // last span does not contain `┌`
-            let x = "╰".color(QUOTE).bold();
-            let markers = HBAR.repeat((len - 1).max(2));
-            write!(f, "{ws}{x}{}", markers.color(QUOTE).bold())?;
+            let x = RECT_LD.color(QUOTE).bold();
+            let t = INV_T.color(QUOTE).bold();
+
+            match len {
+                1 => {
+                    write!(f, "{ws}{x}{}", HBAR.repeat(2).color(QUOTE).bold())?;
+                }
+                2 => {
+                    write!(f, "{ws}{x}{t}{}", HBAR.repeat(2).color(QUOTE).bold())?;
+                }
+                _ => {
+                    write!(
+                        f,
+                        "{ws}{x}{}{t}{}",
+                        HBAR.repeat(len - 2).color(QUOTE).bold(),
+                        HBAR.repeat(2).color(QUOTE).bold(),
+                    )?;
+                }
+            }
         }
 
         last_relative_span = relative_span;
@@ -346,6 +417,8 @@ fn print_hbar_markers(
 /// Span returned by [`format_bars`]
 #[derive(Debug)]
 struct VBarSpan {
+    /// Index in the original `[MsgSapn]`
+    i_msg_span: usize,
     /// Span for the vbars stirngexcluding `|`
     end_ws: usize,
     /// Span for the vbars stirngincluding `|`
@@ -365,7 +438,7 @@ struct VBarSpan {
 /// ```
 fn format_vbar_pointers(
     line_offset: Offset,
-    spans: impl Iterator<Item = Span>,
+    msg_spans: &[MsgSpan],
 ) -> Result<(String, Vec<VBarSpan>), fmt::Error> {
     // NOTE: Converted to string in order to measure the length considering the color escapes
     let vbar = format!("{}", VBAR.color(QUOTE).bold());
@@ -379,13 +452,22 @@ fn format_vbar_pointers(
         end: Offset::from(0u32),
     };
 
-    for span in spans {
-        let reletive_span = span - line_offset;
+    // exclude the last message as it doesn't need vertical bar:
+    let msg_spans = &msg_spans[0..msg_spans.len() - 1];
+
+    for (i, msg_span) in msg_spans.iter().enumerate() {
+        if msg_span.msg.is_none() {
+            // no need of vertical bar
+            continue;
+        }
+
+        let reletive_span = msg_span.span - line_offset;
         let ws_len = (reletive_span.start - last_relative_span.start) as usize;
         let ws = " ".repeat(ws_len);
         write!(s, "{ws}{vbar}")?;
 
         slices.push(VBarSpan {
+            i_msg_span: i,
             end_ws: s.len() - vbar.len(),
             end_vbar: s.len(),
         });
@@ -441,7 +523,11 @@ impl<'a> fmt::Display for Window<'a> {
 #[derive(Debug)]
 pub struct Render<'a> {
     pub header: Header<'a>,
+    /// Main diagnostic window (error, warning, ..)
     pub window: Window<'a>,
+    /// Sub diagnostic windows (note, hint, ..)
+    // FIXME: rename
+    pub sub_renders: Vec<Render<'a>>,
 }
 
 impl<'a> fmt::Display for Render<'a> {
@@ -449,12 +535,17 @@ impl<'a> fmt::Display for Render<'a> {
         // NOTE: each format contains the last newline character, so don't use `writeln!`
         write!(f, "{}", self.header)?;
         write!(f, "{}", self.window)?;
+        for sub_win in &self.sub_renders {
+            // FIXME: newline?
+            writeln!(f, "")?;
+            write!(f, "{}", sub_win)?;
+        }
         Ok(())
     }
 }
 
 /// Diagnostic window rendering with a primary message only
-pub fn msg<'a>(
+pub fn render_single_msg<'a>(
     db: &'a dyn IrDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
@@ -462,7 +553,7 @@ pub fn msg<'a>(
     primary_msg: MsgSpan,
 ) -> Render<'a> {
     let (header, line_span, src_text) =
-        self::get(db, diag, input_file, src_context, primary_msg.span);
+        self::get_header(db, diag, input_file, src_context, primary_msg.span);
 
     let primary_span = PrimaryLineRender {
         severity: diag.severity(),
@@ -475,19 +566,53 @@ pub fn msg<'a>(
     Render {
         header,
         window: Window::Primary(primary_span),
+        sub_renders: Vec::new(),
     }
 }
 
 /// Diagnostic window rendering with a primary span and secondary messages
-pub fn multi_msgs<'a>(
+pub fn render_multi_msg<'a>(
     db: &'a dyn IrDb,
-    diag: &'a impl Diagnostic,
+    diag: &impl Diagnostic,
     input_file: InputFile,
     src_context: String,
     primary_span: Span,
     secondary_msgs: Vec<MsgSpan>,
 ) -> Render<'a> {
-    let (header, line_span, src_text) = self::get(db, diag, input_file, src_context, primary_span);
+    let (header, _line_span, _src_text) =
+        self::get_header(db, diag, input_file, src_context, primary_span);
+
+    let window = self::window_multi_msg(
+        db,
+        diag.severity(),
+        input_file,
+        primary_span,
+        secondary_msgs,
+    );
+
+    Render {
+        header,
+        window,
+        sub_renders: Vec::new(),
+    }
+}
+
+pub fn window_multi_msg<'a>(
+    db: &'a dyn IrDb,
+    severity: Severity,
+    input_file: InputFile,
+    primary_span: Span,
+    secondary_msgs: Vec<MsgSpan>,
+) -> Window<'a> {
+    let src_text = input_file.source_text(db.base());
+
+    let (line_span, ln_col) = {
+        let ln_tbl = input_file.line_column_table(db.base());
+        (
+            ln_tbl.line_span(primary_span.start),
+            ln_tbl.line_column(primary_span.start),
+        )
+    };
 
     let ln_tbl = input_file.line_column_table(db.base());
 
@@ -521,8 +646,8 @@ pub fn multi_msgs<'a>(
     // primary span only
     if !contains_primary_span {
         let line_render = SecondaryLineRender {
-            severity: diag.severity(),
-            line1: header.ln_col.line1(),
+            severity,
+            line1: ln_col.line1(),
             src_text,
             line_span,
             primary_span: Some(primary_span),
@@ -545,7 +670,7 @@ pub fn multi_msgs<'a>(
         let line_span = ln_tbl.line_span(secondary_msgs[0].span.start);
 
         let line_render = SecondaryLineRender {
-            severity: diag.severity(),
+            severity,
             line1,
             src_text,
             line_span,
@@ -556,17 +681,14 @@ pub fn multi_msgs<'a>(
         line_renders.push(line_render);
     }
 
-    Render {
-        header,
-        window: Window::Secondary(SecondaryWindow {
-            lines: line_renders,
-        }),
-    }
+    Window::Secondary(SecondaryWindow {
+        lines: line_renders,
+    })
 }
 
-fn get<'a>(
+pub fn get_header<'a>(
     db: &'a dyn IrDb,
-    diag: &'a impl Diagnostic,
+    diag: &impl Diagnostic,
     input_file: InputFile,
     src_context: String,
     primary_span: Span,

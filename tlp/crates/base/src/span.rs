@@ -14,6 +14,13 @@ impl FileSpan {
         &self.input_file.source_text(db)[usize::from(self.start)..usize::from(self.end)]
     }
 
+    pub fn span(&self) -> Span {
+        Span {
+            start: self.start,
+            end: self.end,
+        }
+    }
+
     /// True if the given character falls within this span.
     pub fn contains(&self, offset: Offset) -> bool {
         self.start <= offset && offset < self.end
