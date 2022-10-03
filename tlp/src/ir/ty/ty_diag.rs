@@ -124,6 +124,8 @@ impl TypeDiagnostic {
                     })
                     .collect::<Vec<_>>();
 
+                // TODO: add node of the original procedure
+
                 diag::multi_msgs(db, self, input_file, src_context, main_span, sub_msgs)
             }
             TypeDiagnostic::CannotFindTypeInScope(x) => {

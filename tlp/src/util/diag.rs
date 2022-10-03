@@ -25,6 +25,16 @@ const VDOT: &'static str = "┊";
 /// Left up corner of rectangle
 const RECT_LU: &'static str = "├";
 
+/// Right up corner of rectangle
+// const RECT_RU: &'static str = "╯";
+const RECT_RU: &'static str = "┘";
+
+/// Left down corner of rectangle
+// const RECT_LD: &'static str = "╰";
+const RECT_LD: &'static str = "└";
+
+const INV_T: &'static str = "┴";
+
 /// Secondary diagnostic messages under marked text span
 const UNDER_MSG_PREFIX: &'static str = "╰──";
 
@@ -320,21 +330,44 @@ fn print_hbar_markers(
         let ws = " ".repeat(relative_span.start.into_usize() - last_relative_span.end.into_usize());
 
         if spans.peek().is_some() {
-            if len == 1 {
-                // write!(f, "{ws}{}", VBAR_DOWN.color(QUOTE).bold())?;
-                write!(f, "{ws}{}", VBAR.color(QUOTE).bold())?;
-            } else {
-                write!(
-                    f,
-                    "{ws}{rect_lu}{}",
-                    HBAR.repeat(len - 1).color(QUOTE).bold()
-                )?;
+            let rect_ru = RECT_RU.color(QUOTE).bold();
+
+            match len {
+                1 => {
+                    write!(f, "{ws}{}", VBAR.color(QUOTE).bold())?;
+                }
+                2 => {
+                    write!(f, "{ws}{rect_lu}{rect_ru}",)?;
+                }
+                _ => {
+                    write!(
+                        f,
+                        "{ws}{rect_lu}{}{rect_ru}",
+                        HBAR.repeat(len - 2).color(QUOTE).bold(),
+                    )?;
+                }
             }
         } else {
             // last span does not contain `┌`
-            let x = "╰".color(QUOTE).bold();
-            let markers = HBAR.repeat((len - 1).max(2));
-            write!(f, "{ws}{x}{}", markers.color(QUOTE).bold())?;
+            let x = RECT_LD.color(QUOTE).bold();
+            let t = INV_T.color(QUOTE).bold();
+
+            match len {
+                1 => {
+                    write!(f, "{ws}{x}{}", HBAR.repeat(2).color(QUOTE).bold())?;
+                }
+                2 => {
+                    write!(f, "{ws}{x}{t}{}", HBAR.repeat(2).color(QUOTE).bold())?;
+                }
+                _ => {
+                    write!(
+                        f,
+                        "{ws}{x}{}{t}{}",
+                        HBAR.repeat(len - 2).color(QUOTE).bold(),
+                        HBAR.repeat(2).color(QUOTE).bold(),
+                    )?;
+                }
+            }
         }
 
         last_relative_span = relative_span;
