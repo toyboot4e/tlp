@@ -202,11 +202,11 @@ impl<'a> fmt::Display for PrimaryLineRender<'a> {
         let indent = " ".repeat(n_digits);
 
         let vbar = VBAR.color(QUOTE).bold();
-        let line = format!("{}", self.line1);
+        let line1 = format!("{}", self.line1).color(QUOTE).bold();
         let line_text = self.line_span.slice(self.src_text).trim_end();
 
         writeln!(f, "{indent} {vbar}")?;
-        writeln!(f, "{} {vbar} {}", line.color(QUOTE).bold(), line_text)?;
+        writeln!(f, "{line1} {vbar} {line_text}")?;
 
         if let Some(msg) = &self.primary_msg.msg {
             writeln!(
@@ -263,14 +263,10 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
         let vdot = VDOT.color(QUOTE).bold();
 
         // <line> | <line_text>
-        let line1 = format!("{}", self.line1);
+        let line1 = format!("{}", self.line1).color(QUOTE).bold();
         let line_text = self.line_span.slice(self.src_text).trim_end();
 
-        if self.primary_span.is_some() {
-            writeln!(f, "{} {vbar} {}", line1.color(QUOTE).bold(), line_text)?;
-        } else {
-            writeln!(f, "{} {vdot} {}", line1.color(QUOTE).bold(), line_text)?;
-        }
+        writeln!(f, "{line1} {vbar} {}", line_text)?;
 
         // markers + last sub message:
         let line_offset = self.line_span.start;
@@ -311,6 +307,8 @@ impl<'a> fmt::Display for SecondaryLineRender<'a> {
             // <msg>
             if let Some(msg) = &self.secondary_msgs.last().unwrap().msg {
                 writeln!(f, " {}", msg.color(QUOTE).bold())?;
+            } else {
+                writeln!(f, "")?;
             }
         }
 
@@ -536,7 +534,6 @@ impl<'a> fmt::Display for Render<'a> {
         write!(f, "{}", self.header)?;
         write!(f, "{}", self.window)?;
         for sub_win in &self.sub_renders {
-            // FIXME: newline?
             writeln!(f, "")?;
             write!(f, "{}", sub_win)?;
         }
