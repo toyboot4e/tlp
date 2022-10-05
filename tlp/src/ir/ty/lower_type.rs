@@ -661,7 +661,7 @@ impl<'db, 'map> Infer<'db, 'map> {
             let arg_expr = call.args[i];
 
             if let Some(mismatch) = self.unify_expected_expr(arg_expr, param_ty) {
-                type_mismatches.push(mismatch);
+                type_mismatches.push((i, mismatch));
             }
         }
 

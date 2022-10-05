@@ -1,6 +1,6 @@
 //! Diagonstics
 
-use base::jar::InputFile;
+use base::{jar::InputFile, span::Span};
 
 use crate::{
     ir::{
@@ -110,12 +110,29 @@ impl TypeDiagnostic {
             }
             TypeDiagnostic::IncorrectProcArgs(x) => {
                 let main_span = body_spans.get(x.proc_expr).unwrap();
-                let sub_msgs = TypeMismatch::msg_spans(&x.type_mismatches, db, body_spans);
+                let sub_msgs = TypeMismatch::msg_spans(
+                    x.type_mismatches.iter().map(|(_, x)| x),
+                    db,
+                    body_spans,
+                );
 
                 let mut render =
                     diag::render_multi_msg(db, self, input_file, src_context, main_span, sub_msgs);
 
-                render.sub_renders = vec![ProcedureDefinedHere::new(x.proc_id).render(db)];
+                let params = x.proc_id.params(db);
+                let param_tys = &x.proc_id.ty_data_as_proc(db).param_tys;
+
+                let param_spans = x
+                    .type_mismatches
+                    .iter()
+                    .map(|(i, mismatch)| {
+                        debug_assert_eq!(param_tys[*i], mismatch.expected_ty);
+                        params[*i].span
+                    })
+                    .collect::<Vec<_>>();
+
+                render.sub_renders =
+                    vec![ProcedureDefinedHere::new(x.proc_id, param_spans).render(db)];
                 // TODO: add node of the original procedure
 
                 render
@@ -167,7 +184,8 @@ pub struct IncorrectProcArgs {
     pub proc_expr: Expr,
     /// Resolved procedure ID
     pub proc_id: item::Proc,
-    pub type_mismatches: Vec<TypeMismatch>,
+    /// (nth_arg, mismatch)
+    pub type_mismatches: Vec<(usize, TypeMismatch)>,
     pub arity_mismatch: Option<ArityMismatch>,
 }
 
@@ -203,6 +221,8 @@ impl IncorrectProcArgs {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProcedureDefinedHere {
     pub proc: item::Proc,
+    /// Parameters to draw underlines
+    pub param_spans: Vec<Span>,
 }
 
 impl Diagnostic for ProcedureDefinedHere {
@@ -216,18 +236,19 @@ impl Diagnostic for ProcedureDefinedHere {
 }
 
 impl ProcedureDefinedHere {
-    pub fn new(proc: item::Proc) -> Self {
-        Self { proc }
+    pub fn new(proc: item::Proc, param_spans: Vec<Span>) -> Self {
+        Self {
+            proc,
+            param_spans,
+        }
     }
 
     pub fn render<'a>(&self, db: &'a dyn IrDb) -> diag::Render<'a> {
         let primary_span = self.proc.name(db).span(db.base()).span();
 
-        let sub_msgs = self
-            .proc
-            .params(db)
+        let sub_msgs = self.param_spans
             .iter()
-            .map(|param| MsgSpan::span_only(param.span))
+            .map(|span| MsgSpan::span_only(*span))
             .collect::<Vec<_>>();
 
         diag::render_multi_msg(
@@ -255,19 +276,22 @@ pub struct TypeMismatch {
 }
 
 impl TypeMismatch {
-    pub fn msg_spans(xs: &[TypeMismatch], db: &dyn IrDb, body_spans: &BodySpans) -> Vec<MsgSpan> {
-        xs.iter()
-            .map(|type_mismatch| {
-                MsgSpan::new(
-                    body_spans.get(type_mismatch.actual_expr).unwrap(),
-                    format!(
-                        "expected `{}`, found `{}`",
-                        type_mismatch.expected_ty.data(db).type_name(db),
-                        type_mismatch.actual_ty.data(db).type_name(db),
-                    ),
-                )
-            })
-            .collect::<Vec<_>>()
+    pub fn msg_spans<'a>(
+        xs: impl Iterator<Item = &'a TypeMismatch>,
+        db: &dyn IrDb,
+        body_spans: &BodySpans,
+    ) -> Vec<MsgSpan> {
+        xs.map(|type_mismatch| {
+            MsgSpan::new(
+                body_spans.get(type_mismatch.actual_expr).unwrap(),
+                format!(
+                    "expected `{}`, found `{}`",
+                    type_mismatch.expected_ty.data(db).type_name(db),
+                    type_mismatch.actual_ty.data(db).type_name(db),
+                ),
+            )
+        })
+        .collect::<Vec<_>>()
     }
 }
 

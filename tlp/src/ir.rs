@@ -127,6 +127,7 @@ impl item::Proc {
     pub fn ty_data<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeData {
         self.ty(db).data(db)
     }
+
     pub fn ty_data_as_proc<'db>(&self, db: &'db dyn IrDb) -> &'db ty::ProcType {
         match self.ty_data(db) {
             ty::TypeData::Proc(proc) => proc,
