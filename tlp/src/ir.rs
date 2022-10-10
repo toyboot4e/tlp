@@ -1,6 +1,7 @@
 //! Intermediate representation
 
 pub mod body;
+pub mod ir_diag;
 pub mod item;
 pub mod item_scope;
 pub mod jar;
@@ -21,6 +22,7 @@ pub struct IrJar(
     ty::ty_diag::TypeDiagnostics,
     // TODO: Consider ditching? Thoguh it adds lifetimes to `Resolver`
     body::expr_scope::ExprScopeMap,
+    ir_diag::ItemDiagnostics,
     lower_ir::lower_items,
     lower_ir::lower_item_scope,
     lower_ir::lower_body,
@@ -45,6 +47,7 @@ pub trait InputFileExt {
     fn items(self, db: &dyn IrDb) -> &[item::Item];
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope;
     fn resolver(self, db: &dyn IrDb) -> resolve::Resolver;
+    fn item_diags(&self, db: &dyn IrDb) -> Vec<ir_diag::ItemDiagnostic>;
 }
 
 /// Extensions
@@ -64,6 +67,12 @@ impl InputFileExt for base::jar::InputFile {
     fn resolver(self, db: &dyn IrDb) -> resolve::Resolver {
         resolve::resolver_for_file(db, self)
     }
+
+    /// Returns item diagnostics accumulated on [`Self::items`]
+    fn item_diags(&self, db: &dyn IrDb) -> Vec<ir_diag::ItemDiagnostic> {
+        lower_ir::lower_items::accumulated::<ir_diag::ItemDiagnostics>(db, *self)
+    }
+
 }
 
 impl item::Proc {

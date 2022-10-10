@@ -12,11 +12,12 @@ use crate::{
     ir::{
         body::{
             self,
-            expr::{self, Expr, ExprData},
+            expr::{self, Expr, ExprData, TypeSyntax},
             expr_scope::{ExprScopeMap, ExprScopeMapData, ScopeData},
             pat::{Pat, PatData},
             BodyData, SyntheticSyntax,
         },
+        ir_diag::{self, ItemDiagnostics},
         item::{self, Item},
         item_scope::{ItemScope, ItemScopeData},
         jar::ParsedFile,
@@ -36,9 +37,27 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
     for item in ast.items() {
         let item = match item {
             ast::Item::DefProc(ast) => {
-                let proc = match item::Proc::from_ast(db, file, ast) {
-                    Some(x) => x,
-                    None => continue,
+                let proc = match item::Proc::from_ast(db, file, ast.clone()) {
+                    Some(proc) => {
+                        for (i, param) in proc.params(db).iter().enumerate() {
+                            if let TypeSyntax::Missing = param.ty {
+                                let diag = ir_diag::MissingParamType {
+                                    proc,
+                                    param_index: i,
+                                };
+                                ItemDiagnostics::push(db, diag.into());
+                            }
+                        }
+
+                        proc
+                    }
+                    None => {
+                        let span = Span::from_rowan_range(ast.proc_tk().text_range());
+                        let diag = ir_diag::MissingProcName { span };
+                        ir_diag::ItemDiagnostics::push(db, diag.into());
+
+                        continue;
+                    }
                 };
 
                 Item::Proc(proc)

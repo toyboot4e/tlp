@@ -20,7 +20,7 @@ crate::util::define_enum! {
     /// Type diagnostic for a procedure
     #[derive(Debug, Clone)]
     pub TypeDiagnostic =
-        | MissingParamType | MismatchedTypes
+        | MismatchedTypes
         | IncompatibleOpArgTypes | IncorrectProcArgs
         | CannotFindTypeInScope | CannotFindValueInScope
         ;
@@ -29,12 +29,11 @@ crate::util::define_enum! {
 impl diag::Diagnostic for TypeDiagnostic {
     fn code(&self) -> Option<&'static str> {
         Some(match self {
-            TypeDiagnostic::MissingParamType(_) => "E0000",
-            TypeDiagnostic::MismatchedTypes(_) => "E0001",
-            TypeDiagnostic::IncompatibleOpArgTypes(_) => "E0002",
-            TypeDiagnostic::IncorrectProcArgs(_) => "E0003",
-            TypeDiagnostic::CannotFindTypeInScope(_) => "E0020",
-            TypeDiagnostic::CannotFindValueInScope(_) => "E0021",
+            TypeDiagnostic::MismatchedTypes(_) => "E0100",
+            TypeDiagnostic::IncompatibleOpArgTypes(_) => "E0101",
+            TypeDiagnostic::IncorrectProcArgs(_) => "E0102",
+            TypeDiagnostic::CannotFindTypeInScope(_) => "E0110",
+            TypeDiagnostic::CannotFindValueInScope(_) => "E0111",
         })
     }
 
@@ -44,7 +43,6 @@ impl diag::Diagnostic for TypeDiagnostic {
 
     fn msg(&self) -> String {
         match self {
-            TypeDiagnostic::MissingParamType(_) => "missing parameter type",
             TypeDiagnostic::MismatchedTypes(_) => "mismatched types",
             TypeDiagnostic::IncompatibleOpArgTypes(_) => "incompatible operator argument types",
             TypeDiagnostic::IncorrectProcArgs(x) => return x.primary_msg(),
@@ -79,9 +77,6 @@ impl TypeDiagnostic {
         let src_context = format!("(`{}`)", proc.name(db).as_str(db.base()));
 
         match self {
-            TypeDiagnostic::MissingParamType(_x) => {
-                todo!()
-            }
             TypeDiagnostic::MismatchedTypes(x) => {
                 let x = &x.mismatch;
                 let main_span = body_spans.get(x.actual_expr).unwrap();
@@ -149,11 +144,6 @@ impl TypeDiagnostic {
             }
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct MissingParamType {
-    pub param: item::Param,
 }
 
 #[derive(Debug, Clone)]

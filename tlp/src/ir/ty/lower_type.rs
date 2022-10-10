@@ -886,11 +886,6 @@ fn lower_param_ty(
 
     match ty_syntax {
         TypeSyntax::Missing => {
-            let diag = MissingParamType {
-                param: param.clone(),
-            };
-            TypeDiagnostics::push(db, diag.into());
-
             Ty::intern(db, ty::TypeData::Unknown)
         }
         TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),

@@ -520,11 +520,12 @@ impl<'a> fmt::Display for Window<'a> {
 /// Diagnostic rendering
 #[derive(Debug)]
 pub struct Render<'a> {
+    /// Header (error, warning, note, hint, ..)
     pub header: Header<'a>,
-    /// Main diagnostic window (error, warning, ..)
+    /// Main diagnostic window, typically error or warning. A sub diagnostic can have a main
+    /// diagnostic window, too.
     pub window: Window<'a>,
-    /// Sub diagnostic windows (note, hint, ..)
-    // FIXME: rename
+    /// Sub diagnostic renedrings (note, hint, ..)
     pub sub_renders: Vec<Render<'a>>,
 }
 

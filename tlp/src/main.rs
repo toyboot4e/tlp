@@ -9,7 +9,7 @@ use std::{
 use base::jar::InputFile;
 
 use tlp::{
-    ir::{item, ty::ty_diag::TypeDiagnostic, InputFileExt, IrDb},
+    ir::{ir_diag::ItemDiagnostic, item, ty::ty_diag::TypeDiagnostic, InputFileExt, IrDb},
     util::diag::{self, Diagnostic},
     vm::UnitVariant,
     Db,
@@ -35,13 +35,18 @@ fn main() {
     let out = io::stdout();
     let mut out = out.lock();
 
+    let diags = main_file.item_diags(&db);
+    any_error |= self::print_item_diagnostics(&mut out, &db, &diags, main_file).unwrap();
+
     for item in items {
         if let item::Item::Proc(proc) = item {
             let diags = proc.param_ty_diags(&db);
-            any_error |= self::print_diagnostics(&mut out, &db, &diags, main_file, *proc).unwrap();
+            any_error |=
+                self::print_proc_diagonstics(&mut out, &db, &diags, main_file, *proc).unwrap();
 
             let diags = proc.body_ty_diags(&db);
-            any_error |= self::print_diagnostics(&mut out, &db, &diags, main_file, *proc).unwrap();
+            any_error |=
+                self::print_proc_diagonstics(&mut out, &db, &diags, main_file, *proc).unwrap();
         }
     }
 
@@ -68,8 +73,30 @@ fn main() {
     }
 }
 
+fn print_item_diagnostics<'a>(
+    out: &mut impl io::Write,
+    db: &dyn IrDb,
+    diags: &'a [ItemDiagnostic],
+    input_file: InputFile,
+) -> io::Result<bool> {
+    if diags.is_empty() {
+        return Ok(false);
+    };
+
+    let mut any_error = false;
+
+    for diag in diags {
+        any_error |= diag.severity() == diag::Severity::Error;
+        // writeln!(out, "{}", diag.render(db, input_file, proc, body_spans))?;
+        // TODO: render beautiful diiagnostics
+        writeln!(out, "{:?}", diag)?;
+    }
+
+    Ok(any_error)
+}
+
 /// Returns true on any error
-fn print_diagnostics<'a>(
+fn print_proc_diagonstics<'a>(
     out: &mut impl io::Write,
     db: &dyn IrDb,
     diags: &'a [TypeDiagnostic],
