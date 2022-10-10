@@ -543,6 +543,26 @@ impl Param {
     pub fn ty(&self) -> Option<Type> {
         self.syn.children().find_map(|elem| Type::cast_node(elem))
     }
+
+    /// Text range with whitespce carefully excluded
+    pub fn view_range(&self) -> rowan::TextRange{
+        if self.ty().is_some() {
+            // pat: Ty
+            self.syntax().text_range()
+        } else if let Some(colon) = self.colon() {
+            // pat:
+            let start = self.syntax().text_range().start();
+            let end = colon.text_range().end();
+
+            rowan::TextRange::new(start, end)
+        } else if let Some(pat) = self.pat() {
+            // pat
+            pat.syntax().text_range()
+        } else {
+            // ?:
+            self.syntax().text_range()
+        }
+    }
 }
 
 impl ReturnType {
