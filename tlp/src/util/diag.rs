@@ -26,8 +26,8 @@ const VDOT: &'static str = "┊";
 const RECT_LU: &'static str = "├";
 
 /// Right up corner of rectangle
-// const RECT_RU: &'static str = "╯";
-const RECT_RU: &'static str = "┘";
+const RECT_RU: &'static str = "╯";
+// const RECT_RU: &'static str = "┘";
 
 /// Left down corner of rectangle
 const RECT_LD: &'static str = "╰";
@@ -37,6 +37,59 @@ const INV_T: &'static str = "┴";
 
 /// Secondary diagnostic messages under marked text span
 const UNDER_MSG_PREFIX: &'static str = "╰──";
+
+/// Diagnostic window rendering with a primary message only
+pub fn render_single_msg<'a>(
+    db: &'a dyn IrDb,
+    diag: &'a impl Diagnostic,
+    input_file: InputFile,
+    src_context: String,
+    primary_msg: MsgSpan,
+) -> Render<'a> {
+    let (header, line_span, src_text) =
+        self::get_header(db, diag, input_file, src_context, primary_msg.span);
+
+    let primary_span = PrimaryLineRender {
+        severity: diag.severity(),
+        line1: header.ln_col.line1(),
+        src_text,
+        line_span,
+        primary_msg,
+    };
+
+    Render {
+        header,
+        window: Window::Primary(primary_span),
+        sub_renders: Vec::new(),
+    }
+}
+
+/// Diagnostic window rendering with a primary span and secondary messages
+pub fn render_multi_msg<'a>(
+    db: &'a dyn IrDb,
+    diag: &impl Diagnostic,
+    input_file: InputFile,
+    src_context: String,
+    primary_span: Span,
+    secondary_msgs: Vec<MsgSpan>,
+) -> Render<'a> {
+    let (header, _line_span, _src_text) =
+        self::get_header(db, diag, input_file, src_context, primary_span);
+
+    let window = self::window_multi_msg(
+        db,
+        diag.severity(),
+        input_file,
+        primary_span,
+        secondary_msgs,
+    );
+
+    Render {
+        header,
+        window,
+        sub_renders: Vec::new(),
+    }
+}
 
 /// Error | Warning | Note | Hint
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -539,59 +592,6 @@ impl<'a> fmt::Display for Render<'a> {
             write!(f, "{}", sub_win)?;
         }
         Ok(())
-    }
-}
-
-/// Diagnostic window rendering with a primary message only
-pub fn render_single_msg<'a>(
-    db: &'a dyn IrDb,
-    diag: &'a impl Diagnostic,
-    input_file: InputFile,
-    src_context: String,
-    primary_msg: MsgSpan,
-) -> Render<'a> {
-    let (header, line_span, src_text) =
-        self::get_header(db, diag, input_file, src_context, primary_msg.span);
-
-    let primary_span = PrimaryLineRender {
-        severity: diag.severity(),
-        line1: header.ln_col.line1(),
-        src_text,
-        line_span,
-        primary_msg,
-    };
-
-    Render {
-        header,
-        window: Window::Primary(primary_span),
-        sub_renders: Vec::new(),
-    }
-}
-
-/// Diagnostic window rendering with a primary span and secondary messages
-pub fn render_multi_msg<'a>(
-    db: &'a dyn IrDb,
-    diag: &impl Diagnostic,
-    input_file: InputFile,
-    src_context: String,
-    primary_span: Span,
-    secondary_msgs: Vec<MsgSpan>,
-) -> Render<'a> {
-    let (header, _line_span, _src_text) =
-        self::get_header(db, diag, input_file, src_context, primary_span);
-
-    let window = self::window_multi_msg(
-        db,
-        diag.severity(),
-        input_file,
-        primary_span,
-        secondary_msgs,
-    );
-
-    Render {
-        header,
-        window,
-        sub_renders: Vec::new(),
     }
 }
 

@@ -35,7 +35,7 @@ fn main() {
     let out = io::stdout();
     let mut out = out.lock();
 
-    let diags = main_file.item_diags(&db);
+    let diags = main_file.item_syntax_diags(&db);
     any_error |= self::print_item_diagnostics(&mut out, &db, &diags, main_file).unwrap();
 
     for item in items {
@@ -87,9 +87,7 @@ fn print_item_diagnostics<'a>(
 
     for diag in diags {
         any_error |= diag.severity() == diag::Severity::Error;
-        // writeln!(out, "{}", diag.render(db, input_file, proc, body_spans))?;
-        // TODO: render beautiful diiagnostics
-        writeln!(out, "{:?}", diag)?;
+        writeln!(out, "{}", diag.render(db, input_file))?;
     }
 
     Ok(any_error)

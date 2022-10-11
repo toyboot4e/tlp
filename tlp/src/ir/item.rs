@@ -63,6 +63,7 @@ impl From<Proc> for Item {
     }
 }
 
+/// NOTE: Name-missing procedures are not avaiulable as [`Proc`]
 #[salsa::tracked(jar = ir::IrJar)]
 pub struct Proc {
     /// Name used as `#[id]`
@@ -72,6 +73,7 @@ pub struct Proc {
     pub span: FileSpan,
     #[return_ref]
     pub params: Box<[Param]>,
+    /// Return type parameter (can be `TypeSyntax::Missing`)
     #[return_ref]
     pub return_ty: Option<expr::TypeSyntax>,
     /// Lazily analyzed body AST
@@ -141,9 +143,15 @@ impl Proc {
             }
         }
 
-        let return_ty = ast
-            .return_ty()
-            .map(|ast_ret_ty| expr::TypeSyntax::from_ast(db, ast_ret_ty.ty()));
+        let return_ty = if ast.right_arrow().is_some() {
+            Some(
+                ast.return_ty()
+                    .map(|ast_ret_ty| expr::TypeSyntax::from_ast(db, ast_ret_ty.ty()))
+                    .unwrap_or(expr::TypeSyntax::Missing),
+            )
+        } else {
+            None
+        };
 
         Some(Proc::new(
             db,

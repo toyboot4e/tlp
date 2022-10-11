@@ -39,14 +39,23 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
             ast::Item::DefProc(ast) => {
                 let proc = match item::Proc::from_ast(db, file, ast.clone()) {
                     Some(proc) => {
+                        let mut diag = ir_diag::ProcDiagnostic::new(proc);
+
                         for (i, param) in proc.params(db).iter().enumerate() {
                             if let TypeSyntax::Missing = param.ty {
-                                let diag = ir_diag::MissingParamType {
-                                    proc,
-                                    param_index: i,
-                                };
-                                ItemDiagnostics::push(db, diag.into());
+                                diag.params.push(ir_diag::ProcParamDiagnostic {
+                                    index: i,
+                                    type_missing: true,
+                                });
                             }
+                        }
+
+                        if matches!(proc.return_ty(db), &Some(TypeSyntax::Missing)) {
+                            diag.missing_ret_ty = true;
+                        }
+
+                        if diag.any_error() {
+                            ItemDiagnostics::push(db, diag.into());
                         }
 
                         proc

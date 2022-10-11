@@ -109,6 +109,7 @@ where
 /// Referred to as `pcx`.
 #[derive(Debug)]
 struct ParseState {
+    /// Token span
     tsp: Span,
     builder: GreenNodeBuilder<'static>,
     errs: Vec<ParseError>,
@@ -339,8 +340,9 @@ impl ParseState {
                 self.builder
                     .start_node_at(checkpoint, SyntaxKind::Param.into());
 
-                // `:`
                 self.maybe_bump_ws(pcx);
+
+                // `:`
                 if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none() {
                     let text = self.peek(pcx).unwrap().slice(pcx.src);
 
@@ -349,8 +351,6 @@ impl ParseState {
                         expected: ":".to_string(),
                         found: text.to_string(),
                     });
-
-                    self.maybe_bump_sexp(pcx);
                 } else {
                     // `<Type>`
                     self.maybe_bump_ws(pcx);
