@@ -29,11 +29,11 @@ crate::util::define_enum! {
 impl diag::Diagnostic for TypeDiagnostic {
     fn code(&self) -> Option<&'static str> {
         Some(match self {
-            TypeDiagnostic::MismatchedTypes(_) => "E0100",
-            TypeDiagnostic::IncompatibleOpArgTypes(_) => "E0101",
-            TypeDiagnostic::IncorrectProcArgs(_) => "E0102",
-            TypeDiagnostic::CannotFindTypeInScope(_) => "E0110",
-            TypeDiagnostic::CannotFindValueInScope(_) => "E0111",
+            TypeDiagnostic::MismatchedTypes(_) => "E0200",
+            TypeDiagnostic::IncompatibleOpArgTypes(_) => "E0201",
+            TypeDiagnostic::IncorrectProcArgs(_) => "E0202",
+            TypeDiagnostic::CannotFindTypeInScope(_) => "E0210",
+            TypeDiagnostic::CannotFindValueInScope(_) => "E0211",
         })
     }
 
@@ -81,7 +81,7 @@ impl TypeDiagnostic {
                 let x = &x.mismatch;
                 let main_span = body_spans.get(x.actual_expr).unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::render_single_msg(db, self, input_file, src_context, primary_msg)
+                diag::render_single_msg(db.base(), self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
                 let main_span = body_spans.get(x.op_expr).unwrap();
@@ -101,7 +101,7 @@ impl TypeDiagnostic {
                     ),
                 ];
 
-                diag::render_multi_msg(db, self, input_file, src_context, main_span, sub_msgs)
+                diag::render_multi_msg(db.base(), self, input_file, src_context, main_span, sub_msgs)
             }
             TypeDiagnostic::IncorrectProcArgs(x) => {
                 let main_span = body_spans.get(x.proc_expr).unwrap();
@@ -112,7 +112,7 @@ impl TypeDiagnostic {
                 );
 
                 let mut render =
-                    diag::render_multi_msg(db, self, input_file, src_context, main_span, sub_msgs);
+                    diag::render_multi_msg(db.base(), self, input_file, src_context, main_span, sub_msgs);
 
                 let params = x.proc_id.params(db);
                 let param_tys = &x.proc_id.ty_data_as_proc(db).param_tys;
@@ -135,12 +135,12 @@ impl TypeDiagnostic {
             TypeDiagnostic::CannotFindTypeInScope(x) => {
                 let main_span = body_spans.get(x.expr).unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::render_single_msg(db, self, input_file, src_context, primary_msg)
+                diag::render_single_msg(db.base(), self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::CannotFindValueInScope(x) => {
                 let main_span = *body_spans[x.expr].as_ref().unwrap();
                 let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
-                diag::render_single_msg(db, self, input_file, src_context, primary_msg)
+                diag::render_single_msg(db.base(), self, input_file, src_context, primary_msg)
             }
         }
     }
@@ -242,7 +242,7 @@ impl ProcedureDefinedHere {
             .collect::<Vec<_>>();
 
         diag::render_multi_msg(
-            db,
+            db.base(),
             self,
             self.proc.input_file(db),
             // no context

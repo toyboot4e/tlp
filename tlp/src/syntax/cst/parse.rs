@@ -20,9 +20,6 @@ use rowan::{GreenNode, GreenNodeBuilder};
 /// Parse / lexing error
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ParseError {
-    // TODO: use line:column representation
-    #[error("It doesn't make any sense: {sp:?}")]
-    Unreachable { sp: Span },
     #[error("LexError: {err}")]
     LexError {
         #[from]
@@ -40,26 +37,6 @@ pub enum ParseError {
     UnterminatedString { sp: Span },
     #[error("Path must end with identifier")]
     PathNotEndWithIdent { sp: Span },
-}
-
-/// API for showing diagnostics via LSP
-impl ParseError {
-    pub fn span(&self) -> Span {
-        match self {
-            Self::Unreachable { sp } => sp.clone(),
-            Self::LexError { err } => err.span(),
-            Self::Unexpected { at: pos, .. } => Span::from(*pos, 1u32),
-            Self::UnterminatedString { sp } => *sp,
-            Self::PathNotEndWithIdent { sp } => *sp,
-        }
-    }
-
-    // pub fn with_loc(&self, src: &str) -> ParseErrorWithLocation {
-    //     ParseErrorWithLocation {
-    //         err: self.clone(),
-    //         loc: LineColumn::from_pos(self.span().end, src),
-    //     }
-    // }
 }
 
 // /// Display of [`ParseError`] with prefix `ln:col`

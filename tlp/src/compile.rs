@@ -42,7 +42,14 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
 
     // let main_proc = self::find_procedure_by_name(db, main_file, "main");
 
-    let items = main_file.items(db);
+    let parse = main_file.parse_items(db);
+
+    for err in parse.errors(db) {
+        println!("{}", err.render(db, main_file));
+        panic!("panic due to parse error");
+    }
+
+    let items = parse.items(db);
 
     let proc_ids = items
         .iter()
@@ -78,6 +85,10 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
             crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
             continue;
         }
+
+        println!(
+            "--------------------------------------------------------------------------------"
+        );
 
         let mut compiler = CompileProc::new(&proc_ids, db, proc.clone());
         compiler.compile_proc();

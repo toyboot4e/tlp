@@ -76,7 +76,7 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
         items.push(item);
     }
 
-    ParsedFile::new(db, file, items)
+    ParsedFile::new(db, file, parse.errs, items)
 }
 
 #[salsa::tracked(jar = IrJar)]

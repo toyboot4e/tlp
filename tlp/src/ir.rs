@@ -43,7 +43,7 @@ impl<T: salsa::DbWithJar<IrJar> + base::BaseDb> IrDb for T {
 
 /// Extensions
 pub trait InputFileExt {
-    fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile;
+    fn parse_items(self, db: &dyn IrDb) -> &jar::ParsedFile;
     fn items(self, db: &dyn IrDb) -> &[item::Item];
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope;
     fn resolver(self, db: &dyn IrDb) -> resolve::Resolver;
@@ -52,7 +52,7 @@ pub trait InputFileExt {
 
 /// Extensions
 impl InputFileExt for base::jar::InputFile {
-    fn source_file(self, db: &dyn IrDb) -> &jar::ParsedFile {
+    fn parse_items(self, db: &dyn IrDb) -> &jar::ParsedFile {
         lower_ir::lower_items(db, self)
     }
 

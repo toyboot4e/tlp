@@ -5,10 +5,9 @@ use std::fmt::{self, Write};
 use base::{
     jar::InputFile,
     span::{LineColumn, Offset, Span},
+    BaseDb,
 };
 use colored::{Color, Colorize};
-
-use crate::ir::IrDb;
 
 const QUOTE: Color = Color::BrightBlue;
 
@@ -40,7 +39,7 @@ const UNDER_MSG_PREFIX: &'static str = "╰──";
 
 /// Diagnostic window rendering with a primary message only
 pub fn render_single_msg<'a>(
-    db: &'a dyn IrDb,
+    db: &'a dyn BaseDb,
     diag: &'a impl Diagnostic,
     input_file: InputFile,
     src_context: String,
@@ -66,7 +65,7 @@ pub fn render_single_msg<'a>(
 
 /// Diagnostic window rendering with a primary span and secondary messages
 pub fn render_multi_msg<'a>(
-    db: &'a dyn IrDb,
+    db: &'a dyn BaseDb,
     diag: &impl Diagnostic,
     input_file: InputFile,
     src_context: String,
@@ -596,23 +595,23 @@ impl<'a> fmt::Display for Render<'a> {
 }
 
 pub fn window_multi_msg<'a>(
-    db: &'a dyn IrDb,
+    db: &'a dyn BaseDb,
     severity: Severity,
     input_file: InputFile,
     primary_span: Span,
     secondary_msgs: Vec<MsgSpan>,
 ) -> Window<'a> {
-    let src_text = input_file.source_text(db.base());
+    let src_text = input_file.source_text(db);
 
     let (line_span, ln_col) = {
-        let ln_tbl = input_file.line_column_table(db.base());
+        let ln_tbl = input_file.line_column_table(db);
         (
             ln_tbl.line_span(primary_span.start),
             ln_tbl.line_column(primary_span.start),
         )
     };
 
-    let ln_tbl = input_file.line_column_table(db.base());
+    let ln_tbl = input_file.line_column_table(db);
 
     let primary_span_line1 = ln_tbl.line_column(primary_span.start).line1();
 
@@ -685,19 +684,19 @@ pub fn window_multi_msg<'a>(
 }
 
 pub fn get_header<'a>(
-    db: &'a dyn IrDb,
+    db: &'a dyn BaseDb,
     diag: &impl Diagnostic,
     input_file: InputFile,
     src_context: String,
     primary_span: Span,
 ) -> (Header<'a>, Span, &'a str) {
-    let src_file = input_file.name(db.base()).as_str(db.base());
-    let ln_tbl = input_file.line_column_table(db.base());
+    let src_file = input_file.name(db).as_str(db);
+    let ln_tbl = input_file.line_column_table(db);
     let ln_col = ln_tbl.line_column(primary_span.start);
     let header = Header::new(diag, src_file, src_context, ln_col);
 
     let line_span = ln_tbl.line_span(primary_span.start);
-    let src_text = input_file.source_text(db.base());
+    let src_text = input_file.source_text(db);
 
     (header, line_span, src_text)
 }

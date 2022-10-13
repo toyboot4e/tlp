@@ -22,21 +22,9 @@ impl Token {
 /// Lexical error type
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum LexError {
-    // TODO: use line:column representation on print
-    #[error("It doesn't make any sense: {sp:?}")]
-    Unreachable { sp: Span },
     // TODO: while what?
-    #[error("Unexpected end of file")]
-    Eof { at: Offset },
-}
-
-impl LexError {
-    pub fn span(&self) -> Span {
-        match self {
-            Self::Unreachable { sp } => sp.clone(),
-            Self::Eof { at: pos } => Span::from(*pos, 1u32),
-        }
-    }
+    #[error("Unexpected end of file ({span:?})")]
+    UnterminatedString { span: Span },
 }
 
 /// Convers text into a CST. It doesn't fail even if the given text has wrong syntax.
@@ -281,8 +269,11 @@ impl<'s> Lexer<'s> {
         self.advance_if(|b| b == b'"')?;
         self.advance_while(|b| b != b'"');
         if self.advance_if(|b| b == b'"').is_none() {
-            self.errs.push(LexError::Eof {
-                at: self.src.len().into(),
+            self.errs.push(LexError::UnterminatedString {
+                span: Span {
+                    start: self.sp.start,
+                    end: self.src.len().into(),
+                },
             });
             // No early return; allow non-terminated string at EoF
         }
