@@ -20,40 +20,21 @@ use rowan::{GreenNode, GreenNodeBuilder};
 /// Parse / lexing error
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ParseError {
-    #[error("LexError: {err}")]
+    #[error("{err}")]
     LexError {
         #[from]
         err: LexError,
     },
-    /// TODO: context "Expected Symbol as argument, found .."
-    #[error("Expected {expected}, found `{found}`")]
-    Unexpected {
-        // TODO: add text length
-        at: Offset,
-        expected: String,
-        found: String,
-    },
-    #[error("Unterminated string")]
-    UnterminatedString { sp: Span },
-    #[error("Path must end with identifier")]
-    PathNotEndWithIdent { sp: Span },
+    // TODO: while parsing
+    #[error("expected {expected}, found token at span `{found:?}`")]
+    UnexpectedToken { expected: String, found: Span },
+    #[error("expected {expected}, found EoF")]
+    UnexpectedEof { expected: String },
+    #[error("unclosed parentheses")]
+    UnclosedParentheses { span: Span },
+    #[error("path must end with identifier")]
+    PathNotEndWithIdent { span: Span },
 }
-
-// /// Display of [`ParseError`] with prefix `ln:col`
-// ///
-// /// NOTE: In text editors, diagnostics are automatically displayed with `line:column`information, so
-// /// this type is only for termianl output.
-// #[derive(Debug, Clone)]
-// pub struct ParseErrorWithLocation {
-//     err: ParseError,
-//     loc: LineColumn,
-// }
-//
-// impl fmt::Display for ParseErrorWithLocation {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "{}:{} {}", self.loc.ln, self.loc.col, self.err)
-//     }
-// }
 
 /// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
 /// grammer.
@@ -194,16 +175,18 @@ impl ParseState {
         // We don't know the node kind yet, so let's wrap the tokens later
         let checkpoint = self.builder.checkpoint();
 
+        let paren_start = self.tsp.end;
         self.bump_kind(pcx, SyntaxKind::LParen);
         self.maybe_bump_ws(pcx);
 
         let peek = match self.peek(pcx) {
             Some(tk) => tk,
             None => {
-                self.errs.push(ParseError::Unexpected {
-                    at: pcx.src.len().into(),
-                    expected: "<call or special form>".to_string(),
-                    found: "EoF".to_string(),
+                self.errs.push(ParseError::UnclosedParentheses {
+                    span: Span {
+                        start: paren_start,
+                        end: pcx.src.len().into(),
+                    },
                 });
 
                 // TODO: recovery
@@ -213,13 +196,12 @@ impl ParseState {
 
         // REMARK: keywords other than literals are not lexed
         if !matches!(peek.kind, SyntaxKind::Ident) {
-            self.errs.push(ParseError::Unexpected {
-                at: pcx.src.len().into(),
+            self.errs.push(ParseError::UnexpectedToken {
                 expected: "<call or special form>".to_string(),
-                found: format!("{:?}", peek.kind),
+                found: peek.sp,
             });
 
-            // TODO: recovery
+            // TODO: for recovery, go to `)`?
             return;
         }
 
@@ -241,6 +223,9 @@ impl ParseState {
     /// - params → "(" param ")"
     /// - param → Pat ":" Ident
     fn bump_list_proc(&mut self, pcx: &ParseContext, checkpoint: rowan::Checkpoint) {
+        // for diagnostics
+        let list_start = self.tsp.end;
+
         let tk = self.bump_kind(pcx, SyntaxKind::Ident);
         assert_eq!(tk.slice(pcx.src), "proc");
 
@@ -260,7 +245,17 @@ impl ParseState {
             self.builder.start_node(SyntaxKind::Block.into());
 
             // maybe other list items
-            let found_rparen = self._bump_sexps_to_end_paren(pcx).is_some();
+            let found_rparen = if self._bump_sexps_to_end_paren(pcx).is_ok() {
+                true
+            } else {
+                self.errs.push(ParseError::UnclosedParentheses {
+                    span: Span {
+                        start: list_start,
+                        end: self.tsp.end,
+                    },
+                });
+                false
+            };
 
             // end `Body` node just before `)`
             self.builder.finish_node();
@@ -321,12 +316,11 @@ impl ParseState {
 
                 // `:`
                 if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none() {
-                    let text = self.peek(pcx).unwrap().slice(pcx.src);
+                    let tk = self.peek(pcx).unwrap();
 
-                    self.errs.push(ParseError::Unexpected {
-                        at: pcx.src.len().into(),
+                    self.errs.push(ParseError::UnexpectedToken {
                         expected: ":".to_string(),
-                        found: text.to_string(),
+                        found: tk.sp,
                     });
                 } else {
                     // `<Type>`
@@ -336,14 +330,12 @@ impl ParseState {
 
                 self.builder.finish_node();
             } else {
-                let text = self.peek(pcx).unwrap().slice(pcx.src);
+                let tk = self.peek(pcx).unwrap();
 
-                self.errs.push(ParseError::Unexpected {
+                self.errs.push(ParseError::UnexpectedToken {
                     // TODO: figure out why it's at this point
-                    // TODO: use span for error location
-                    at: pcx.src.len().into(),
                     expected: "`)` or parameter".to_string(),
-                    found: text.to_string(),
+                    found: tk.sp,
                 });
 
                 // anyway consume the syntax
@@ -357,25 +349,19 @@ impl ParseState {
     /// Sexp* ")"
     ///
     /// Advances until it peeks a right paren. Returns if the end of the list was found.
-    fn _bump_sexps_to_end_paren(&mut self, pcx: &ParseContext) -> Option<()> {
+    fn _bump_sexps_to_end_paren(&mut self, pcx: &ParseContext) -> Result<(), ()> {
         loop {
             self.maybe_bump_ws(pcx);
 
-            let peek = self.peek(pcx)?;
-            if peek.kind == SyntaxKind::RParen {
-                return Some(());
+            if let Some(peek) = self.peek(pcx) {
+                if peek.kind == SyntaxKind::RParen {
+                    return Ok(());
+                }
+            } else {
+                return Err(());
             }
 
-            if self.maybe_bump_sexp(pcx).is_none() {
-                self.errs.push(ParseError::Unexpected {
-                    // todo: figure out why it's at this point
-                    // todo: use span for error location
-                    at: pcx.src.len().into(),
-                    expected: ")".to_string(),
-                    found: "eof".to_string(),
-                });
-                return None;
-            }
+            assert!(self.maybe_bump_sexp(pcx).is_some());
         }
     }
 
@@ -404,17 +390,16 @@ impl ParseState {
             return Some(());
         }
 
-        let text = if let Some(peek) = self.peek(pcx) {
-            peek.slice(pcx.src).to_string()
+        if let Some(peek) = self.peek(pcx) {
+            self.errs.push(ParseError::UnexpectedToken {
+                expected: "<type>".to_string(),
+                found: peek.sp,
+            });
         } else {
-            "<EoF>".to_string()
+            self.errs.push(ParseError::UnexpectedEof {
+                expected: "<type>".to_string(),
+            });
         };
-
-        self.errs.push(ParseError::Unexpected {
-            at: pcx.src.len().into(),
-            expected: "<type>".to_string(),
-            found: text,
-        });
 
         None
     }
@@ -433,8 +418,10 @@ impl ParseState {
         self.maybe_bump_pat(pcx);
         self.maybe_bump_ws(pcx);
 
-        if self._bump_sexps_to_end_paren(pcx).is_some() {
+        if self._bump_sexps_to_end_paren(pcx).is_ok() {
             self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+        } else {
+            todo!("emit error");
         }
 
         // end `Let`
@@ -453,10 +440,15 @@ impl ParseState {
         // place
         self.maybe_bump_ws(pcx);
         if self.maybe_bump_path(pcx).is_none() {
-            let err = ParseError::Unexpected {
-                at: pcx.src.len().into(),
-                expected: "<place>".to_string(),
-                found: format!("{:?}", self.peek(pcx)),
+            let err = if let Some(peek) = self.peek(pcx) {
+                ParseError::UnexpectedToken {
+                    expected: "<place>".to_string(),
+                    found: peek.sp,
+                }
+            } else {
+                ParseError::UnexpectedEof {
+                    expected: "<place>".to_string(),
+                }
             };
             self.errs.push(err);
         }
@@ -624,15 +616,14 @@ impl ParseState {
         pcx: &ParseContext,
         checkpoint: rowan::Checkpoint,
         kind: SyntaxKind,
-    ) {
+    ) -> Result<(), ()> {
         self.builder.start_node_at(checkpoint, kind.into());
 
-        {
-            self.maybe_bump_ws(pcx);
-            self._bump_sexps_to_end_paren(pcx);
-        }
+        self.maybe_bump_ws(pcx);
+        let res = self._bump_sexps_to_end_paren(pcx);
 
         self.builder.finish_node();
+        res
     }
 
     /// Bumps to `)`
@@ -647,8 +638,10 @@ impl ParseState {
         {
             self.maybe_bump_ws(pcx);
 
-            if self._bump_sexps_to_end_paren(pcx).is_some() {
+            if self._bump_sexps_to_end_paren(pcx).is_ok() {
                 self.maybe_bump_kind(pcx, SyntaxKind::RParen);
+            } else {
+                todo!("emit error");
             }
         }
 
@@ -663,10 +656,9 @@ impl ParseState {
         // emit error
         match self.peek(pcx) {
             Some(tk) => {
-                self.errs.push(ParseError::Unexpected {
-                    at: tk.sp.start,
-                    expected: "symbol".to_string(),
-                    found: format!("{:?}", tk),
+                self.errs.push(ParseError::UnexpectedToken {
+                    expected: "<symbol>".to_string(),
+                    found: tk.sp,
                 });
 
                 // Discard this token so that we won't enter infinite loop
@@ -674,10 +666,8 @@ impl ParseState {
                 self.tsp.start = self.tsp.end;
             }
             None => {
-                self.errs.push(ParseError::Unexpected {
-                    at: pcx.src.len().into(),
-                    expected: "symbol".to_string(),
-                    found: "EoF".to_string(),
+                self.errs.push(ParseError::UnexpectedEof {
+                    expected: "<symbol>".to_string(),
                 });
             }
         };
@@ -742,7 +732,7 @@ impl ParseState {
                 };
 
                 self.errs.push(ParseError::PathNotEndWithIdent {
-                    sp: Span { start, end },
+                    span: Span { start, end },
                 });
                 break;
             }
