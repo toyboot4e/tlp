@@ -274,7 +274,7 @@ fn user_function_call() {
         "
 (proc main ()
     (f 10))
-(proc f (x:i32)
+(proc f (x:i32) -> i32
     (+ x 5))
     ",
         15,

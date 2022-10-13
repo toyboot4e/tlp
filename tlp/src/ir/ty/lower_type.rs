@@ -862,7 +862,6 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
         param_tys.into_boxed_slice()
     };
 
-    // TODO: parse return type annotation and use it
     let ret_ty = match proc.return_ty(db) {
         Some(ty_syntax) => {
             let resolver = proc.proc_ty_resolver(db);
@@ -879,15 +878,13 @@ pub(crate) fn lower_proc_type(db: &dyn IrDb, proc: item::Proc) -> Ty {
 fn lower_param_ty(
     db: &dyn IrDb,
     resolver: &Resolver,
-    param: &item::Param,
+    _param: &item::Param,
     ty_syntax: &expr::TypeSyntax,
 ) -> Ty {
     use expr::TypeSyntax;
 
     match ty_syntax {
-        TypeSyntax::Missing => {
-            Ty::intern(db, ty::TypeData::Unknown)
-        }
+        TypeSyntax::Missing => Ty::intern(db, ty::TypeData::Unknown),
         TypeSyntax::Path(path) => self::lower_type_path(db, resolver, path),
         TypeSyntax::Primitive(prim) => Ty::intern(db, ty::TypeData::Primitive(*prim)),
     }

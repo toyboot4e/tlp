@@ -337,9 +337,9 @@ DefProc@0..35
                     Ident@14..17
         RParen@17..18
     Ws@18..19
-    ReturnType@19..25
-        RightArrow@19..21
-        Ws@21..22
+    RightArrow@19..21
+    Ws@21..22
+    ReturnType@22..25
         TypePath@22..25
             Path@22..25
                 Ident@22..25

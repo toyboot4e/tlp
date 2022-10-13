@@ -47,7 +47,7 @@ pub trait InputFileExt {
     fn items(self, db: &dyn IrDb) -> &[item::Item];
     fn item_scope<'db>(self, db: &'db dyn IrDb) -> item_scope::ItemScope;
     fn resolver(self, db: &dyn IrDb) -> resolve::Resolver;
-    fn item_diags(&self, db: &dyn IrDb) -> Vec<ir_diag::ItemDiagnostic>;
+    fn item_syntax_diags(self, db: &dyn IrDb) -> Vec<ir_diag::ItemDiagnostic>;
 }
 
 /// Extensions
@@ -68,11 +68,9 @@ impl InputFileExt for base::jar::InputFile {
         resolve::resolver_for_file(db, self)
     }
 
-    /// Returns item diagnostics accumulated on [`Self::items`]
-    fn item_diags(&self, db: &dyn IrDb) -> Vec<ir_diag::ItemDiagnostic> {
-        lower_ir::lower_items::accumulated::<ir_diag::ItemDiagnostics>(db, *self)
+    fn item_syntax_diags(self, db: &dyn IrDb) -> Vec<ir_diag::ItemDiagnostic> {
+        lower_ir::lower_items::accumulated::<ir_diag::ItemDiagnostics>(db, self)
     }
-
 }
 
 impl item::Proc {

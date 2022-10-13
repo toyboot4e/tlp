@@ -404,12 +404,12 @@ impl ParseState {
 
     /// -> Type
     fn _maybe_bump_return_type(&mut self, pcx: &ParseContext) -> Option<()> {
-        let checkpoint = self.builder.checkpoint();
         self.maybe_bump_kind(pcx, SyntaxKind::RightArrow)?;
 
         self.maybe_bump_ws(pcx);
-        self.maybe_bump_type(pcx)?;
 
+        let checkpoint = self.builder.checkpoint();
+        self.maybe_bump_type(pcx)?;
         self.builder
             .start_node_at(checkpoint, SyntaxKind::ReturnType.into());
         self.builder.finish_node();
