@@ -1,21 +1,21 @@
 //! Lexer / tokenizer
 
-use base::span::{Offset, Span};
+use base::span::Span;
 use thiserror::Error;
 
 use crate::syntax::cst::SyntaxKind;
 
 /// Text span with syntactic kind
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Token {
     pub kind: SyntaxKind,
     // TODO: prefer `&str`?
-    pub sp: Span,
+    pub span: Span,
 }
 
 impl Token {
     pub fn slice<'s>(&self, src: &'s str) -> &'s str {
-        self.sp.slice(src)
+        self.span.slice(src)
     }
 }
 
@@ -25,6 +25,24 @@ pub enum LexError {
     // TODO: while what?
     #[error("Unexpected end of file ({span:?})")]
     UnterminatedString { span: Span },
+}
+
+impl LexError {
+    /// Returns a detailed error message
+    pub fn detailed_message(&self, src: &str) -> String {
+        match self {
+            LexError::UnterminatedString { .. } => "unterminated string",
+        }
+        .to_string()
+    }
+
+    /// Returns a simplified error message, useful when quoting source text.
+    pub fn simple_message(&self, _: &str) -> String {
+        match self {
+            LexError::UnterminatedString { .. } => "unterminated string",
+        }
+        .to_string()
+    }
 }
 
 /// Convers text into a CST. It doesn't fail even if the given text has wrong syntax.
@@ -92,7 +110,7 @@ impl<'s> Lexer<'s> {
 
     fn consume_span_as(&mut self, kind: SyntaxKind) -> Token {
         let sp = self.consume_span();
-        Token { kind, sp }
+        Token { kind, span: sp }
     }
 
     /// The predicate returns if we should continue scanning reading a byte

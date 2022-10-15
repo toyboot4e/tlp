@@ -32,7 +32,7 @@ impl diag::Diagnostic for ItemDiagnostic {
     }
 
     // FIXME: duplicate messages
-    fn msg(&self) -> String {
+    fn header_msg(&self, _: &str) -> String {
         match self {
             ItemDiagnostic::MissingProcName(_) => "missing procedure name",
             ItemDiagnostic::ProcDiagnostic(x) => match (!x.params.is_empty(), x.missing_ret_ty) {
@@ -90,7 +90,8 @@ impl ItemDiagnostic {
         match self {
             ItemDiagnostic::MissingProcName(x) => {
                 let src_context = "".to_string();
-                let msg_span = diag::MsgSpan::new(x.span, self.msg());
+                let msg_span =
+                    diag::MsgSpan::new(x.span, self.header_msg(input_file.source_text(db.base())));
                 diag::render_single_msg(db.base(), self, input_file, src_context, msg_span)
             }
             ItemDiagnostic::ProcDiagnostic(x) => {

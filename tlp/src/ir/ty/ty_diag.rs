@@ -41,7 +41,7 @@ impl diag::Diagnostic for TypeDiagnostic {
         diag::Severity::Error
     }
 
-    fn msg(&self) -> String {
+    fn header_msg(&self, _: &str) -> String {
         match self {
             TypeDiagnostic::MismatchedTypes(_) => "mismatched types",
             TypeDiagnostic::IncompatibleOpArgTypes(_) => "incompatible operator argument types",
@@ -75,12 +75,16 @@ impl TypeDiagnostic {
     ) -> diag::Render<'a> {
         // show procedure name
         let src_context = format!("(`{}`)", proc.name(db).as_str(db.base()));
+        let source = input_file.source_text(db.base());
 
         match self {
             TypeDiagnostic::MismatchedTypes(x) => {
                 let x = &x.mismatch;
                 let main_span = body_spans.get(x.actual_expr).unwrap();
-                let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
+                let primary_msg = MsgSpan::new(
+                    main_span,
+                    self.header_msg(input_file.source_text(db.base())).to_string(),
+                );
                 diag::render_single_msg(db.base(), self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::IncompatibleOpArgTypes(x) => {
@@ -101,7 +105,14 @@ impl TypeDiagnostic {
                     ),
                 ];
 
-                diag::render_multi_msg(db.base(), self, input_file, src_context, main_span, sub_msgs)
+                diag::render_multi_msg(
+                    db.base(),
+                    self,
+                    input_file,
+                    src_context,
+                    main_span,
+                    sub_msgs,
+                )
             }
             TypeDiagnostic::IncorrectProcArgs(x) => {
                 let main_span = body_spans.get(x.proc_expr).unwrap();
@@ -111,8 +122,14 @@ impl TypeDiagnostic {
                     body_spans,
                 );
 
-                let mut render =
-                    diag::render_multi_msg(db.base(), self, input_file, src_context, main_span, sub_msgs);
+                let mut render = diag::render_multi_msg(
+                    db.base(),
+                    self,
+                    input_file,
+                    src_context,
+                    main_span,
+                    sub_msgs,
+                );
 
                 let params = x.proc_id.params(db);
                 let param_tys = &x.proc_id.ty_data_as_proc(db).param_tys;
@@ -134,12 +151,12 @@ impl TypeDiagnostic {
             }
             TypeDiagnostic::CannotFindTypeInScope(x) => {
                 let main_span = body_spans.get(x.expr).unwrap();
-                let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
+                let primary_msg = MsgSpan::new(main_span, self.header_msg(source).to_string());
                 diag::render_single_msg(db.base(), self, input_file, src_context, primary_msg)
             }
             TypeDiagnostic::CannotFindValueInScope(x) => {
                 let main_span = *body_spans[x.expr].as_ref().unwrap();
-                let primary_msg = MsgSpan::new(main_span, self.msg().to_string());
+                let primary_msg = MsgSpan::new(main_span, self.header_msg(source).to_string());
                 diag::render_single_msg(db.base(), self, input_file, src_context, primary_msg)
             }
         }
@@ -220,23 +237,21 @@ impl Diagnostic for ProcedureDefinedHere {
         diag::Severity::Note
     }
 
-    fn msg(&self) -> String {
+    fn header_msg(&self, _: &str) -> String {
         "function defined here".to_string()
     }
 }
 
 impl ProcedureDefinedHere {
     pub fn new(proc: item::Proc, param_spans: Vec<Span>) -> Self {
-        Self {
-            proc,
-            param_spans,
-        }
+        Self { proc, param_spans }
     }
 
     pub fn render<'a>(&self, db: &'a dyn IrDb) -> diag::Render<'a> {
         let primary_span = self.proc.name(db).span(db.base()).span();
 
-        let sub_msgs = self.param_spans
+        let sub_msgs = self
+            .param_spans
             .iter()
             .map(|span| MsgSpan::span_only(*span))
             .collect::<Vec<_>>();

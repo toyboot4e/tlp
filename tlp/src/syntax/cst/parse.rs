@@ -5,6 +5,8 @@
 //! - Parse function users are responsibile of bumping white spaces. Parse functions do not call
 //! `maybe_bump_ws` at the beginning.
 
+use std::fmt;
+
 use base::span::{Offset, Span};
 use thiserror::Error;
 
@@ -25,15 +27,121 @@ pub enum ParseError {
         #[from]
         err: LexError,
     },
-    // TODO: while parsing
-    #[error("expected {expected}, found token at span `{found:?}`")]
-    UnexpectedToken { expected: String, found: Span },
+    #[error("expected `{expected}`, found `{found:?}` while parsing `{ctx:?}`")]
+    UnexpectedToken {
+        expected: String,
+        found: Token,
+        ctx: ErrorContext,
+    },
     #[error("expected {expected}, found EoF")]
     UnexpectedEof { expected: String },
     #[error("unclosed parentheses")]
     UnclosedParentheses { span: Span },
     #[error("path must end with identifier")]
     PathNotEndWithIdent { span: Span },
+}
+
+/// FIXME: Duplicate messages
+impl ParseError {
+    /// Returns a simplified error message, useful for diagnostic header
+    pub fn detailed_message(&self, src: &str) -> String {
+        match self {
+            ParseError::LexError { err } => err.simple_message(src),
+            ParseError::UnexpectedToken {
+                expected,
+                found,
+                ctx,
+            } => format!(
+                "expected `{expected}`, found `{}` while parsing {}",
+                found.span.slice(src),
+                ctx.format(src),
+            ),
+            ParseError::UnexpectedEof { expected } => format!("expected `{expected}`"),
+            ParseError::UnclosedParentheses { .. } => "unclosed parentheses".to_string(),
+            ParseError::PathNotEndWithIdent { .. } => "path must end with identifier".to_string(),
+        }
+    }
+
+    /// Returns a simplified error message, useful when quoting source text.
+    pub fn simple_message(&self, src: &str) -> String {
+        match self {
+            ParseError::LexError { err } => err.simple_message(src),
+            ParseError::UnexpectedToken { expected, .. } => format!("expected `{expected}`"),
+            ParseError::UnexpectedEof { expected } => format!("expected `{expected}`"),
+            ParseError::UnclosedParentheses { .. } => "unclosed parentheses".to_string(),
+            ParseError::PathNotEndWithIdent { .. } => "path must end with identifier".to_string(),
+        }
+    }
+}
+
+/// Surrounding context of a [`ParseError`], e.g., "while parsing a procedure"
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorContext {
+    /// Top-level parse entry. TODO: Needs more context
+    Sexp,
+    /// While parsing a list
+    List {
+        /// Span of the `(`
+        l_paren_span: Span,
+    },
+    /// While parsing a procedure
+    Proc {
+        /// Span of the `proc` keyword
+        proc_span: Span,
+        /// Span of the `<procedure name>`
+        name_span: Option<Span>,
+    },
+    /// While parsing a `let` statement
+    Let {
+        /// Span of the `let` identifier
+        let_span: Span,
+    },
+    /// While parsing a procedure call
+    Call {
+        /// Span of the `<callee identifier>`
+        callee_span: Span,
+    },
+    /// While parsing a `set` statement
+    Set {
+        /// Span of the `set` identifier
+        set_span: Span,
+    },
+}
+
+impl ErrorContext {
+    /// Casts into format type for error context printing
+    pub fn format<'s, 'c>(&'c self, source: &'s str) -> ErrorContextWithSource<'s, 'c> {
+        ErrorContextWithSource { source, ctx: self }
+    }
+}
+
+pub struct ErrorContextWithSource<'s, 'c> {
+    source: &'s str,
+    ctx: &'c ErrorContext,
+}
+
+impl<'s, 'c> fmt::Display for ErrorContextWithSource<'s, 'c> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match &self.ctx {
+            ErrorContext::Sexp => "S-expression",
+            ErrorContext::List { .. } => "list",
+            ErrorContext::Proc {
+                proc_span,
+                name_span,
+            } => {
+                if let Some(name_span) = name_span {
+                    return write!(f, "procedure `{}`", name_span.slice(self.source));
+                } else {
+                    return write!(f, "<name-missing procedure>");
+                }
+            }
+            ErrorContext::Let { .. } => "let",
+            ErrorContext::Call { .. } => "call",
+            ErrorContext::Set { .. } => "set",
+        };
+
+        write!(f, "{}", s)
+    }
 }
 
 /// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
@@ -176,7 +284,7 @@ impl ParseState {
         let checkpoint = self.builder.checkpoint();
 
         let paren_start = self.tsp.end;
-        self.bump_kind(pcx, SyntaxKind::LParen);
+        let l_paren_tk = self.bump_kind(pcx, SyntaxKind::LParen);
         self.maybe_bump_ws(pcx);
 
         let peek = match self.peek(pcx) {
@@ -198,7 +306,10 @@ impl ParseState {
         if !matches!(peek.kind, SyntaxKind::Ident) {
             self.errs.push(ParseError::UnexpectedToken {
                 expected: "<call or special form>".to_string(),
-                found: peek.sp,
+                found: *peek,
+                ctx: ErrorContext::List {
+                    l_paren_span: l_paren_tk.span,
+                },
             });
 
             // TODO: for recovery, go to `)`?
@@ -226,8 +337,8 @@ impl ParseState {
         // for diagnostics
         let list_start = self.tsp.end;
 
-        let tk = self.bump_kind(pcx, SyntaxKind::Ident);
-        assert_eq!(tk.slice(pcx.src), "proc");
+        let proc_tk = self.bump_kind(pcx, SyntaxKind::Ident);
+        assert_eq!(proc_tk.slice(pcx.src), "proc");
 
         // wrap the list
         self.builder
@@ -236,10 +347,15 @@ impl ParseState {
         let found_rparen = {
             // start `Body` node
             self.maybe_bump_ws(pcx);
-            self._bump_to_proc_param(pcx);
+            let name_span = self._bump_to_proc_param(pcx, proc_tk.span);
+
+            let ctx = ErrorContext::Proc {
+                proc_span: proc_tk.span,
+                name_span,
+            };
 
             self.maybe_bump_ws(pcx);
-            self._maybe_bump_return_type(pcx);
+            self._maybe_bump_return_type(pcx, ctx);
 
             self.maybe_bump_ws(pcx);
             self.builder.start_node(SyntaxKind::Block.into());
@@ -272,31 +388,42 @@ impl ParseState {
     }
 
     /// Ident Params
-    fn _bump_to_proc_param(&mut self, pcx: &ParseContext) {
-        // proc name
-        if let Some(tk) = self.peek(pcx) {
-            if tk.kind == SyntaxKind::Ident {
-                self.builder.start_node(SyntaxKind::ProcName.into());
-                self.bump_kind(pcx, SyntaxKind::Ident);
-                self.builder.finish_node();
+    ///
+    /// Returns name token's span if it exists.
+    fn _bump_to_proc_param(&mut self, pcx: &ParseContext, proc_span: Span) -> Option<Span> {
+        let name_tk = self.peek(pcx)?;
+
+        let ctx = if name_tk.kind == SyntaxKind::Ident {
+            self.builder.start_node(SyntaxKind::ProcName.into());
+            self.bump_kind(pcx, SyntaxKind::Ident);
+            self.builder.finish_node();
+
+            ErrorContext::Proc {
+                proc_span,
+                name_span: Some(name_tk.span),
             }
         } else {
-            return;
-        }
+            ErrorContext::Proc {
+                proc_span,
+                name_span: None,
+            }
+        };
 
         self.maybe_bump_ws(pcx);
 
         // params
         if let Some(tk) = self.peek(pcx) {
             if tk.kind == SyntaxKind::LParen {
-                self._proc_params(pcx);
+                self._proc_params(pcx, ctx);
                 self.maybe_bump_ws(pcx);
             }
         }
+
+        Some(name_tk.span)
     }
 
     /// Param* ")"
-    fn _proc_params(&mut self, pcx: &ParseContext) {
+    fn _proc_params(&mut self, pcx: &ParseContext, ctx: ErrorContext) {
         self.builder.start_node(SyntaxKind::Params.into());
         self.bump_kind(pcx, SyntaxKind::LParen);
 
@@ -318,14 +445,16 @@ impl ParseState {
                 if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none() {
                     let tk = self.peek(pcx).unwrap();
 
+                    // TODO: consider batching all the errors into one while parsing a procedure?
                     self.errs.push(ParseError::UnexpectedToken {
                         expected: ":".to_string(),
-                        found: tk.sp,
+                        found: *tk,
+                        ctx,
                     });
                 } else {
                     // `<Type>`
                     self.maybe_bump_ws(pcx);
-                    self.maybe_bump_type(pcx);
+                    self.maybe_bump_type(pcx, ctx);
                 }
 
                 self.builder.finish_node();
@@ -335,7 +464,8 @@ impl ParseState {
                 self.errs.push(ParseError::UnexpectedToken {
                     // TODO: figure out why it's at this point
                     expected: "`)` or parameter".to_string(),
-                    found: tk.sp,
+                    found: *tk,
+                    ctx,
                 });
 
                 // anyway consume the syntax
@@ -366,13 +496,13 @@ impl ParseState {
     }
 
     /// -> Type
-    fn _maybe_bump_return_type(&mut self, pcx: &ParseContext) -> Option<()> {
+    fn _maybe_bump_return_type(&mut self, pcx: &ParseContext, ctx: ErrorContext) -> Option<()> {
         self.maybe_bump_kind(pcx, SyntaxKind::RightArrow)?;
 
         self.maybe_bump_ws(pcx);
 
         let checkpoint = self.builder.checkpoint();
-        self.maybe_bump_type(pcx)?;
+        self.maybe_bump_type(pcx, ctx)?;
         self.builder
             .start_node_at(checkpoint, SyntaxKind::ReturnType.into());
         self.builder.finish_node();
@@ -380,7 +510,7 @@ impl ParseState {
         Some(())
     }
 
-    fn maybe_bump_type(&mut self, pcx: &ParseContext) -> Option<()> {
+    fn maybe_bump_type(&mut self, pcx: &ParseContext, ctx: ErrorContext) -> Option<()> {
         let checkpoint = self.builder.checkpoint();
 
         if self.maybe_bump_path(pcx).is_some() {
@@ -393,7 +523,8 @@ impl ParseState {
         if let Some(peek) = self.peek(pcx) {
             self.errs.push(ParseError::UnexpectedToken {
                 expected: "<type>".to_string(),
-                found: peek.sp,
+                found: *peek,
+                ctx,
             });
         } else {
             self.errs.push(ParseError::UnexpectedEof {
@@ -443,7 +574,8 @@ impl ParseState {
             let err = if let Some(peek) = self.peek(pcx) {
                 ParseError::UnexpectedToken {
                     expected: "<place>".to_string(),
-                    found: peek.sp,
+                    found: *peek,
+                    ctx: ErrorContext::Set { set_span: tk.span },
                 }
             } else {
                 ParseError::UnexpectedEof {
@@ -658,7 +790,8 @@ impl ParseState {
             Some(tk) => {
                 self.errs.push(ParseError::UnexpectedToken {
                     expected: "<symbol>".to_string(),
-                    found: tk.sp,
+                    found: *tk,
+                    ctx: ErrorContext::Sexp,
                 });
 
                 // Discard this token so that we won't enter infinite loop
@@ -688,7 +821,7 @@ impl ParseState {
     // TODO: refactor
     fn maybe_bump_path(&mut self, pcx: &ParseContext) -> Option<()> {
         let start = if self.tsp.end.into_usize() > 0 {
-            pcx.tks[self.tsp.end.into_usize() - 1].sp.end
+            pcx.tks[self.tsp.end.into_usize() - 1].span.end
         } else {
             Offset::default()
         };
@@ -727,7 +860,7 @@ impl ParseState {
             // ident
             if self.maybe_bump_kind(pcx, SyntaxKind::Ident).is_none() {
                 let end = match self.peek(pcx) {
-                    Some(tk) => tk.sp.start,
+                    Some(tk) => tk.span.start,
                     None => pcx.src.len().into(),
                 };
 

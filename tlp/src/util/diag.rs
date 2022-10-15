@@ -157,7 +157,7 @@ pub trait Diagnostic {
     }
 
     /// Primary error message shown in the header
-    fn msg(&self) -> String;
+    fn header_msg(&self, src: &str) -> String;
 }
 
 /// Header part of diagnostic rendering
@@ -179,13 +179,14 @@ pub struct Header<'a> {
 impl<'a> Header<'a> {
     pub fn new(
         diag: &impl Diagnostic,
+        src_text: &str,
         src_file: &'a str,
         src_context: String,
         ln_col: LineColumn,
     ) -> Self {
         Self {
             severity_display: diag.severity_display(),
-            msg: diag.msg(),
+            msg: diag.header_msg(src_text),
             src_file,
             src_context,
             ln_col,
@@ -693,7 +694,13 @@ pub fn get_header<'a>(
     let src_file = input_file.name(db).as_str(db);
     let ln_tbl = input_file.line_column_table(db);
     let ln_col = ln_tbl.line_column(primary_span.start);
-    let header = Header::new(diag, src_file, src_context, ln_col);
+    let header = Header::new(
+        diag,
+        input_file.source_text(db.base()),
+        src_file,
+        src_context,
+        ln_col,
+    );
 
     let line_span = ln_tbl.line_span(primary_span.start);
     let src_text = input_file.source_text(db);

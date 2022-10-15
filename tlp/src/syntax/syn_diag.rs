@@ -18,7 +18,7 @@ impl diag::Diagnostic for LexError {
         diag::Severity::Error
     }
 
-    fn msg(&self) -> String {
+    fn header_msg(&self, _: &str) -> String {
         match self {
             Self::UnterminatedString { .. } => "unterminated string",
         }
@@ -41,8 +41,8 @@ impl diag::Diagnostic for ParseError {
         diag::Severity::Error
     }
 
-    fn msg(&self) -> String {
-        format!("{}", self)
+    fn header_msg(&self, src: &str) -> String {
+        self.detailed_message(src)
     }
 }
 
@@ -51,7 +51,8 @@ impl LexError {
         match self {
             LexError::UnterminatedString { span } => {
                 let src_context = "".to_string();
-                let msg_span = diag::MsgSpan::new(*span, self.msg());
+                let source = input_file.source_text(db);
+                let msg_span = diag::MsgSpan::new(*span, self.simple_message(source));
                 diag::render_single_msg(db, self, input_file, src_context, msg_span)
             }
         }
@@ -60,11 +61,17 @@ impl LexError {
 
 impl ParseError {
     pub fn render<'a>(&'a self, db: &'a dyn BaseDb, input_file: InputFile) -> diag::Render<'a> {
+        let source = input_file.source_text(db.base());
+
         match self {
             ParseError::LexError { err } => err.render(db, input_file),
-            ParseError::UnexpectedToken { expected: _, found } => {
+            ParseError::UnexpectedToken {
+                expected: _,
+                found,
+                ctx,
+            } => {
                 let src_context = "".to_string();
-                let msg_span = diag::MsgSpan::new(*found, self.msg());
+                let msg_span = diag::MsgSpan::new(found.span, self.simple_message(source));
 
                 diag::render_single_msg(db.base(), self, input_file, src_context, msg_span)
             }
@@ -72,20 +79,20 @@ impl ParseError {
                 let src_context = "".to_string();
 
                 // FIXME: refer to EoF
-                let src_len = input_file.source_text(db).len();
+                let src_len = source.len();
                 let span = Span {
                     // FIXME: unsafe
                     start: (src_len - 1).into(),
                     end: src_len.into(),
                 };
 
-                let msg_span = diag::MsgSpan::new(span, self.msg());
+                let msg_span = diag::MsgSpan::new(span, self.simple_message(source));
 
                 diag::render_single_msg(db.base(), self, input_file, src_context, msg_span)
             }
             ParseError::UnclosedParentheses { span } => {
                 let src_context = "".to_string();
-                let msg_span = diag::MsgSpan::new(*span, self.msg());
+                let msg_span = diag::MsgSpan::new(*span, self.simple_message(source));
                 diag::render_single_msg(db, self, input_file, src_context, msg_span)
             }
             ParseError::PathNotEndWithIdent { span } => todo!(),
