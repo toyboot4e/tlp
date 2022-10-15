@@ -68,7 +68,7 @@ impl ParseError {
             ParseError::UnexpectedToken {
                 expected: _,
                 found,
-                ctx,
+                ..
             } => {
                 let src_context = "".to_string();
                 let msg_span = diag::MsgSpan::new(found.span, self.simple_message(source));

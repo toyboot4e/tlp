@@ -27,7 +27,7 @@ pub enum ParseError {
         #[from]
         err: LexError,
     },
-    #[error("expected `{expected}`, found `{found:?}` while parsing `{ctx:?}`")]
+    #[error("expected {expected}, found `{found:?}` while parsing `{ctx:?}`")]
     UnexpectedToken {
         expected: String,
         found: Token,
@@ -52,11 +52,11 @@ impl ParseError {
                 found,
                 ctx,
             } => format!(
-                "expected `{expected}`, found `{}` while parsing {}",
+                "expected {expected}, found `{}` (in {})",
                 found.span.slice(src),
                 ctx.format(src),
             ),
-            ParseError::UnexpectedEof { expected } => format!("expected `{expected}`"),
+            ParseError::UnexpectedEof { expected } => format!("expected {expected}"),
             ParseError::UnclosedParentheses { .. } => "unclosed parentheses".to_string(),
             ParseError::PathNotEndWithIdent { .. } => "path must end with identifier".to_string(),
         }
@@ -66,8 +66,8 @@ impl ParseError {
     pub fn simple_message(&self, src: &str) -> String {
         match self {
             ParseError::LexError { err } => err.simple_message(src),
-            ParseError::UnexpectedToken { expected, .. } => format!("expected `{expected}`"),
-            ParseError::UnexpectedEof { expected } => format!("expected `{expected}`"),
+            ParseError::UnexpectedToken { expected, .. } => format!("expected {expected}"),
+            ParseError::UnexpectedEof { expected } => format!("expected {expected}"),
             ParseError::UnclosedParentheses { .. } => "unclosed parentheses".to_string(),
             ParseError::PathNotEndWithIdent { .. } => "path must end with identifier".to_string(),
         }
@@ -126,8 +126,8 @@ impl<'s, 'c> fmt::Display for ErrorContextWithSource<'s, 'c> {
             ErrorContext::Sexp => "S-expression",
             ErrorContext::List { .. } => "list",
             ErrorContext::Proc {
-                proc_span,
                 name_span,
+                ..
             } => {
                 if let Some(name_span) = name_span {
                     return write!(f, "procedure `{}`", name_span.slice(self.source));
@@ -445,9 +445,9 @@ impl ParseState {
                 if self.maybe_bump_kind(pcx, SyntaxKind::Colon).is_none() {
                     let tk = self.peek(pcx).unwrap();
 
-                    // TODO: consider batching all the errors into one while parsing a procedure?
+                    // FIXME: duplicate of item pass errors
                     self.errs.push(ParseError::UnexpectedToken {
-                        expected: ":".to_string(),
+                        expected: "`:`".to_string(),
                         found: *tk,
                         ctx,
                     });
