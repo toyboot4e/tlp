@@ -1,4 +1,4 @@
-//! Diagonstics
+//! [`TypeDiagnostic`] and their variants
 
 use base::{jar::InputFile, span::Span};
 

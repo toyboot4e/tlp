@@ -1,4 +1,4 @@
-//! Compiler (HIR → bytecode)
+//! Compiler (IR → bytecode)
 
 use rustc_hash::FxHashMap;
 use salsa::DebugWithDb;
@@ -43,10 +43,10 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
     // let main_proc = self::find_procedure_by_name(db, main_file, "main");
 
     let parse = main_file.parse_items(db);
+    let parse_errors = parse.errors(db);
 
-    for err in parse.errors(db) {
+    for err in parse_errors {
         println!("{}", err.render(db, main_file));
-        panic!("panic due to parse error");
     }
 
     let items = parse.items(db);
@@ -62,6 +62,8 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
         })
         .collect::<FxHashMap<_, _>>();
 
+    let mut any_error = !parse_errors.is_empty();
+
     for item in items {
         // TODO: use validated IR
         // FIXME: consider item declaration diagnostics
@@ -74,6 +76,7 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
         // FIXME: `#[return_ref]`?
         let diags = proc.param_ty_diags(db);
         if !diags.is_empty() {
+            any_error = true;
             eprintln!("TODO: type error on compile");
             crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
             continue;
@@ -81,6 +84,7 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
 
         let diags = proc.body_ty_diags(db);
         if !diags.is_empty() {
+            any_error = true;
             eprintln!("TODO: type error on compile");
             crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
             continue;
@@ -93,11 +97,17 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
         let mut compiler = CompileProc::new(&proc_ids, db, proc.clone());
         compiler.compile_proc();
 
+        any_error |= !compiler.errs.is_empty();
+
         vm_procs.push(vm::VmProc {
             chunk: compiler.chunk,
             n_args: proc.body_data(db).param_pats.len(),
         });
         vm_errs.extend(compiler.errs);
+    }
+
+    if any_error {
+        panic!("<error>");
     }
 
     let vm = Vm::new(vm_procs);

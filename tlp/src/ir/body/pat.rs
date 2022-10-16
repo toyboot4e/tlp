@@ -1,3 +1,7 @@
+//! Patterns
+//!
+//! The simplest pattern is a binding pattern, where no destructuring performed.
+
 use base::{jar::Word, tbl::id};
 use salsa::DebugWithDb;
 

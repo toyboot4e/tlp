@@ -1,4 +1,4 @@
-//! Type data debug printer
+//! Type data debug print implementations
 
 use std::fmt;
 

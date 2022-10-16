@@ -1,4 +1,4 @@
-//! Body
+//! Item body
 
 pub mod expr;
 pub mod expr_debug;

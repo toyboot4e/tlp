@@ -1,16 +1,22 @@
 //! Intermediate representation
+//!
+//! The primary API is built on [`InputFileExt`] and [`item::Proc`].
+//!
+//! Passes: [`item`] → [`body`] → [`ty`]
 
 pub mod body;
 pub mod ir_diag;
 pub mod item;
 pub mod item_scope;
 pub mod jar;
-pub mod lower_ir;
 pub mod resolve;
 pub mod ty;
 
+mod lower_ir;
+
 use salsa::DebugWithDb;
 
+/// List of salsa contents associated with [`IrDb`]
 #[salsa::jar(db = IrDb)]
 pub struct IrJar(
     jar::ParsedFile,
@@ -31,6 +37,7 @@ pub struct IrJar(
     ty::lower_type::lower_proc_type,
 );
 
+/// salsa database for [`IrJar`] contents
 pub trait IrDb: salsa::DbWithJar<IrJar> + base::BaseDb {
     fn as_ir_db(&self) -> &dyn IrDb;
 }
@@ -73,38 +80,27 @@ impl InputFileExt for base::jar::InputFile {
     }
 }
 
+/// # Incremental computation
 impl item::Proc {
     pub fn body(&self, db: &dyn IrDb) -> body::Body {
         lower_ir::lower_body(db, *self)
     }
 
+    /// Just a shorthand
     pub fn body_data<'db>(&self, db: &'db dyn IrDb) -> &'db body::BodyData {
         let body = lower_ir::lower_body(db, *self);
         body.data(db)
     }
 
+    /// Just a shorthand
     pub fn body_spans<'db>(&self, db: &'db dyn IrDb) -> &'db body::BodySpans {
         let body = lower_ir::lower_body(db, *self);
         body.spans(db)
     }
 
+    /// Maybe use resolvers
     pub fn expr_scopes<'db>(&self, db: &'db dyn IrDb) -> body::expr_scope::ExprScopeMap {
         lower_ir::lower_proc_expr_scope(db, *self)
-    }
-
-    /// Resolver for the root block expression
-    pub fn root_resolver<'db>(&self, db: &'db dyn IrDb) -> resolve::Resolver {
-        let root_expr = self.body_data(db).root_block;
-        resolve::resolver_for_proc_expr(db, *self, root_expr)
-    }
-
-    /// Resolver for a expression in this procedure
-    pub fn expr_resolver<'db>(
-        &self,
-        db: &'db dyn IrDb,
-        expr: body::expr::Expr,
-    ) -> resolve::Resolver {
-        resolve::resolver_for_proc_expr(db, *self, expr)
     }
 
     /// Body type table
@@ -131,10 +127,12 @@ impl item::Proc {
         ty::lower_type::lower_proc_type::accumulated::<ty::ty_diag::TypeDiagnostics>(db, *self)
     }
 
+    /// Just a shorthand
     pub fn ty_data<'db>(&self, db: &'db dyn IrDb) -> &'db ty::TypeData {
         self.ty(db).data(db)
     }
 
+    /// Just a shorthand
     pub fn ty_data_as_proc<'db>(&self, db: &'db dyn IrDb) -> &'db ty::ProcType {
         match self.ty_data(db) {
             ty::TypeData::Proc(proc) => proc,
@@ -143,5 +141,24 @@ impl item::Proc {
                 self.debug(db)
             ),
         }
+    }
+}
+
+/// # Extensions
+/// Ideally resolvers should be both more efficient and stateless.
+impl item::Proc {
+    /// Resolver for the root block expression
+    pub fn root_resolver<'db>(&self, db: &'db dyn IrDb) -> resolve::Resolver {
+        let root_expr = self.body_data(db).root_block;
+        resolve::resolver_for_proc_expr(db, *self, root_expr)
+    }
+
+    /// Resolver for a expression in this procedure
+    pub fn expr_resolver<'db>(
+        &self,
+        db: &'db dyn IrDb,
+        expr: body::expr::Expr,
+    ) -> resolve::Resolver {
+        resolve::resolver_for_proc_expr(db, *self, expr)
     }
 }

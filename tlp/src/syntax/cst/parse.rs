@@ -52,7 +52,7 @@ impl ParseError {
                 found,
                 ctx,
             } => format!(
-                "expected {expected}, found `{}` (in {})",
+                "expected {expected}, found `{}` in {}",
                 found.span.slice(src),
                 ctx.format(src),
             ),
@@ -125,10 +125,7 @@ impl<'s, 'c> fmt::Display for ErrorContextWithSource<'s, 'c> {
         let s = match &self.ctx {
             ErrorContext::Sexp => "S-expression",
             ErrorContext::List { .. } => "list",
-            ErrorContext::Proc {
-                name_span,
-                ..
-            } => {
+            ErrorContext::Proc { name_span, .. } => {
                 if let Some(name_span) = name_span {
                     return write!(f, "procedure `{}`", name_span.slice(self.source));
                 } else {
@@ -391,21 +388,29 @@ impl ParseState {
     ///
     /// Returns name token's span if it exists.
     fn _bump_to_proc_param(&mut self, pcx: &ParseContext, proc_span: Span) -> Option<Span> {
-        let name_tk = self.peek(pcx)?;
+        let (ctx, name_span) = {
+            let name_tk = self.peek(pcx)?;
 
-        let ctx = if name_tk.kind == SyntaxKind::Ident {
-            self.builder.start_node(SyntaxKind::ProcName.into());
-            self.bump_kind(pcx, SyntaxKind::Ident);
-            self.builder.finish_node();
+            if name_tk.kind == SyntaxKind::Ident {
+                self.builder.start_node(SyntaxKind::ProcName.into());
+                self.bump_kind(pcx, SyntaxKind::Ident);
+                self.builder.finish_node();
 
-            ErrorContext::Proc {
-                proc_span,
-                name_span: Some(name_tk.span),
-            }
-        } else {
-            ErrorContext::Proc {
-                proc_span,
-                name_span: None,
+                (
+                    ErrorContext::Proc {
+                        proc_span,
+                        name_span: Some(name_tk.span),
+                    },
+                    Some(name_tk.span),
+                )
+            } else {
+                (
+                    ErrorContext::Proc {
+                        proc_span,
+                        name_span: None,
+                    },
+                    None,
+                )
             }
         };
 
@@ -419,7 +424,7 @@ impl ParseState {
             }
         }
 
-        Some(name_tk.span)
+        name_span
     }
 
     /// Param* ")"
@@ -454,7 +459,7 @@ impl ParseState {
                 } else {
                     // `<Type>`
                     self.maybe_bump_ws(pcx);
-                    self.maybe_bump_type(pcx, ctx);
+                    self.maybe_bump_type(pcx, ctx, "<type>");
                 }
 
                 self.builder.finish_node();
@@ -502,7 +507,7 @@ impl ParseState {
         self.maybe_bump_ws(pcx);
 
         let checkpoint = self.builder.checkpoint();
-        self.maybe_bump_type(pcx, ctx)?;
+        self.maybe_bump_type(pcx, ctx, "<return type>")?;
         self.builder
             .start_node_at(checkpoint, SyntaxKind::ReturnType.into());
         self.builder.finish_node();
@@ -510,7 +515,12 @@ impl ParseState {
         Some(())
     }
 
-    fn maybe_bump_type(&mut self, pcx: &ParseContext, ctx: ErrorContext) -> Option<()> {
+    fn maybe_bump_type(
+        &mut self,
+        pcx: &ParseContext,
+        ctx: ErrorContext,
+        expected: &'static str,
+    ) -> Option<()> {
         let checkpoint = self.builder.checkpoint();
 
         if self.maybe_bump_path(pcx).is_some() {
@@ -522,13 +532,13 @@ impl ParseState {
 
         if let Some(peek) = self.peek(pcx) {
             self.errs.push(ParseError::UnexpectedToken {
-                expected: "<type>".to_string(),
+                expected: expected.to_string(),
                 found: *peek,
                 ctx,
             });
         } else {
             self.errs.push(ParseError::UnexpectedEof {
-                expected: "<type>".to_string(),
+                expected: expected.to_string(),
             });
         };
 

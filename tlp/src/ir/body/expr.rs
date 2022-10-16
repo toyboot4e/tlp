@@ -1,3 +1,8 @@
+//! Expressions
+//!
+//! In the IR level almost everything is an expression. Statements are not separated from
+//! expressions.
+
 use std::{cmp, hash};
 
 use base::{jar::Word, tbl::id};

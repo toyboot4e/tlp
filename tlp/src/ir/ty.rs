@@ -1,10 +1,16 @@
-//! Types of patterns and expressions
+//! Types of patterns, expressions and items
+//!
+//! [`TypeTable`] stores [`TypeData`] of patterns and expressions in a [`BodyData`]. Each
+//! [`TypeData`] is interned into a [`Ty`] by salsa.
+//!
+//! [`BodyData`]: crate::ir::body::BodyData
 
 // TODO: resolve path to a pattern without making duplicates?
 
-pub mod lower_type;
-pub mod ty_debug;
+pub(super) mod lower_type;
 pub mod ty_diag;
+
+mod ty_debug;
 
 use std::ops;
 
@@ -19,6 +25,7 @@ use crate::ir::{
     IrDb, IrJar,
 };
 
+/// Types for a [`Body`](crate::ir:body::Body)
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TypeTable {
     /// Indices to `types` vector
@@ -62,7 +69,7 @@ impl ops::Index<Pat> for TypeTable {
 
 /// WIP mutable type information while lowering
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum WipTypeData {
+enum WipTypeData {
     /// Unresolved type variable
     Var,
     /// Resolved type (it can be concluded as `Unknown` though)
@@ -126,7 +133,7 @@ impl TypeData {
     }
 }
 
-// Builtin operator (function) type
+/// [`TypeData`] for a builtin operator (function) type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OpType {
     pub kind: expr::OpKind,
@@ -177,6 +184,7 @@ impl OpOperandType {
     }
 }
 
+/// [`TypeData`] for primitive types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimitiveType {
     I32,
@@ -205,6 +213,7 @@ impl PrimitiveType {
     }
 }
 
+/// [`TypeData`] for primitive types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ProcType {
     pub param_tys: Box<[Ty]>,

@@ -4,7 +4,7 @@ use base::{jar::InputFile, span::Span, BaseDb};
 
 use crate::{
     syntax::cst::{lex::LexError, ParseError},
-    util::diag::{self, Diagnostic},
+    util::diag::{self},
 };
 
 impl diag::Diagnostic for LexError {
@@ -68,9 +68,9 @@ impl ParseError {
             ParseError::UnexpectedToken {
                 expected: _,
                 found,
-                ..
+                ctx,
             } => {
-                let src_context = "".to_string();
+                let src_context = format!("{}", ctx.format(source));
                 let msg_span = diag::MsgSpan::new(found.span, self.simple_message(source));
 
                 diag::render_single_msg(db.base(), self, input_file, src_context, msg_span)

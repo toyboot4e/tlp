@@ -43,9 +43,15 @@ pub type SyntaxElement = rowan::SyntaxElement<Lang>;
 
 pub use rowan::TextRange;
 
-/// Syntactic kind of a tree element
+/// Syntactic kind of a tree element (a token or a node)
 ///
-/// Both the lexer and the parser use this enum.
+/// The `SyntaxKind` is shared by the lexer and the parser. While the lexer is only interested in
+/// tokens, sharing `SyntaxKind` is good for simplicity and is common pattern with [`rowan`] (as far
+/// as I understand).
+///
+/// Some nodes are only available in AST and not appear in CST. For example, `Item` node in CST is
+/// always a concrete example of it such as `Proc`. The AST casts those nodes in more abstract level
+/// for allowing to process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u16)]
 pub enum SyntaxKind {

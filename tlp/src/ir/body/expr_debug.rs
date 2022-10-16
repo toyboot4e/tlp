@@ -1,3 +1,5 @@
+//! Debug print with database as context
+
 use std::fmt::{self, Write};
 
 // TODO: consider `all_fields`
@@ -33,7 +35,8 @@ impl<T: ?Sized + IrDb> DebugWithDb<T> for Path {
     }
 }
 
-/// Debug context for procedures
+/// Debug context for body creadted with [`item::Proc::with_db`]. Body data types implement
+/// [`salsa::DebugWithDb`] with `Db = DebugContext<'_>`.
 pub struct DebugContext<'db> {
     proc: item::Proc,
     db: &'db dyn IrDb,

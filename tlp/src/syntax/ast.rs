@@ -6,11 +6,11 @@
 //!
 //! # AST node types
 //!
-//! | Node type     | Example     | Has CST Node | Description                     |
-//! |---------------|-------------|--------------|---------------------------------|
-//! | Concrete      | [`Block`]   | Yes          | Directly mapped from CST to AST |
-//! | Transparent   | [`Pat`]     | No           | Wraps a concrete node           |
-//! | Token wrapper | [`Literal`] | Yes          | Wraps a node in `*Kind`         |
+//! | Node type     | Example           | Has CST Node | Description                     |
+//! |---------------|-------------------|--------------|---------------------------------|
+//! | Concrete      | [`Block`]         | Yes          | Directly mapped from CST to AST |
+//! | Transparent   | [`Item`], [`Pat`] | No           | Wraps a concrete node           |
+//! | Token wrapper | [`Literal`]       | Yes          | Wraps a node in `*Kind`         |
 
 pub use crate::syntax::cst::ParseError;
 

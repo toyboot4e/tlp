@@ -1,4 +1,9 @@
-//! Item / expression scopes collected from [`BodyData`]
+//! Expression scopes collected from [`BodyData`]
+//!
+//! Entry point for getting expression scopes is [`Proc::expr_scopes`]. Users would use useally use
+//! resolvers where item scopes are also considered,
+//!
+//! [`Proc::expr_scopes`]: crate::ir::item::Proc::expr_scopes
 
 use la_arena::{Arena, Idx};
 use rustc_hash::FxHashMap;
