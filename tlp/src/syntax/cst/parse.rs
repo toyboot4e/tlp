@@ -39,6 +39,8 @@ pub enum ParseError {
     UnclosedParentheses { span: Span },
     #[error("path must end with identifier")]
     PathNotEndWithIdent { span: Span },
+    #[error("missing procedure name")]
+    MissingProcName { ctx: ProcErrorContext },
 }
 
 /// FIXME: Duplicate messages
@@ -59,6 +61,7 @@ impl ParseError {
             ParseError::UnexpectedEof { expected } => format!("expected {expected}"),
             ParseError::UnclosedParentheses { .. } => "unclosed parentheses".to_string(),
             ParseError::PathNotEndWithIdent { .. } => "path must end with identifier".to_string(),
+            ParseError::MissingProcName { .. } => "missing procedure name".to_string(),
         }
     }
 
@@ -70,6 +73,7 @@ impl ParseError {
             ParseError::UnexpectedEof { expected } => format!("expected {expected}"),
             ParseError::UnclosedParentheses { .. } => "unclosed parentheses".to_string(),
             ParseError::PathNotEndWithIdent { .. } => "path must end with identifier".to_string(),
+            ParseError::MissingProcName { .. } => "missing procedure name".to_string(),
         }
     }
 }
@@ -85,12 +89,7 @@ pub enum ErrorContext {
         l_paren_span: Span,
     },
     /// While parsing a procedure
-    Proc {
-        /// Span of the `proc` keyword
-        proc_span: Span,
-        /// Span of the `<procedure name>`
-        name_span: Option<Span>,
-    },
+    Proc(ProcErrorContext),
     /// While parsing a `let` statement
     Let {
         /// Span of the `let` identifier
@@ -106,6 +105,20 @@ pub enum ErrorContext {
         /// Span of the `set` identifier
         set_span: Span,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProcErrorContext {
+    /// Span of the `proc` keyword
+    pub proc_span: Span,
+    /// Span of the `<procedure name>`
+    pub name_span: Option<Span>,
+}
+
+impl ProcErrorContext {
+    pub fn into_ctx(self) -> ErrorContext {
+        ErrorContext::Proc(self)
+    }
 }
 
 impl ErrorContext {
@@ -125,8 +138,8 @@ impl<'s, 'c> fmt::Display for ErrorContextWithSource<'s, 'c> {
         let s = match &self.ctx {
             ErrorContext::Sexp => "S-expression",
             ErrorContext::List { .. } => "list",
-            ErrorContext::Proc { name_span, .. } => {
-                if let Some(name_span) = name_span {
+            ErrorContext::Proc(ctx) => {
+                if let Some(name_span) = ctx.name_span {
                     return write!(f, "procedure `{}`", name_span.slice(self.source));
                 } else {
                     return write!(f, "<name-missing procedure>");
@@ -346,10 +359,10 @@ impl ParseState {
             self.maybe_bump_ws(pcx);
             let name_span = self._bump_to_proc_param(pcx, proc_tk.span);
 
-            let ctx = ErrorContext::Proc {
+            let ctx = ErrorContext::Proc(ProcErrorContext {
                 proc_span: proc_tk.span,
                 name_span,
-            };
+            });
 
             self.maybe_bump_ws(pcx);
             self._maybe_bump_return_type(pcx, ctx);
@@ -397,7 +410,7 @@ impl ParseState {
                 self.builder.finish_node();
 
                 (
-                    ErrorContext::Proc {
+                    ProcErrorContext {
                         proc_span,
                         name_span: Some(name_tk.span),
                     },
@@ -405,7 +418,7 @@ impl ParseState {
                 )
             } else {
                 (
-                    ErrorContext::Proc {
+                    ProcErrorContext {
                         proc_span,
                         name_span: None,
                     },
@@ -414,12 +427,16 @@ impl ParseState {
             }
         };
 
+        if name_span.is_none() {
+            self.errs.push(ParseError::MissingProcName { ctx });
+        }
+
         self.maybe_bump_ws(pcx);
 
         // params
         if let Some(tk) = self.peek(pcx) {
             if tk.kind == SyntaxKind::LParen {
-                self._proc_params(pcx, ctx);
+                self._proc_params(pcx, (ctx));
                 self.maybe_bump_ws(pcx);
             }
         }
@@ -428,7 +445,9 @@ impl ParseState {
     }
 
     /// Param* ")"
-    fn _proc_params(&mut self, pcx: &ParseContext, ctx: ErrorContext) {
+    fn _proc_params(&mut self, pcx: &ParseContext, ctx: ProcErrorContext) {
+        let ctx = ErrorContext::Proc(ctx);
+
         self.builder.start_node(SyntaxKind::Params.into());
         self.bump_kind(pcx, SyntaxKind::LParen);
 

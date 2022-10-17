@@ -1,10 +1,12 @@
 //! Syntax diagnostics
 
+use std::error::Error;
+
 use base::{jar::InputFile, span::Span, BaseDb};
 
 use crate::{
     syntax::cst::{lex::LexError, ParseError},
-    util::diag::{self},
+    util::diag,
 };
 
 impl diag::Diagnostic for LexError {
@@ -34,6 +36,7 @@ impl diag::Diagnostic for ParseError {
             ParseError::UnexpectedToken { .. } => "E0011",
             ParseError::UnexpectedEof { .. } => "E0012",
             ParseError::PathNotEndWithIdent { .. } => "E0013",
+            ParseError::MissingProcName { .. } => "E0014",
         })
     }
 
@@ -43,6 +46,13 @@ impl diag::Diagnostic for ParseError {
 
     fn header_msg(&self, src: &str) -> String {
         self.detailed_message(src)
+    }
+
+    fn severity_display(&self) -> diag::SeverityDisplay {
+        diag::SeverityDisplay {
+            severity: self.severity(),
+            code: self.code(),
+        }
     }
 }
 
@@ -96,6 +106,12 @@ impl ParseError {
                 diag::render_single_msg(db, self, input_file, src_context, msg_span)
             }
             ParseError::PathNotEndWithIdent { span } => todo!(),
+            // TODO: consider name expected, found ..
+            ParseError::MissingProcName { ctx } => {
+                let src_context = format!("{}", ctx.into_ctx().format(source));
+                let msg_span = diag::MsgSpan::new(ctx.proc_span, self.simple_message(source));
+                diag::render_single_msg(db, self, input_file, src_context, msg_span)
+            }
         }
     }
 }
