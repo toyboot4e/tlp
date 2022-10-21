@@ -677,11 +677,15 @@ impl ParseState {
             }
         }
 
+        // `)`
         if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_none() {
             // TODO: better recovery on failure
+            self._bump_rest_list_wrapping(pcx, checkpoint, SyntaxKind::Cond);
         }
 
-        self._bump_rest_list_wrapping(pcx, checkpoint, SyntaxKind::Cond);
+        // wrap the `cond` node
+        self.builder.start_node_at(checkpoint, SyntaxKind::Cond.into());
+        self.builder.finish_node();
     }
 
     /// CondCase → "(" sexp InlineBlock ")"
@@ -802,7 +806,7 @@ impl ParseState {
             if self._bump_sexps_to_end_paren(pcx).is_ok() {
                 self.maybe_bump_kind(pcx, SyntaxKind::RParen);
             } else {
-                todo!("emit error");
+                todo!("emit error\nsource: {}", pcx.src);
             }
         }
 
