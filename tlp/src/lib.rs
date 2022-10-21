@@ -1,7 +1,7 @@
 //! toylisp
 //!
-//! The implementation is heavily based on [`salsa`] (`salsa-2022`). The documentation and the
-//! source code would not make much sense without knowing `salsa`.
+//! The implementation is heavily based on [`salsa`] (`salsa-2022`). Without knowing how to use it,
+//! the documentation and the source code would not make much sense :)
 
 pub extern crate base;
 

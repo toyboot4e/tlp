@@ -43,9 +43,22 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
     // let main_proc = self::find_procedure_by_name(db, main_file, "main");
 
     let parse = main_file.parse_items(db);
+
+    let lex_errors = parse.lex_errors(db);
+
+    for err in lex_errors {
+        println!("{}", err.render(db, main_file));
+        panic!("lexical error");
+    }
+
     let parse_errors = parse.errors(db);
 
     for err in parse_errors {
+        println!("{}", err.render(db, main_file));
+    }
+
+    let item_errors = main_file.item_syntax_diags(db);
+    for err in &item_errors {
         println!("{}", err.render(db, main_file));
     }
 
@@ -62,7 +75,7 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
         })
         .collect::<FxHashMap<_, _>>();
 
-    let mut any_error = !parse_errors.is_empty();
+    let mut any_error = !(parse_errors.is_empty() && item_errors.is_empty());
 
     for item in items {
         // TODO: use validated IR
@@ -73,26 +86,27 @@ pub fn compile_file(db: &Db, main_file: InputFile) -> (Vm, Vec<CompileError>) {
 
         // FIXME: consider procedure body diagnostics
 
-        // FIXME: `#[return_ref]`?
-        let diags = proc.param_ty_diags(db);
-        if !diags.is_empty() {
-            any_error = true;
-            eprintln!("TODO: type error on compile");
-            crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
-            continue;
-        }
+        {
+            let mut any_item_error = false;
 
-        let diags = proc.body_ty_diags(db);
-        if !diags.is_empty() {
-            any_error = true;
-            eprintln!("TODO: type error on compile");
-            crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
-            continue;
-        }
+            // FIXME: `#[return_ref]`?
+            let diags = proc.param_ty_diags(db);
+            if !diags.is_empty() {
+                any_item_error = true;
+                crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
+            }
 
-        println!(
-            "--------------------------------------------------------------------------------"
-        );
+            let diags = proc.body_ty_diags(db);
+            if !diags.is_empty() {
+                any_item_error = true;
+                crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
+            }
+
+            if any_item_error {
+                any_error = true;
+                continue;
+            }
+        }
 
         let mut compiler = CompileProc::new(&proc_ids, db, proc.clone());
         compiler.compile_proc();

@@ -29,7 +29,7 @@ pub enum LexError {
 
 impl LexError {
     /// Returns a detailed error message
-    pub fn detailed_message(&self, src: &str) -> String {
+    pub fn detailed_message(&self, _: &str) -> String {
         match self {
             LexError::UnterminatedString { .. } => "unterminated string",
         }

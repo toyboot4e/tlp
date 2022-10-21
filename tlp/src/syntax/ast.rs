@@ -19,25 +19,21 @@ use std::{
     hash::Hash,
 };
 
-use crate::syntax::cst::{self, SyntaxKind, SyntaxNode, SyntaxToken};
+use crate::syntax::cst::{self, lex, SyntaxKind, SyntaxNode, SyntaxToken};
 
 const STR_PROC: &'static str = "proc";
 const STR_LET: &'static str = "let";
 
+/// Parse result
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseResult {
     pub doc: Document,
     pub errs: Vec<ParseError>,
 }
 
-impl ParseResult {
-    pub fn into_tuple(self) -> (Document, Vec<ParseError>) {
-        (self.doc, self.errs)
-    }
-}
-
-pub fn parse(src: &str) -> ParseResult {
-    let (cst, errs) = cst::parse_str(src);
+/// Parses the lexer's output tokens into a tree
+pub fn from_tks<'s>(src: &'s str, tks: &'s [lex::Token]) -> ParseResult {
+    let (cst, errs) = cst::parse(src, tks);
     let doc = Document::from_root(cst).unwrap();
     ParseResult { doc, errs }
 }
@@ -352,7 +348,9 @@ impl DefProc {
     }
 
     pub fn return_ty(&self) -> Option<ReturnType> {
-        self.syn.children().find_map(|elem| ReturnType::cast_node(elem))
+        self.syn
+            .children()
+            .find_map(|elem| ReturnType::cast_node(elem))
     }
 
     pub fn block(&self) -> Block {
@@ -545,7 +543,7 @@ impl Param {
     }
 
     /// Text range with whitespce carefully excluded
-    pub fn view_range(&self) -> rowan::TextRange{
+    pub fn view_range(&self) -> rowan::TextRange {
         if self.ty().is_some() {
             // pat: Ty
             self.syntax().text_range()
@@ -567,7 +565,10 @@ impl Param {
 
 impl ReturnType {
     pub fn ty(&self) -> Type {
-        self.syn.children().find_map(|elem| Type::cast_node(elem)).unwrap()
+        self.syn
+            .children()
+            .find_map(|elem| Type::cast_node(elem))
+            .unwrap()
     }
 }
 

@@ -1,7 +1,5 @@
 //! Syntax diagnostics
 
-use std::error::Error;
-
 use base::{jar::InputFile, span::Span, BaseDb};
 
 use crate::{
@@ -31,7 +29,6 @@ impl diag::Diagnostic for LexError {
 impl diag::Diagnostic for ParseError {
     fn code(&self) -> Option<&'static str> {
         Some(match self {
-            ParseError::LexError { err } => return err.code(),
             ParseError::UnclosedParentheses { .. } => "E0010",
             ParseError::UnexpectedToken { .. } => "E0011",
             ParseError::UnexpectedEof { .. } => "E0012",
@@ -74,7 +71,6 @@ impl ParseError {
         let source = input_file.source_text(db.base());
 
         match self {
-            ParseError::LexError { err } => err.render(db, input_file),
             ParseError::UnexpectedToken {
                 expected: _,
                 found,
@@ -105,7 +101,7 @@ impl ParseError {
                 let msg_span = diag::MsgSpan::new(*span, self.simple_message(source));
                 diag::render_single_msg(db, self, input_file, src_context, msg_span)
             }
-            ParseError::PathNotEndWithIdent { span } => todo!(),
+            ParseError::PathNotEndWithIdent { span: _ } => todo!(),
             // TODO: consider name expected, found ..
             ParseError::MissingProcName { ctx } => {
                 let src_context = format!("{}", ctx.into_ctx().format(source));

@@ -4,7 +4,7 @@ use std::fmt::{self, Write};
 
 use tlp::{
     compile,
-    syntax::ast,
+    syntax::{ast, cst},
     vm::{self, Unit, UnitVariant, Vm},
     Db,
 };
@@ -56,7 +56,10 @@ fn log_vm(src: &str, vm: &Vm) -> Result<String, fmt::Error> {
 
 fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     {
-        let (_doc, errs) = ast::parse(src).into_tuple();
+        let (tks, errs) = cst::lex::from_str(src);
+        self::print_errors(&errs, src, "lex error");
+
+        let ast::ParseResult { doc: _, errs } = ast::from_tks(src, &tks);
         self::print_errors(&errs, src, "parse error");
     }
 

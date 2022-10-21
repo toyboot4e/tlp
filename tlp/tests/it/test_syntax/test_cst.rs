@@ -42,7 +42,10 @@ fn cst_display(cst: &SyntaxNode) -> String {
 }
 
 fn run_test(test: Test) -> Result<(), TestError> {
-    let (cst, errs) = cst::parse_str(&test.code);
+    let (tks, errs) = cst::lex::from_str(&test.code);
+    assert!(errs.is_empty(), "{:?}", errs);
+
+    let (cst, errs) = cst::parse(&test.code, &tks);
 
     if !errs.is_empty() {
         let s = errs

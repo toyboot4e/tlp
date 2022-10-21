@@ -10,7 +10,7 @@ pub mod lex;
 mod parse;
 
 #[doc(inline)]
-pub use parse::parse_str;
+pub use parse::parse;
 
 #[doc(inline)]
 pub use parse::ParseError;

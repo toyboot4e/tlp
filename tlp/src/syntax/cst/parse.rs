@@ -10,10 +10,7 @@ use std::fmt;
 use base::span::{Offset, Span};
 use thiserror::Error;
 
-use crate::syntax::cst::{
-    lex::{self, LexError, Token},
-    SyntaxKind, SyntaxNode,
-};
+use crate::syntax::cst::{lex::Token, SyntaxKind, SyntaxNode};
 
 use rowan::{GreenNode, GreenNodeBuilder};
 
@@ -22,11 +19,6 @@ use rowan::{GreenNode, GreenNodeBuilder};
 /// Parse / lexing error
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum ParseError {
-    #[error("{err}")]
-    LexError {
-        #[from]
-        err: LexError,
-    },
     #[error("expected {expected}, found `{found:?}` while parsing `{ctx:?}`")]
     UnexpectedToken {
         expected: String,
@@ -48,7 +40,6 @@ impl ParseError {
     /// Returns a simplified error message, useful for diagnostic header
     pub fn detailed_message(&self, src: &str) -> String {
         match self {
-            ParseError::LexError { err } => err.simple_message(src),
             ParseError::UnexpectedToken {
                 expected,
                 found,
@@ -66,9 +57,8 @@ impl ParseError {
     }
 
     /// Returns a simplified error message, useful when quoting source text.
-    pub fn simple_message(&self, src: &str) -> String {
+    pub fn simple_message(&self, _src: &str) -> String {
         match self {
-            ParseError::LexError { err } => err.simple_message(src),
             ParseError::UnexpectedToken { expected, .. } => format!("expected {expected}"),
             ParseError::UnexpectedEof { expected } => format!("expected {expected}"),
             ParseError::UnclosedParentheses { .. } => "unclosed parentheses".to_string(),
@@ -154,22 +144,12 @@ impl<'s, 'c> fmt::Display for ErrorContextWithSource<'s, 'c> {
     }
 }
 
-/// Creates a CST and optionally errors. It won't fail even if the given input is invalid in toylisp
-/// grammer.
-pub fn parse_str<'s>(src: &'s str) -> (SyntaxNode, Vec<ParseError>) {
-    let (tks, lex_errs) = lex::from_str(src);
-
-    let (tree, mut errs) = self::from_tks(src, &tks);
-    errs.extend(lex_errs.into_iter().map(ParseError::from));
-
-    (SyntaxNode::new_root(tree), errs)
-}
-
-/// Creates a CST and optionally errors from output of lexer
-pub fn from_tks<'s, 't>(src: &'s str, tks: &'t [Token]) -> (GreenNode, Vec<ParseError>) {
+/// Creates a CST
+pub fn parse<'s, 't>(src: &'s str, tks: &'t [Token]) -> (SyntaxNode, Vec<ParseError>) {
     let pcx = ParseContext { src, tks };
     let parser = ParseState::new();
-    parser.run(&pcx)
+    let (root, errs) = parser.run(&pcx);
+    (SyntaxNode::new_root(root), errs)
 }
 
 /// Referred to as `pcx`
@@ -436,7 +416,7 @@ impl ParseState {
         // params
         if let Some(tk) = self.peek(pcx) {
             if tk.kind == SyntaxKind::LParen {
-                self._proc_params(pcx, (ctx));
+                self._proc_params(pcx, ctx);
                 self.maybe_bump_ws(pcx);
             }
         }
@@ -500,7 +480,7 @@ impl ParseState {
         self.builder.finish_node();
     }
 
-    /// Sexp* ")"
+    /// Sexp* until ")"
     ///
     /// Advances until it peeks a right paren. Returns if the end of the list was found.
     fn _bump_sexps_to_end_paren(&mut self, pcx: &ParseContext) -> Result<(), ()> {

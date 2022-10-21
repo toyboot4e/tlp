@@ -23,7 +23,10 @@ use crate::{
         jar::ParsedFile,
         InputFileExt, IrDb, IrJar,
     },
-    syntax::ast::{self, AstNode},
+    syntax::{
+        ast::{self, AstNode},
+        cst,
+    },
 };
 
 #[salsa::tracked(return_ref, jar = IrJar)]
@@ -31,7 +34,13 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
     let mut items = Vec::new();
 
     let src = file.source_text(db.base());
-    let parse = ast::parse(src);
+    let (tks, lex_errs) = cst::lex::from_str(src);
+
+    if !lex_errs.is_empty() {
+        return ParsedFile::new(db, file, lex_errs, Vec::new(), Vec::new());
+    }
+
+    let parse = ast::from_tks(src, &tks);
     let ast = parse.doc;
 
     for item in ast.items() {
@@ -76,7 +85,7 @@ pub(crate) fn lower_items(db: &dyn IrDb, file: base::jar::InputFile) -> ParsedFi
         items.push(item);
     }
 
-    ParsedFile::new(db, file, parse.errs, items)
+    ParsedFile::new(db, file, lex_errs, parse.errs, items)
 }
 
 #[salsa::tracked(jar = IrJar)]
