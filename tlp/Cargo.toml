@@ -8,6 +8,9 @@ members = [
     "crates/base",
 ]
 
+[features]
+default = ["lsp-types"]
+
 [dependencies]
 # components
 base = { path = "crates/base" }
@@ -31,4 +34,7 @@ rustc-hash = "1.1.0"
 smallvec = "1.9.0"
 la-arena = "0.2.1"
 typed-index-collections = "3.1.0"
+
+# LSP support
+lsp-types = { version = "0.93.2", optional = true }
 

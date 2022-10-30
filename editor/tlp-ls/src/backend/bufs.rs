@@ -1,13 +1,12 @@
+//! LSP buffer
+
 use std::collections::HashMap;
 
 use tower_lsp::lsp_types as lty;
 
-// use codespan_reporting as cr;
-
-use tlp::syntax::{
-    ast,
-    span::{ByteLocation, ByteSpan, TextPos},
-    validate::Validate,
+use tlp::{
+    base::span::{LineColumn, Offset, Span},
+    syntax::{ast, cst},
 };
 
 #[derive(Debug, Clone)]
@@ -52,6 +51,7 @@ impl Buffer {
     }
 }
 
+/// List of buffers synced with the editor
 #[derive(Debug, Clone, Default)]
 pub struct BufferSync {
     synced: HashMap<lty::Url, Buffer>,
@@ -74,7 +74,13 @@ impl BufferSync {
 pub fn analyze(buf: &Buffer) -> Vec<lty::Diagnostic> {
     let mut diags = vec![];
 
-    let ast::ParseResult { doc, errs } = ast::parse(&buf.text);
+    let (tks, errs) = cst::lex::from_str(&buf.text);
+
+    if !errs.is_empty() {
+        // report lexical errors only
+    }
+
+    let ast::ParseResult { doc, errs } = ast::from_tks(&buf.text, &tks);
 
     for e in errs {
         let severity = lty::DiagnosticSeverity::ERROR;

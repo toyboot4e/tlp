@@ -1,5 +1,8 @@
 //! Diagnostic rendering
 
+#[cfg(feature = "lsp-types")]
+pub mod diag_lsp;
+
 use std::fmt::{self, Write};
 
 use base::{
@@ -531,7 +534,7 @@ fn format_vbar_pointers(
 
 #[derive(Debug)]
 pub struct SecondaryWindow<'a> {
-    lines: Vec<SecondaryLineRender<'a>>,
+    pub lines: Vec<SecondaryLineRender<'a>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

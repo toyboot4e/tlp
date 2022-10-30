@@ -23,7 +23,7 @@ impl Token {
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum LexError {
     // TODO: while what?
-    #[error("Unexpected end of file ({span:?})")]
+    #[error("unexpected end of file ({span:?})")]
     UnterminatedString { span: Span },
 }
 

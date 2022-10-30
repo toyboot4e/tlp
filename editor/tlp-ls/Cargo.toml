@@ -4,12 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-env_logger = "0.9.0"
+env_logger = "0.9.1"
 tlp = { path = "../../tlp", version = "0.1.0" }
 
-tokio = { version = "1.20.1", features = ["io-std", "io-util", "macros", "net", "rt-multi-thread", "time"] }
+tokio = { version = "1.21.2", features = ["io-std", "io-util", "macros", "net", "rt-multi-thread", "time"] }
 tower-lsp = "0.17.0"
 
-codespan = "0.11.1"
-codespan-reporting = "0.11.1"
-codespan-lsp = "0.11.1"

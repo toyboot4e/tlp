@@ -1,7 +1,7 @@
 mod bufs;
 mod tokens;
 
-use tlp::syntax::span::ByteLocation;
+use tlp::syntax::span::LineColumn;
 
 use tower_lsp::{jsonrpc::Result, lsp_types::*, Client};
 
