@@ -1,7 +1,6 @@
 //! VM tests.
 
-/// Hard-coded VM run tests.
-mod run_tests;
+mod hard_coded;
 
 // data-driven tests
 

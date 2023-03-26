@@ -340,7 +340,7 @@ impl<'db> Collect<'db> {
             ExprData::Loop(loop_) => {
                 self.collect_expr(loop_.block);
 
-                // TODO: loop can be an expression
+                // FIXME: loop can be an expression
                 WipTypeData::Ty(self.interned.stmt)
             }
             ExprData::While(while_) => {
