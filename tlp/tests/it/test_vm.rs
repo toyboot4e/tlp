@@ -85,11 +85,13 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     }
 }
 
+/// Runs expression as a `main` function and returns
 fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     let src = format!("(proc main () {})", src);
     self::run::<T>(&src)
 }
 
+/// Runs source string as a source file and compares the return value with expected one.
 fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
     src: &str,
     expected: T,
