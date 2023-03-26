@@ -1,5 +1,7 @@
 //! Bytecode virtual machine (stack-based)
 
+// TODO: separate crate with `salsa` support optional
+
 pub mod code;
 pub mod stack;
 
