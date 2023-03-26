@@ -3,6 +3,8 @@
 mod compile_proc;
 mod frame;
 
+use std::fmt::{self, Write};
+
 use rustc_hash::FxHashMap;
 use thiserror::Error;
 use typed_index_collections::TiVec;
@@ -26,29 +28,38 @@ pub enum CompileResult<'db> {
 
 impl<'db> CompileResult<'db> {
     pub fn print(&self, db: &Db, main_file: InputFile) {
+        // TODO: better internal pattern?
+        let mut s = String::new();
+        self.write(&mut s, db, main_file).unwrap();
+        println!("{}", s);
+    }
+
+    pub fn write(&self, f: &mut dyn Write, db: &Db, main_file: InputFile) -> fmt::Result {
         match self {
             Self::LexError(errors) => {
                 for err in *errors {
-                    println!("{}", err.render(db, main_file));
+                    writeln!(f, "{}", err.render(db, main_file))?;
                 }
             }
             Self::ParseError(errors) => {
                 for err in *errors {
-                    println!("{}", err.render(db, main_file));
+                    writeln!(f, "{}", err.render(db, main_file))?;
                 }
             }
             Self::ItemError(errors) => {
                 for err in errors {
-                    println!("{}", err.render(db, main_file));
+                    writeln!(f, "{}", err.render(db, main_file))?;
                 }
             }
             Self::BodyError(errors) => {
                 for (proc, diags) in errors {
-                    crate::ir::ty::ty_diag::eprint_many(db, &diags, main_file, *proc);
+                    crate::ir::ty::ty_diag::write_many(f, db, &diags, main_file, *proc)?;
                 }
             }
             Self::Success { .. } => {}
         }
+
+        Ok(())
     }
 }
 
@@ -133,9 +144,11 @@ fn compile_items<'db>(db: &'db Db, parse: &ir::jar::ParsedFile) -> CompileResult
         let mut compiler = compile_proc::CompileProc::new(&proc_ids, db, proc.clone());
         compiler.compile_proc();
 
+        let name = proc.name(db).as_str(db);
         vm_procs.push(vm::VmProc {
             chunk: compiler.chunk,
             n_args: proc.body_data(db).param_pats.len(),
+            name: name.to_string(),
         });
 
         vm_errs.extend(compiler.errs);

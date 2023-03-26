@@ -437,6 +437,13 @@ impl Chunk {
 }
 
 impl Chunk {
+    pub fn disassemble_with_name(&self, title: &str) -> Result<String, fmt::Error> {
+        let mut s = String::new();
+        writeln!(s, "{}", title)?;
+        self.disassemble_into(&mut s)?;
+        Ok(s)
+    }
+
     pub fn disassemble(&self) -> Result<String, fmt::Error> {
         let mut s = String::new();
         self.disassemble_into(&mut s)?;
@@ -537,7 +544,11 @@ mod tests {
             chunk
         };
 
-        let unit = vm::run_proc(vm::VmProc { chunk, n_args: 0 })?;
+        let unit = vm::run_proc(vm::VmProc {
+            chunk,
+            n_args: 0,
+            name: "test".to_string(),
+        })?;
 
         assert_eq!(TypedLiteral::F32(-2.0).into_unit(), unit);
 

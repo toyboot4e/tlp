@@ -1,13 +1,24 @@
 // DSL for bytecode tests
 
 # num (TODO: bytecode output should contain function name)
-(proc main () (+ 1 2))
+(proc main () (f (+ 1 2)))
+(proc f (x:i32) (* 2 x))
 ----------------------------------------
+main
   0: alloc-frame-8   0
   2: shift-back-8    0
   4: push-const-8    0
   6: push-const-8    1
   8: add-i32
+  9: call-proc16     1 (u16)
+ 12: ret
+
+f
+  0: alloc-frame-8   0
+  2: shift-back-8    1
+  4: push-const-8    0
+  6: push-local-8    0
+  8: mul-i32
   9: ret
 ----------------------------------------
 

@@ -1,5 +1,7 @@
 //! [`TypeDiagnostic`] and their variants
 
+use std::fmt::{self, Write};
+
 use base::{jar::InputFile, span::Span};
 
 use crate::{
@@ -53,6 +55,20 @@ impl diag::Diagnostic for TypeDiagnostic {
     }
 }
 
+pub fn write_many(
+    f: &mut dyn Write,
+    db: &dyn IrDb,
+    diags: &[TypeDiagnostic],
+    input_file: InputFile,
+    proc: item::Proc,
+) -> fmt::Result {
+    let body_spans = proc.body_spans(db);
+    for diag in diags {
+        writeln!(f, "{}", diag.render(db, input_file, proc, body_spans))?;
+    }
+    Ok(())
+}
+
 pub fn eprint_many(
     db: &dyn IrDb,
     diags: &[TypeDiagnostic],
@@ -83,7 +99,8 @@ impl TypeDiagnostic {
                 let main_span = body_spans.get(x.actual_expr).unwrap();
                 let primary_msg = MsgSpan::new(
                     main_span,
-                    self.header_msg(input_file.source_text(db.base())).to_string(),
+                    self.header_msg(input_file.source_text(db.base()))
+                        .to_string(),
                 );
                 diag::render_single_msg(db.base(), self, input_file, src_context, primary_msg)
             }

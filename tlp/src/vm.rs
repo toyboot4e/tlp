@@ -66,6 +66,8 @@ pub struct VmProc {
     /// Chunk of bytecode instructions and constants
     pub chunk: Chunk,
     pub n_args: usize,
+    /// Metadata
+    pub name: String,
 }
 
 /// Toy Lisp bytecode virtual machine

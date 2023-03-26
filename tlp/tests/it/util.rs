@@ -110,7 +110,7 @@ pub fn run_tests(src: &str, runner: fn(Test) -> TestResult) {
     let mut s = String::new();
     writeln!(s, "Errors:").unwrap();
     for e in &errs {
-        writeln!(s, "- {}", e).unwrap();
+        writeln!(s, "{}", e).unwrap();
         writeln!(s, "").unwrap();
     }
 
@@ -137,10 +137,13 @@ pub fn collect_tests(src: &str) -> Vec<Test> {
             .filter(|ln| !ln.starts_with("//"))
             .skip_while(|ln| is_ws(ln));
 
+        // first line: title
         let title = match header.next() {
             Some(t) => t,
             None => break,
         };
+
+        // other lines: code
         let code = header.collect::<Vec<&str>>().join("\n");
 
         tests.push(Test {

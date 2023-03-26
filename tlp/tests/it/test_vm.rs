@@ -5,6 +5,8 @@ mod run_tests;
 
 // data-driven tests
 
+use std::fmt::Write;
+
 use tlp::{compile::CompileResult, Db};
 
 use crate::util::{self, Test, TestError};
@@ -20,17 +22,39 @@ fn runner(test: Test) -> Result<(), TestError> {
     let mut db = Db::default();
 
     let main_file = db.new_input_file("main.tlp", test.code.to_string());
-    let (mut vm, errs) = match tlp::compile::compile_file(&db, main_file) {
-        CompileResult::Success { vm, vm_errs } => (vm, vm_errs),
-        _ => {
-            panic!("unable to compile {}", test.title);
+    let (vm, errs) = {
+        let result = tlp::compile::compile_file(&db, main_file);
+        match result {
+            CompileResult::Success { vm, vm_errs } => (vm, vm_errs),
+            _ => {
+                let mut s = String::new();
+                result.write(&mut s, &db, main_file).unwrap();
+
+                return Err(TestError {
+                    test: test.clone(),
+                    output: format!("unable to compile {}:\n{}", test.title, s),
+                });
+            }
         }
     };
 
-    let chunks = vm.procs().iter().map(|proc| &proc.chunk);
+    // TODO: print VM errors
+    if !errs.is_empty() {
+        let mut s = String::new();
+        for err in errs {
+            writeln!(s, "- {:?}", err).unwrap();
+        }
 
-    let bytecode = chunks
-        .map(|chunk| chunk.disassemble().unwrap())
+        return Err(TestError {
+            test: test.clone(),
+            output: format!("compile error {}n{}", test.title, s),
+        });
+    }
+
+    let bytecode = vm
+        .procs()
+        .iter()
+        .map(|proc| proc.chunk.disassemble_with_name(&proc.name).unwrap())
         .collect::<Vec<_>>()
         .join("\n");
 
