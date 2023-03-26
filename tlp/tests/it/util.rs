@@ -1,3 +1,7 @@
+//! Test utilities, including data-driven ones.
+
+use std::fmt::{self, Write};
+
 use rowan::TextSize;
 
 pub const CURSOR_MARKER: &str = "$0";
@@ -44,3 +48,97 @@ macro_rules! assert_eq_text {
 }
 
 pub use assert_eq_text;
+
+#[derive(Debug, Clone)]
+pub struct Test {
+    pub title: String,
+    pub code: String,
+    pub expected: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct TestError {
+    pub test: Test,
+    pub output: String,
+}
+
+impl fmt::Display for TestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}
+--- code:
+{}
+--- output:
+{}
+--- expected:
+{}",
+            self.test.title, self.test.code, self.output, self.test.expected,
+        )
+    }
+}
+
+pub fn run_tests(src: &str, runner: fn(Test) -> Result<(), TestError>) {
+    let tests = self::collect_tests(src);
+
+    let errs = tests
+        .into_iter()
+        .filter_map(|t| runner(t).err())
+        .collect::<Vec<_>>();
+
+    if errs.is_empty() {
+        return;
+    }
+
+    let mut s = String::new();
+    writeln!(s, "Errors:").unwrap();
+    for e in &errs {
+        writeln!(s, "- {}", e).unwrap();
+        writeln!(s, "").unwrap();
+    }
+
+    panic!("{}", s);
+}
+
+pub fn collect_tests(src: &str) -> Vec<Test> {
+    let mut chunks = {
+        // 40 hyphens
+        let delim = r#"----------------------------------------"#;
+        src.split(delim)
+    };
+
+    let mut tests = vec![];
+    while let Some(header) = chunks.next() {
+        let expected = match chunks.next() {
+            Some(block) => block.trim(),
+            None => break,
+        };
+
+        // TODO: use slice
+        let mut header = header
+            .lines()
+            .filter(|ln| !ln.starts_with("//"))
+            .skip_while(|ln| is_ws(ln));
+
+        let title = match header.next() {
+            Some(t) => t,
+            None => break,
+        };
+        let code = header.collect::<Vec<&str>>().join("\n");
+
+        tests.push(Test {
+            title: title.trim().to_string(),
+            code: code.trim().to_string(),
+            expected: expected.to_string(),
+        });
+    }
+
+    tests
+}
+
+fn is_ws(ln: &str) -> bool {
+    ln.bytes()
+        .skip_while(|b| matches!(b, b' ' | b'\t'))
+        .next()
+        .is_none()
+}

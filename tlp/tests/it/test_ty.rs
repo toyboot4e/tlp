@@ -1,3 +1,5 @@
+//! Type analysis tests
+
 use tlp::{
     ir::{
         body::expr::{self, Expr, ExprData},

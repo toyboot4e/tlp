@@ -1,77 +1,79 @@
-//! Tests for `syntax` module
+//! Tests for `syntax` module.
 
-mod test_cst;
+use tlp::syntax::cst::{self, SyntaxElement, SyntaxNode};
 
-use std::fmt;
+use crate::util::{self, Test, TestError};
 
-#[derive(Debug, Clone)]
-pub struct Test {
-    pub title: String,
-    pub code: String,
-    pub expected: String,
+/// Runs tests defined in the test case files
+#[test]
+fn cst() {
+    let src = include_str!("test_cases/cst_test_cases.txt");
+    util::run_tests(src, runner)
 }
 
-#[derive(Debug, Clone)]
-pub struct TestError {
-    pub test: Test,
-    pub output: String,
-}
+fn runner(test: Test) -> Result<(), TestError> {
+    let (tks, errs) = cst::lex::from_str(&test.code);
+    assert!(errs.is_empty(), "{:?}", errs);
 
-impl fmt::Display for TestError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}
---- code:
-{}
---- output:
-{}
---- expected:
-{}",
-            self.test.title, self.test.code, self.output, self.test.expected,
-        )
+    let (cst, errs) = cst::parse(&test.code, &tks);
+
+    if !errs.is_empty() {
+        let s = errs
+            .iter()
+            // FIXME: print with location
+            .map(|e| format!("- {}", e))
+            .collect::<Vec<_>>()
+            .join("\n");
+        panic!("Parse error:\n{}\nsource: {}", s, test.code);
+    }
+
+    // root
+    assert_eq!(format!("{:?}", cst), format!("ROOT@0..{}", test.code.len()));
+
+    let cst_string = self::cst_display(&cst);
+    let expected = test.expected.trim();
+
+    if cst_string == expected {
+        Ok(())
+    } else {
+        Err(TestError {
+            test,
+            output: cst_string,
+        })
     }
 }
 
-pub fn collect_tests(src: &str) -> Vec<Test> {
-    let mut chunks = {
-        // 40 hyphens
-        let delim = r#"----------------------------------------"#;
-        src.split(delim)
-    };
+fn cst_display(cst: &SyntaxNode) -> String {
+    let mut nest = 0;
 
-    let mut tests = vec![];
-    while let Some(header) = chunks.next() {
-        let expected = match chunks.next() {
-            Some(block) => block.trim(),
-            None => break,
-        };
+    let repr = cst
+        .children_with_tokens()
+        .flat_map(|elem| match elem {
+            SyntaxElement::Node(node) => node
+                .preorder_with_tokens()
+                .filter_map(|ev| match ev {
+                    rowan::WalkEvent::Enter(node) => {
+                        let last_nest = nest;
+                        nest += 1;
+                        Some((last_nest, node))
+                    }
+                    rowan::WalkEvent::Leave(_) => {
+                        nest -= 1;
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            SyntaxElement::Token(_) => vec![(nest, elem)],
+        })
+        .map(|(nest, child)| {
+            format!(
+                "{}{:?}@{:?}",
+                "    ".repeat(nest),
+                child.kind(),
+                child.text_range()
+            )
+        })
+        .collect::<Vec<_>>();
 
-        // TODO: use slice
-        let mut header = header
-            .lines()
-            .filter(|ln| !ln.starts_with("//"))
-            .skip_while(|ln| is_ws(ln));
-
-        let title = match header.next() {
-            Some(t) => t,
-            None => break,
-        };
-        let code = header.collect::<Vec<&str>>().join("\n");
-
-        tests.push(Test {
-            title: title.trim().to_string(),
-            code: code.trim().to_string(),
-            expected: expected.to_string(),
-        });
-    }
-
-    tests
-}
-
-fn is_ws(ln: &str) -> bool {
-    ln.bytes()
-        .skip_while(|b| matches!(b, b' ' | b'\t'))
-        .next()
-        .is_none()
+    repr.join("\n")
 }
