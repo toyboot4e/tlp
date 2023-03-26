@@ -49,6 +49,8 @@ macro_rules! assert_eq_text {
 
 pub use assert_eq_text;
 
+pub type TestResult<T = ()> = Result<T, TestError>;
+
 #[derive(Debug, Clone)]
 pub struct Test {
     pub title: String,
@@ -60,6 +62,19 @@ pub struct Test {
 pub struct TestError {
     pub test: Test,
     pub output: String,
+}
+
+impl TestError {
+    pub fn result(test: &Test, output: &str) -> TestResult {
+        if output == test.expected {
+            Ok(())
+        } else {
+            Err(TestError {
+                test: test.clone(),
+                output: output.to_string(),
+            })
+        }
+    }
 }
 
 impl fmt::Display for TestError {
@@ -78,7 +93,7 @@ impl fmt::Display for TestError {
     }
 }
 
-pub fn run_tests(src: &str, runner: fn(Test) -> Result<(), TestError>) {
+pub fn run_tests(src: &str, runner: fn(Test) -> TestResult) {
     let tests = self::collect_tests(src);
 
     let errs = tests

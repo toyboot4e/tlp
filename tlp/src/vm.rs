@@ -118,8 +118,8 @@ impl Vm {
         &self.procs[proc]
     }
 
-    pub fn proc_chunks(&self) -> Vec<&Chunk> {
-        self.procs.iter().map(|p| &p.chunk).collect::<Vec<_>>()
+    pub fn procs(&self) -> &[VmProc] {
+        &self.procs.raw
     }
 }
 

@@ -39,7 +39,7 @@ fn log_vm(src: &str, vm: &Vm) -> Result<String, fmt::Error> {
         "--------------------------------------------------------------------------------"
     )?;
 
-    for (i, chunk) in vm.proc_chunks().iter().enumerate() {
+    for (i, chunk) in vm.procs().iter().map(|proc| &proc.chunk).enumerate() {
         writeln!(s, "proc {}:", i)?;
         writeln!(s, "{}", chunk.disassemble().unwrap())?;
     }
