@@ -1,3 +1,5 @@
+//! Hard-coded VM tests
+
 use std::fmt::{self, Write};
 
 use tlp::{

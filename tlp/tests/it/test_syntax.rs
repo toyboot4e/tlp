@@ -31,16 +31,7 @@ fn runner(test: Test) -> Result<(), TestError> {
     assert_eq!(format!("{:?}", cst), format!("ROOT@0..{}", test.code.len()));
 
     let cst_string = self::cst_display(&cst);
-    let expected = test.expected.trim();
-
-    if cst_string == expected {
-        Ok(())
-    } else {
-        Err(TestError {
-            test,
-            output: cst_string,
-        })
-    }
+    test.result(&cst_string)
 }
 
 fn cst_display(cst: &SyntaxNode) -> String {

@@ -34,5 +34,5 @@ fn runner(test: Test) -> Result<(), TestError> {
         .collect::<Vec<_>>()
         .join("\n");
 
-    TestError::result(&test, &bytecode)
+    test.result(&bytecode)
 }

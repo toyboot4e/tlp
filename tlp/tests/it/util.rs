@@ -51,6 +51,7 @@ pub use assert_eq_text;
 
 pub type TestResult<T = ()> = Result<T, TestError>;
 
+/// Parsed test case
 #[derive(Debug, Clone)]
 pub struct Test {
     pub title: String,
@@ -58,23 +59,24 @@ pub struct Test {
     pub expected: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct TestError {
-    pub test: Test,
-    pub output: String,
-}
-
-impl TestError {
-    pub fn result(test: &Test, output: &str) -> TestResult {
-        if output == test.expected {
+impl Test {
+    pub fn result(self, output: &str) -> TestResult {
+        // REMARK: trimmed
+        if output.trim() == self.expected.trim() {
             Ok(())
         } else {
             Err(TestError {
-                test: test.clone(),
+                test: self.clone(),
                 output: output.to_string(),
             })
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TestError {
+    pub test: Test,
+    pub output: String,
 }
 
 impl fmt::Display for TestError {
@@ -125,7 +127,7 @@ pub fn collect_tests(src: &str) -> Vec<Test> {
     let mut tests = vec![];
     while let Some(header) = chunks.next() {
         let expected = match chunks.next() {
-            Some(block) => block.trim(),
+            Some(block) => block,
             None => break,
         };
 
@@ -144,6 +146,7 @@ pub fn collect_tests(src: &str) -> Vec<Test> {
         tests.push(Test {
             title: title.trim().to_string(),
             code: code.trim().to_string(),
+            // TODO: proper trim handling
             expected: expected.to_string(),
         });
     }
