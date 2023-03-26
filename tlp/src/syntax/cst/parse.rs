@@ -638,7 +638,7 @@ impl ParseState {
 
         // inline block
         let block_checkpoint = self.builder.checkpoint();
-        self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
+        let _ = self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
 
         self._bump_rest_list_wrapping(pcx, checkpoint, kind);
     }
@@ -664,7 +664,8 @@ impl ParseState {
         }
 
         // wrap the `cond` node
-        self.builder.start_node_at(checkpoint, SyntaxKind::Cond.into());
+        self.builder
+            .start_node_at(checkpoint, SyntaxKind::Cond.into());
         self.builder.finish_node();
     }
 
@@ -688,7 +689,7 @@ impl ParseState {
 
             // inline block
             let block_checkpoint = self.builder.checkpoint();
-            self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
+            let _ = self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
 
             self.maybe_bump_ws(pcx);
             if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_none() {
@@ -712,7 +713,7 @@ impl ParseState {
 
         // inline block
         let block_checkpoint = self.builder.checkpoint();
-        self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
+        let _ = self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
 
         if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_none() {
             // TODO: better recovery on failure
@@ -740,7 +741,7 @@ impl ParseState {
 
         // inline block
         let block_checkpoint = self.builder.checkpoint();
-        self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
+        let _ = self._bump_to_r_paren_wrapping(pcx, block_checkpoint, SyntaxKind::Block);
 
         if self.maybe_bump_kind(pcx, SyntaxKind::RParen).is_none() {
             // TODO: better recovery on failure

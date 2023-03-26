@@ -114,6 +114,10 @@ pub struct LineColumn {
 }
 
 impl LineColumn {
+    pub fn from0(line0: u32, column0: u32) -> Self {
+        Self { line0, column0 }
+    }
+
     /// Create from 1-based line/column numbers
     pub fn new1(line1: u32, column1: u32) -> Self {
         assert!(line1 > 0);
