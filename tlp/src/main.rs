@@ -9,6 +9,7 @@ use std::{
 use base::jar::InputFile;
 
 use tlp::{
+    compile::CompileResult,
     ir::{ir_diag::ItemDiagnostic, item, ty::ty_diag::TypeDiagnostic, InputFileExt, IrDb},
     util::diag::{self, Diagnostic},
     vm::UnitVariant,
@@ -25,7 +26,17 @@ fn main() {
     let mut db = Db::default();
 
     let main_file = db.new_input_file("main.tlp", src.to_string());
-    let (mut vm, errs) = tlp::compile::compile_file(&db, main_file);
+    let (mut vm, errs) = {
+        let result = tlp::compile::compile_file(&db, main_file);
+        match result {
+            CompileResult::Success { vm, vm_errs } => (vm, vm_errs),
+            _ => {
+                result.print(&db, main_file);
+                // TODO: exit code
+                return;
+            }
+        }
+    };
 
     let items = main_file.items(&db);
 

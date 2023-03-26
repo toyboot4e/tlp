@@ -2,7 +2,7 @@ use rustc_hash::FxHashMap;
 use salsa::DebugWithDb;
 
 use crate::{
-    compile::*,
+    compile::{frame::CallFrame, CompileError},
     ir::{
         body::{
             expr::{self, Expr, ExprData},
@@ -10,6 +10,7 @@ use crate::{
         },
         item,
         resolve::ValueNs,
+        ty,
     },
     vm::{
         self,
@@ -59,7 +60,8 @@ impl<'db> CompileProc<'db> {
         // push the initial call frame frame
         {
             let call_frame = CallFrame::new(self.db, self.proc);
-            self.chunk.write_alloc_locals_u8(call_frame.n_locals as u8);
+            self.chunk
+                .write_alloc_locals_u8(call_frame.n_locals() as u8);
             self.call_frame = Some(call_frame);
 
             let shift = self.body_data.param_pats.len();
