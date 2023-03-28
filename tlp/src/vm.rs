@@ -16,13 +16,13 @@ use self::{code::*, stack::Stack};
 
 pub type Result<T, E = VmError> = std::result::Result<T, E>;
 
-/// Stack item
+/// Represents everything in stack.
 pub type Word = [u8; WORD_SIZE];
 
-/// Stack item size
+/// Stack item size.
 pub const WORD_SIZE: usize = 8;
 
-/// [`Vm`] stack data word
+/// [`Vm`] stack data word.
 pub trait WordInstance {
     fn from_word(word: Word) -> Self;
     fn into_word(self) -> Word;
