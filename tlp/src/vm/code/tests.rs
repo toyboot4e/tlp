@@ -26,13 +26,13 @@ fn arithmetic() -> Result<()> {
         chunk
     };
 
-    let unit = vm::run_proc(vm::VmProc {
+    let word = vm::run_proc(vm::VmProc {
         chunk,
         n_args: 0,
         name: "test".to_string(),
     })?;
 
-    assert_eq!(TypedLiteral::F32(-2.0).into_unit(), unit);
+    assert_eq!(TypedLiteral::F32(-2.0).into_word(), word);
 
     Ok(())
 }

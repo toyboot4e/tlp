@@ -1,11 +1,16 @@
 //! Hard-coded VM tests
 
+// TODO: +=, -=, inc, dec, inc-mut?, dec-mut?
+// TODO: string literal
+// TODO: string operators, GC or not
+// TODO: loops
+
 use std::fmt::{self, Write};
 
 use tlp::{
     compile,
     syntax::{ast, cst},
-    vm::{self, Unit, UnitVariant, Vm},
+    vm::{self, Vm, Word, WordInstance},
     Db,
 };
 
@@ -54,7 +59,7 @@ fn log_vm(src: &str, vm: &Vm) -> Result<String, fmt::Error> {
     Ok(s)
 }
 
-fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
+fn run<T: WordInstance + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Word) {
     {
         let (tks, errs) = cst::lex::from_str(src);
         self::print_errors(&errs, src, "lex error");
@@ -85,7 +90,7 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
     let proc = vm::VmProcId(0);
 
     match vm.run_proc(proc) {
-        Ok(unit) => (vm, unit),
+        Ok(word) => (vm, word),
         Err(e) => {
             panic!("{}\n{}", e, log_vm(&src, &vm).unwrap());
         }
@@ -93,35 +98,35 @@ fn run<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
 }
 
 /// Runs expression as a `main` function and returns
-fn run_expr<T: UnitVariant + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Unit) {
+fn run_expr<T: WordInstance + PartialEq + std::fmt::Debug>(src: &str) -> (Vm, Word) {
     let src = format!("(proc main () {})", src);
     self::run::<T>(&src)
 }
 
 /// Runs source string as a source file and compares the return value with expected one.
-fn test_impl<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(
+fn test_impl<T: WordInstance + PartialEq + std::fmt::Debug + Clone>(
     src: &str,
     expected: T,
     vm: Vm,
-    unit: Unit,
+    word: Word,
 ) {
     // check the last and the only value
     assert_eq!(
-        T::from_unit(unit),
+        T::from_word(word),
         expected,
         "{}",
         log_vm(&src, &vm).unwrap()
     );
 }
 
-fn test_expr<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let (vm, unit) = self::run_expr::<T>(src);
-    self::test_impl(src, expected, vm, unit)
+fn test_expr<T: WordInstance + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
+    let (vm, word) = self::run_expr::<T>(src);
+    self::test_impl(src, expected, vm, word)
 }
 
-fn test_file<T: UnitVariant + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
-    let (vm, unit) = self::run::<T>(src);
-    self::test_impl(src, expected, vm, unit)
+fn test_file<T: WordInstance + PartialEq + std::fmt::Debug + Clone>(src: &str, expected: T) {
+    let (vm, word) = self::run::<T>(src);
+    self::test_impl(src, expected, vm, word)
 }
 
 #[test]
@@ -236,7 +241,7 @@ fn comparison() {
 }
 
 #[test]
-fn control_flow() {
+fn control_flow_branches() {
     test_expr("(let a 0) (when true (set a 10)) a", 10);
     test_expr("(unless false true) 15", 15);
 
@@ -262,13 +267,14 @@ a",
 
 #[test]
 fn shadowing() {
-    test_expr(
+    test_file(
         "
-(let a 5)
-(let out a)
-(let a 10)
-(set out (+ out a))
-out",
+(proc main ()
+    (let a 5)
+    (let out a)
+    (let a 10)
+    (set out (+ out a))
+    out)",
         15,
     )
 }
@@ -319,5 +325,3 @@ fn user_function_call() {
         fib(10) as i32,
     );
 }
-
-// TODO: +=, -=, inc, dec, inc-mut?, dec-mut?

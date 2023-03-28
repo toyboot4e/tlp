@@ -7,9 +7,9 @@ mod tests;
 
 use std::fmt::{self, Write};
 
-use crate::vm::{Unit, UnitVariant, VmProcId};
+use crate::vm::{VmProcId, Word, WordInstance};
 
-/// Operational code, instruction to the stack-based virtual machine
+/// Operational code, instruction to the stack-based virtual machine.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
 #[repr(u8)]
 pub enum Op {
@@ -37,8 +37,8 @@ pub enum Op {
     ShiftBack8,
 
     // locals
-    PushLocalUnit8,
-    SetLocalUnit8,
+    PushLocalWord8,
+    SetLocalWord8,
 
     /// Jumps
     Jump16,
@@ -89,8 +89,8 @@ impl Op {
         match self {
             Op::PushConst8
             | Op::AllocFrame8
-            | Op::PushLocalUnit8
-            | Op::SetLocalUnit8
+            | Op::PushLocalWord8
+            | Op::SetLocalWord8
             | Op::ShiftBack8 => OpCodeOperands::One,
             Op::PushConst16
             | Op::AllocFrame16
@@ -116,8 +116,8 @@ impl Op {
             Op::AllocFrame8 => "alloc-frame-8",
             Op::AllocFrame16 => "alloc-frame-16",
             Op::ShiftBack8 => "shift-back-8",
-            Op::PushLocalUnit8 => "push-local-8",
-            Op::SetLocalUnit8 => "set-local-8",
+            Op::PushLocalWord8 => "push-local-8",
+            Op::SetLocalWord8 => "set-local-8",
             Op::Jump16 => "jump-16",
             Op::JumpIf16 => "jump-if-16",
             Op::JumpIfNot16 => "jump-if-not-16",
@@ -180,11 +180,11 @@ pub enum TypedLiteral {
 }
 
 impl TypedLiteral {
-    pub fn into_unit(&self) -> Unit {
+    pub fn into_word(&self) -> Word {
         match self {
-            Self::F32(x) => x.into_unit(),
-            Self::I32(x) => x.into_unit(),
-            Self::Bool(x) => x.into_unit(),
+            Self::F32(x) => x.into_word(),
+            Self::I32(x) => x.into_word(),
+            Self::Bool(x) => x.into_word(),
         }
     }
 }
@@ -192,7 +192,7 @@ impl TypedLiteral {
 /// Runtime literals
 #[derive(Debug, Clone, Default)]
 struct LiteralArena {
-    units: Vec<Unit>,
+    words: Vec<Word>,
 }
 
 /// Index to a literal table
@@ -204,17 +204,17 @@ pub struct LiteralIndex {
 impl LiteralArena {
     pub fn insert(&mut self, value: TypedLiteral) -> LiteralIndex {
         let idx = LiteralIndex {
-            raw: self.units.len(),
+            raw: self.words.len(),
         };
 
-        let unit = value.into_unit();
-        self.units.push(unit);
+        let word = value.into_word();
+        self.words.push(word);
 
         idx
     }
 
-    pub fn read(&self, idx: LiteralIndex) -> Unit {
-        self.units[idx.raw]
+    pub fn read(&self, idx: LiteralIndex) -> Word {
+        self.words[idx.raw]
     }
 }
 
@@ -335,13 +335,13 @@ impl Chunk {
 
     #[inline(always)]
     pub fn write_push_local_u8(&mut self, idx: u8) {
-        self.codes.push(Op::PushLocalUnit8 as u8);
+        self.codes.push(Op::PushLocalWord8 as u8);
         self.codes.push(idx);
     }
 
     #[inline(always)]
     pub fn write_set_local_u8(&mut self, idx: u8) {
-        self.codes.push(Op::SetLocalUnit8 as u8);
+        self.codes.push(Op::SetLocalWord8 as u8);
         self.codes.push(idx);
     }
 }
@@ -418,19 +418,19 @@ impl Chunk {
     }
 
     #[inline(always)]
-    pub fn read_literal(&self, idx: LiteralIndex) -> Unit {
+    pub fn read_literal(&self, idx: LiteralIndex) -> Word {
         self.literals.read(idx)
     }
 
     #[inline(always)]
-    pub fn read_literal_u8(&self, idx_u8: u8) -> Unit {
+    pub fn read_literal_u8(&self, idx_u8: u8) -> Word {
         let idx = LiteralIndex { raw: idx_u8.into() };
 
         self.read_literal(idx)
     }
 
     #[inline(always)]
-    pub fn read_literal_u16(&self, idx_u16: u16) -> Unit {
+    pub fn read_literal_u16(&self, idx_u16: u16) -> Word {
         let idx = LiteralIndex {
             raw: idx_u16.into(),
         };

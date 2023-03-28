@@ -12,7 +12,7 @@ use tlp::{
     compile::CompileResult,
     ir::{ir_diag::ItemDiagnostic, item, ty::ty_diag::TypeDiagnostic, InputFileExt, IrDb},
     util::diag::{self, Diagnostic},
-    vm::UnitVariant,
+    vm::WordInstance,
     Db,
 };
 
@@ -73,8 +73,8 @@ fn main() {
     let proc = tlp::vm::VmProcId(0);
 
     match vm.run_proc(proc) {
-        Ok(unit) => {
-            let res = u32::from_unit(unit);
+        Ok(word) => {
+            let res = u32::from_word(word);
             println!("=> {:?}", res);
         }
         Err(e) => {

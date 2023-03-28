@@ -5,7 +5,7 @@
 pub mod code;
 pub mod stack;
 
-mod unit_impls;
+mod word_impls;
 
 use std::ops;
 
@@ -17,15 +17,15 @@ use self::{code::*, stack::Stack};
 pub type Result<T, E = VmError> = std::result::Result<T, E>;
 
 /// Stack item
-pub type Unit = [u8; UNIT_SIZE];
+pub type Word = [u8; WORD_SIZE];
 
 /// Stack item size
-pub const UNIT_SIZE: usize = 8;
+pub const WORD_SIZE: usize = 8;
 
-/// [`Vm`] stack data unit
-pub trait UnitVariant {
-    fn from_unit(unit: Unit) -> Self;
-    fn into_unit(self) -> Unit;
+/// [`Vm`] stack data word
+pub trait WordInstance {
+    fn from_word(word: Word) -> Self;
+    fn into_word(self) -> Word;
 }
 
 #[derive(Debug, Error)]
@@ -80,7 +80,7 @@ pub struct Vm {
     stack: Stack,
 }
 
-pub fn run_proc(vm_proc: VmProc) -> Result<Unit> {
+pub fn run_proc(vm_proc: VmProc) -> Result<Word> {
     let mut procs = TiVec::new();
     let vm_proc_index = procs.push_and_get_key(vm_proc);
     let mut vm = Vm::new(procs);
@@ -96,14 +96,14 @@ impl Vm {
         }
     }
 
-    pub fn run_proc(&mut self, proc: VmProcId) -> Result<Unit> {
+    pub fn run_proc(&mut self, proc: VmProcId) -> Result<Word> {
         let res = self.bind(proc).run();
 
         debug_assert!(self.frames.is_empty(), "any call frame after run?");
         debug_assert!(
-            self.stack.units().is_empty(),
+            self.stack.words().is_empty(),
             "any value on stack after run?:\n{:?}",
-            self.stack.units()
+            self.stack.words()
         );
 
         res
@@ -134,8 +134,8 @@ impl Vm {
     }
 
     /// Stack bytes
-    pub fn units(&self) -> &[Unit] {
-        self.stack.units()
+    pub fn words(&self) -> &[Word] {
+        self.stack.words()
     }
 }
 
@@ -192,7 +192,7 @@ impl<'a> VmBind<'a> {
 
 /// Run
 impl<'a> VmBind<'a> {
-    fn run(&mut self) -> Result<Unit> {
+    fn run(&mut self) -> Result<Word> {
         // use the binded procedure's call frame
         self.frames.push(VmCallFrame { ip: 0 });
 
@@ -204,16 +204,16 @@ impl<'a> VmBind<'a> {
             match code {
                 Op::Ret => {
                     self.frames.pop();
-                    let unit = self.stack.pop().unwrap();
+                    let word = self.stack.pop().unwrap();
                     self.stack.pop_call_frame();
-                    return Ok(unit);
+                    return Ok(word);
                 }
 
                 Op::PushTrue => {
-                    self.stack.push(true.into_unit());
+                    self.stack.push(true.into_word());
                 }
                 Op::PushFalse => {
-                    self.stack.push(false.into_unit());
+                    self.stack.push(false.into_word());
                 }
                 Op::PushNone => {
                     self.stack.push(Default::default());
@@ -225,14 +225,14 @@ impl<'a> VmBind<'a> {
                 // constants
                 Op::PushConst8 => {
                     let const_ix = self.bump_u8();
-                    let unit = self.chunk().read_literal_u8(const_ix);
-                    self.stack.push(unit);
+                    let word = self.chunk().read_literal_u8(const_ix);
+                    self.stack.push(word);
                 }
 
                 Op::PushConst16 => {
                     let const_ix = self.bump_u16();
-                    let unit = self.chunk().read_literal_u16(const_ix);
-                    self.stack.push(unit);
+                    let word = self.chunk().read_literal_u16(const_ix);
+                    self.stack.push(word);
                 }
 
                 // call frame
@@ -252,16 +252,16 @@ impl<'a> VmBind<'a> {
                 }
 
                 // locals
-                Op::PushLocalUnit8 => {
+                Op::PushLocalWord8 => {
                     let local_ix = self.bump_u8();
                     let local = self.stack.read_local_u8(local_ix);
                     self.stack.push(local);
                 }
 
-                Op::SetLocalUnit8 => {
+                Op::SetLocalWord8 => {
                     let local_ix = self.bump_u8();
-                    let unit = self.stack.pop().unwrap();
-                    self.stack.set_local_u8(local_ix, unit);
+                    let word = self.stack.pop().unwrap();
+                    self.stack.set_local_u8(local_ix, word);
                 }
 
                 // jump
@@ -271,14 +271,14 @@ impl<'a> VmBind<'a> {
                 }
                 Op::JumpIf16 => {
                     let ip = self.bump_u16();
-                    let b = bool::from_unit(self.stack.pop().unwrap());
+                    let b = bool::from_word(self.stack.pop().unwrap());
                     if b {
                         self.set_ip(ip as usize);
                     }
                 }
                 Op::JumpIfNot16 => {
                     let ip = self.bump_u16();
-                    let b = bool::from_unit(self.stack.pop().unwrap());
+                    let b = bool::from_word(self.stack.pop().unwrap());
                     if !b {
                         self.set_ip(ip as usize);
                     }
@@ -292,19 +292,19 @@ impl<'a> VmBind<'a> {
                     // TODO: re-consider if we separate call frame operation here
                     // self.frames.push(VmCallFrame { ip: 0, proc_id });
 
-                    let unit = VmBind {
+                    let word = VmBind {
                         procs: self.procs,
                         proc_id,
                         frames: self.frames,
                         stack: self.stack,
                     }
                     .run()?;
-                    self.stack.push(unit);
+                    self.stack.push(word);
                 }
 
                 // `f32` operators (builtin)
                 Op::NegF32 => {
-                    self.unit_op(|x: f32| -x)
+                    self.word_op(|x: f32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
                 }
                 op @ Op::AddF32 => {
@@ -322,7 +322,7 @@ impl<'a> VmBind<'a> {
 
                 // `i32` operators (builtin)
                 Op::NegI32 => {
-                    self.unit_op(|x: i32| -x)
+                    self.word_op(|x: i32| -x)
                         .map_err(|_| VmError::NothingToNegate)?;
                 }
                 op @ Op::AddI32 => {
@@ -393,21 +393,21 @@ impl<'a> VmBind<'a> {
     }
 
     /// Pushes binary operator to the stack
-    fn unit_op<T: UnitVariant>(&mut self, oper: impl Fn(T) -> T) -> Result<(), ()> {
-        let unit = self.stack.pop().ok_or(())?;
-        let out_unit = unit_unary_oper::<T>(unit, oper);
-        self.stack.push(out_unit);
+    fn word_op<T: WordInstance>(&mut self, oper: impl Fn(T) -> T) -> Result<(), ()> {
+        let word = self.stack.pop().ok_or(())?;
+        let out_word = word_unary_oper::<T>(word, oper);
+        self.stack.push(out_word);
 
         Ok(())
     }
 
     /// Pushes binary operator to the stack
-    fn binary_op<T: UnitVariant>(&mut self, op: Op, oper: impl Fn(T, T) -> T) -> Result<()> {
+    fn binary_op<T: WordInstance>(&mut self, op: Op, oper: impl Fn(T, T) -> T) -> Result<()> {
         self.binary_op_2::<T, T>(op, oper)
     }
 
     /// Pushes binary operator to the stack
-    fn binary_op_2<T: UnitVariant, Res: UnitVariant>(
+    fn binary_op_2<T: WordInstance, Res: WordInstance>(
         &mut self,
         op: Op,
         oper: impl Fn(T, T) -> Res,
@@ -415,22 +415,22 @@ impl<'a> VmBind<'a> {
         let y = self.stack.pop().ok_or_else(|| VmError::EobWhileOp { op })?;
         let x = self.stack.pop().ok_or_else(|| VmError::EobWhileOp { op })?;
 
-        let out_unit = Res::into_unit(oper(T::from_unit(x), T::from_unit(y)));
-        self.stack.push(out_unit);
+        let out_word = Res::into_word(oper(T::from_word(x), T::from_word(y)));
+        self.stack.push(out_word);
 
         Ok(())
     }
 }
 
-pub fn unit_unary_oper<T: UnitVariant>(x: Unit, f: impl Fn(T) -> T) -> Unit {
-    let x = T::from_unit(x);
+pub fn word_unary_oper<T: WordInstance>(x: Word, f: impl Fn(T) -> T) -> Word {
+    let x = T::from_word(x);
     let out = f(x);
-    T::into_unit(out)
+    T::into_word(out)
 }
 
-pub fn unit_binary_oper<T: UnitVariant>(x: Unit, y: Unit, f: impl Fn(T, T) -> T) -> Unit {
-    let x = T::from_unit(x);
-    let y = T::from_unit(y);
+pub fn word_binary_oper<T: WordInstance>(x: Word, y: Word, f: impl Fn(T, T) -> T) -> Word {
+    let x = T::from_word(x);
+    let y = T::from_word(y);
     let out = f(x, y);
-    T::into_unit(out)
+    T::into_word(out)
 }

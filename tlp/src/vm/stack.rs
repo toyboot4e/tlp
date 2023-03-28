@@ -1,11 +1,11 @@
 //! Stack
 
-use crate::vm::Unit;
+use crate::vm::Word;
 
-/// Stack of [`Unit`] s
+/// Stack of [`Word`] s
 #[derive(Debug, Clone)]
 pub struct Stack {
-    units: Vec<Unit>,
+    words: Vec<Word>,
     frames: Vec<CallFrame>,
 }
 
@@ -34,13 +34,13 @@ impl Stack {
         let root_frame = CallFrame::default();
 
         Self {
-            units: Vec::new(),
+            words: Vec::new(),
             frames: vec![root_frame],
         }
     }
 
-    pub fn units(&self) -> &[Unit] {
-        &self.units
+    pub fn words(&self) -> &[Word] {
+        &self.words
     }
 
     /// Returns index to the beginning of temporary variables
@@ -49,36 +49,36 @@ impl Stack {
         frame.offset + frame.n_args + frame.n_locals
     }
 
-    pub fn push(&mut self, unit: Unit) {
-        self.units.push(unit);
+    pub fn push(&mut self, word: Word) {
+        self.words.push(word);
     }
 
-    pub fn pop(&mut self) -> Option<Unit> {
+    pub fn pop(&mut self) -> Option<Word> {
         debug_run(|| {
-            let n = self.units.len();
+            let n = self.words.len();
             if n <= self.tmp_offset() {
                 panic!(
                     "invalid pop detected\ntmp offset: {}\ncall frames: {:?}\nstack: {:?}",
                     self.tmp_offset(),
                     self.frames,
-                    self.units
+                    self.words
                 );
             }
         });
 
-        self.units.pop()
+        self.words.pop()
     }
 
-    pub fn peek(&mut self) -> Option<&Unit> {
-        self.units.last()
+    pub fn peek(&mut self) -> Option<&Word> {
+        self.words.last()
     }
 
     /// Pushes a runtime call frame, but without including the arguments
     pub fn push_call_frame(&mut self, n_locals: usize) {
-        let offset = self.units.len();
+        let offset = self.words.len();
 
         for _ in 0..n_locals {
-            self.units.push(Unit::default());
+            self.words.push(Word::default());
         }
 
         let frame = CallFrame {
@@ -104,25 +104,25 @@ impl Stack {
             .pop()
             .unwrap_or_else(|| panic!("bug: tried to pop call frame but none"));
 
-        let new_len = self.units.len() - (frame.n_args + frame.n_locals);
+        let new_len = self.words.len() - (frame.n_args + frame.n_locals);
 
         assert_eq!(
             new_len, frame.offset,
             "wrong stack length on pop.\ncall frame: {:?}\nstack: {:?}",
-            frame, self.units,
+            frame, self.words,
         );
 
-        self.units.truncate(new_len);
+        self.words.truncate(new_len);
     }
 
-    pub fn set_local_u8(&mut self, index: u8, unit: Unit) {
+    pub fn set_local_u8(&mut self, index: u8, word: Word) {
         let frame = self.frames.last().unwrap();
         // REMARK:
         let i = frame.offset + frame.n_args + index as usize;
-        self.units[i] = unit;
+        self.words[i] = word;
     }
 
-    pub fn read_local_u8(&mut self, local_index: u8) -> Unit {
+    pub fn read_local_u8(&mut self, local_index: u8) -> Word {
         let frame = self.frames.last().unwrap();
 
         debug_run(|| {
@@ -134,12 +134,12 @@ impl Stack {
             );
 
             assert!(
-                frame.offset + frame.n_vars() <= self.units.len(),
+                frame.offset + frame.n_vars() <= self.words.len(),
                 "maybe popped too much"
             );
         });
 
         let i = frame.offset + local_index as usize;
-        self.units[i]
+        self.words[i]
     }
 }
